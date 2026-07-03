@@ -1,28 +1,41 @@
 import { useEffect, useState, useCallback } from "react";
 
 export type SboEvent = { ts: number };
+export type Friend = { code: string; nickname: string; streak: number; avatar: string };
+export type Clan = { name: string; tag: string; members: { nickname: string; streak: number }[] };
 export type SboState = {
   nickname: string;
+  friendCode: string;
   events: SboEvent[];
-  friends: { nickname: string; streak: number; avatar: string }[];
+  friends: Friend[];
+  clan: Clan | null;
   dailyLimit: number;
+  useAdaptiveLimit: boolean;
+  notificationsEnabled: boolean;
+  streakReminders: boolean;
+  encouragementReminders: boolean;
   onboarded: boolean;
 };
 
-const KEY = "sbo-state-v1";
+const KEY = "sbo-state-v2";
 
-const DEFAULT_FRIENDS = [
-  { nickname: "moonwalker", streak: 14, avatar: "🌙" },
-  { nickname: "iron_will", streak: 7, avatar: "⚔️" },
-  { nickname: "zenmaster", streak: 32, avatar: "🧘" },
-  { nickname: "phoenix", streak: 3, avatar: "🔥" },
+const DEFAULT_FRIENDS: Friend[] = [
+  { code: "MOON42", nickname: "moonwalker", streak: 14, avatar: "🌙" },
+  { code: "IRON99", nickname: "iron_will", streak: 7, avatar: "⚔️" },
+  { code: "ZEN777", nickname: "zenmaster", streak: 32, avatar: "🧘" },
 ];
 
 const defaultState: SboState = {
   nickname: "",
+  friendCode: "",
   events: [],
   friends: DEFAULT_FRIENDS,
+  clan: null,
   dailyLimit: 3,
+  useAdaptiveLimit: true,
+  notificationsEnabled: true,
+  streakReminders: true,
+  encouragementReminders: true,
   onboarded: false,
 };
 
