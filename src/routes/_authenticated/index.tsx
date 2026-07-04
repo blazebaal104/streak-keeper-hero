@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -13,7 +13,10 @@ import { Slider } from "@/components/ui/slider";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Droplets, Flame, CalendarDays, Users, Undo2, Sparkles, TrendingUp, Settings, Copy, UserPlus, Shield, X, LogOut, MessageCircle, Send, User as UserIcon, Trash2 } from "lucide-react";
+import {
+  Plus, Droplets, Flame, CalendarDays, Users, Undo2, Sparkles, TrendingUp, Settings, Copy, UserPlus, Shield, X, LogOut,
+  MessageCircle, Send, Trash2, Camera, Lock, Crown, Star, UserMinus, Check, Bell,
+} from "lucide-react";
 import logo from "@/assets/sbo-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -21,11 +24,14 @@ import {
   useBadges, checkStreakBadges, useFriends, useAddFriendByCode, useRemoveFriend,
   useClan, useClanMembers, useCreateClan, useJoinClanByTag, useLeaveClan,
   useDirectMessages, useSendDirectMessage, useClanMessages, useSendClanMessage,
+  useIncomingInvites, useSendClanInvite, useAcceptInvite, useDeclineInvite,
+  useSetClanRole, useKickClanMember, useEventsOf, useBadgesOf,
   countToday, countThisMonth, computeStreak, eventsByDay, adaptiveLimit,
-  type Profile, type Badge,
+  type Profile, type Badge, type FriendRow,
 } from "@/lib/sbo-cloud";
 import { STREAK_BADGES, badgeByThreshold, tierLabel, type BadgeDef } from "@/lib/sbo-badges";
 import { encourage, slowdown, restart } from "@/lib/sbo-phrases";
+import { ensureNotificationPermission, notify, scheduleStreakReminder, CLAN_ROLE_LABEL, compressImageToDataUrl } from "@/lib/sbo-notifications";
 
 const AVATAR_CHOICES = ["💧","🌊","⚡","🌟","🔥","🌙","⚔️","👑","🐉","🦁","🐺","🦅","🌸","🍀","🎯","🧊","☄️","🌈"];
 
@@ -42,6 +48,7 @@ function SboApp() {
   const friendsQ = useFriends(userId);
   const clanQ = useClan(profileQ.data?.clan_id);
   const clanMembersQ = useClanMembers(profileQ.data?.clan_id);
+  const invitesQ = useIncomingInvites(userId);
 
   const addEvent = useAddEvent(userId);
   const undoLast = useUndoLastEvent(userId);
@@ -53,17 +60,22 @@ function SboApp() {
   const leaveClan = useLeaveClan(userId);
 
   const [showProfile, setShowProfile] = useState(false);
+  const [showInventory, setShowInventory] = useState<{ slot: 0 | 1 | 2 } | false>(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [showClanModal, setShowClanModal] = useState(false);
+  const [showClanInviteFriend, setShowClanInviteFriend] = useState(false);
   const [chatWith, setChatWith] = useState<Profile | null>(null);
   const [showClanChat, setShowClanChat] = useState(false);
+  const [viewFriend, setViewFriend] = useState<Profile | null>(null);
+  const [showInvites, setShowInvites] = useState(false);
   const [bursts, setBursts] = useState<number[]>([]);
 
   const profile = profileQ.data;
   const events = eventsQ.data ?? [];
   const badges = badgesQ.data ?? [];
   const friends = friendsQ.data ?? [];
+  const invites = invitesQ.data ?? [];
 
   const today = countToday(events);
   const month = countThisMonth(events);
@@ -71,17 +83,53 @@ function SboApp() {
   const limit = profile ? (profile.use_adaptive_limit ? adaptiveLimit(events, profile.daily_limit) : profile.daily_limit) : 3;
   const byDay = useMemo(() => eventsByDay(events), [events]);
 
-  // Trigger streak-badge check daily & on load
+  // Streak-badge check
   useEffect(() => {
     if (!userId) return;
     checkStreakBadges(userId).catch(() => {});
   }, [userId, events.length]);
 
+  // Notifications: permission + streak reminder
+  useEffect(() => {
+    if (!profile) return;
+    ensureNotificationPermission();
+    const cleanup = scheduleStreakReminder(() => ({ streak, countToday: today, username: profile.username }));
+    return cleanup;
+  }, [profile, streak, today]);
+
+  // Realtime notifications: new DMs, invites, badges
+  useEffect(() => {
+    if (!userId) return;
+    const ch = supabase
+      .channel(`notify:${userId}`)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages", filter: `recipient_id=eq.${userId}` }, (p) => {
+        const m = p.new as { sender_id: string; content: string };
+        if (chatWith?.id === m.sender_id) return; // already looking at chat
+        supabase.from("profiles").select("username").eq("id", m.sender_id).maybeSingle().then(({ data }) => {
+          const from = data?.username ?? "Un amico";
+          toast(`💬 ${from}`, { description: m.content });
+          notify(`💬 ${from}`, m.content, `dm-${m.sender_id}`);
+        });
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "clan_invites", filter: `to_user_id=eq.${userId}` }, () => {
+        toast("🛡️ Nuovo invito al clan!", { description: "Apri gli inviti per rispondere." });
+        notify("🛡️ Invito al clan", "Qualcuno ti ha invitato in un clan.", "clan-invite");
+      })
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "friendships" }, (p) => {
+        const m = p.new as { user_a: string; user_b: string };
+        if (m.user_a === userId || m.user_b === userId) {
+          toast("👥 Nuovo amico aggiunto!");
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [userId, chatWith?.id]);
+
   const handleAdd = async () => {
     await addEvent.mutateAsync();
     const id = Date.now();
     setBursts((b) => [...b, id]);
-    setTimeout(() => setBursts((b) => b.filter((x) => x !== id)), 2200);
+    setTimeout(() => setBursts((b) => b.filter((x) => x !== id)), 2400);
 
     const newToday = today + 1;
     const name = profile?.username ?? "";
@@ -125,11 +173,7 @@ function SboApp() {
       {/* Header */}
       <header className="mx-auto flex max-w-3xl items-center justify-between px-6 pt-8 pb-4">
         <button className="flex items-center gap-3 text-left" onClick={() => setShowProfile(true)} aria-label="Apri profilo">
-          <div className="relative">
-            <div className="flex h-11 w-11 items-center justify-center rounded-full text-2xl border-2 border-primary/40 bg-card/60 backdrop-blur">
-              {profile.avatar}
-            </div>
-          </div>
+          <AvatarView profile={profile} size={44} className="border-2 border-primary/40" />
           <div>
             <h1 className="text-lg font-bold tracking-tight leading-tight">{profile.username}</h1>
             <p className="text-[11px] text-muted-foreground font-mono">{profile.friend_code}</p>
@@ -140,6 +184,10 @@ function SboApp() {
             <Flame className="h-4 w-4 text-accent" />
             <span className="text-sm font-semibold">{streak}</span>
           </div>
+          <Button variant="ghost" size="icon" className="relative rounded-full border border-border bg-card/60 backdrop-blur" onClick={() => setShowInvites(true)} aria-label="Notifiche">
+            <Bell className="h-4 w-4" />
+            {invites.length > 0 && <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 rounded-full bg-destructive text-[10px] font-bold text-white grid place-items-center px-1">{invites.length}</span>}
+          </Button>
           <Button variant="ghost" size="icon" className="rounded-full border border-border bg-card/60 backdrop-blur" onClick={() => setShowSettings(true)} aria-label="Impostazioni">
             <Settings className="h-4 w-4" />
           </Button>
@@ -162,10 +210,10 @@ function SboApp() {
               <Stat label={profile.use_adaptive_limit ? "Limite adattivo" : "Limite"} value={limit} icon={profile.use_adaptive_limit ? <TrendingUp className="h-3.5 w-3.5" /> : undefined} />
             </div>
 
-            {/* Equipped badges strip */}
+            {/* Equipped badge strip: always 3 slot buttons that open inventory */}
             <div className="flex items-center justify-center gap-4">
               {equipped.map((b, i) => (
-                <BadgeSlot key={i} def={b} onClick={() => setShowProfile(true)} />
+                <BadgeSlot key={i} def={b} onClick={() => setShowInventory({ slot: i as 0 | 1 | 2 })} />
               ))}
             </div>
 
@@ -220,7 +268,6 @@ function SboApp() {
 
           {/* SOCIAL */}
           <TabsContent value="friends" className="mt-8 space-y-6">
-            {/* Friend code card */}
             <Card className="border-border/50 bg-card/60 p-5 backdrop-blur">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Il tuo codice amico</p>
               <div className="mt-2 flex items-center gap-2">
@@ -230,7 +277,6 @@ function SboApp() {
                   toast("📋 Codice copiato!");
                 }}><Copy className="mr-1.5 h-3.5 w-3.5" /> Copia</Button>
               </div>
-              <p className="mt-2 text-[11px] text-muted-foreground">Condividilo con chi vuoi aggiungere. Ogni codice è unico.</p>
             </Card>
 
             {/* Clan */}
@@ -238,36 +284,20 @@ function SboApp() {
               <div className="mb-2 flex items-center justify-between px-2">
                 <p className="text-xs uppercase tracking-wider text-muted-foreground">Clan</p>
                 {profile.clan_id && clanQ.data && (
-                  <button className="text-xs text-muted-foreground hover:text-destructive" onClick={async () => { await leaveClan.mutateAsync(); toast("Hai lasciato il clan"); }}>
+                  <button className="text-xs text-muted-foreground hover:text-destructive" onClick={async () => { if (confirm("Uscire dal clan?")) { await leaveClan.mutateAsync(); toast("Hai lasciato il clan"); } }}>
                     <X className="mr-1 inline h-3 w-3" /> esci
                   </button>
                 )}
               </div>
               {profile.clan_id && clanQ.data ? (
-                <Card className="border-border/50 bg-card/60 p-5 backdrop-blur">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-primary">
-                      <Shield className="h-5 w-5 text-primary-foreground" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-xs text-muted-foreground">[{clanQ.data.tag}]</p>
-                      <p className="text-lg font-bold">{clanQ.data.name}</p>
-                    </div>
-                    <Button size="sm" variant="secondary" onClick={() => setShowClanChat(true)}>
-                      <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Chat
-                    </Button>
-                  </div>
-                  <div className="mt-4 space-y-1.5">
-                    {(clanMembersQ.data ?? []).map((m) => (
-                      <div key={m.id} className="flex items-center justify-between rounded-lg bg-background/30 px-3 py-2 text-sm">
-                        <span className="flex items-center gap-2">
-                          <span className="text-lg">{m.avatar}</span>
-                          <span className={m.id === userId ? "font-semibold" : ""}>{m.username}{m.id === userId ? " (tu)" : ""}</span>
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </Card>
+                <ClanCard
+                  clan={clanQ.data}
+                  members={clanMembersQ.data ?? []}
+                  meId={userId!}
+                  myRole={profile.clan_role}
+                  onOpenChat={() => setShowClanChat(true)}
+                  onInvite={() => setShowClanInviteFriend(true)}
+                />
               ) : (
                 <Card className="border-dashed border-border bg-transparent p-5 text-center">
                   <Shield className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
@@ -293,21 +323,10 @@ function SboApp() {
               ) : (
                 <div className="space-y-2">
                   {friends.map((f) => (
-                    <Card key={f.friend_id} className="border-border/50 bg-card/60 p-4 backdrop-blur">
-                      <div className="flex items-center gap-3">
-                        <span className="text-2xl">{f.profile.avatar}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{f.profile.username}</p>
-                          <p className="font-mono text-[10px] text-muted-foreground">{f.profile.friend_code}</p>
-                        </div>
-                        <Button size="sm" variant="secondary" onClick={() => setChatWith(f.profile)}>
-                          <MessageCircle className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => { if (confirm(`Rimuovere ${f.profile.username}?`)) removeFriend.mutate(f.friend_id); }}>
-                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                        </Button>
-                      </div>
-                    </Card>
+                    <FriendRowCard key={f.friend_id} row={f}
+                      onOpenProfile={() => setViewFriend(f.profile)}
+                      onChat={() => setChatWith(f.profile)}
+                      onRemove={() => { if (confirm(`Rimuovere ${f.profile.username}?`)) removeFriend.mutate(f.friend_id); }} />
                   ))}
                 </div>
               )}
@@ -324,7 +343,26 @@ function SboApp() {
         badges={badges}
         onUpdate={(patch) => updateProfile.mutate(patch)}
         onSignOut={handleSignOut}
+        onOpenInventory={(slot) => { setShowProfile(false); setShowInventory({ slot }); }}
       />
+
+      {/* INVENTORY */}
+      {showInventory !== false && (
+        <InventoryDialog
+          slot={showInventory.slot}
+          profile={profile}
+          badges={badges}
+          onClose={() => setShowInventory(false)}
+          onEquip={(badgeId) => {
+            const patch: Partial<Profile> = {};
+            if (showInventory.slot === 0) patch.slot_1 = badgeId;
+            if (showInventory.slot === 1) patch.slot_2 = badgeId;
+            if (showInventory.slot === 2) patch.slot_3 = badgeId;
+            updateProfile.mutate(patch);
+            setShowInventory(false);
+          }}
+        />
+      )}
 
       {/* SETTINGS */}
       <Dialog open={showSettings} onOpenChange={setShowSettings}>
@@ -353,10 +391,17 @@ function SboApp() {
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
               <div>
                 <Label>Notifiche di incoraggiamento</Label>
-                <p className="text-xs text-muted-foreground">Frasi motivazionali quando premi il pulsante</p>
+                <p className="text-xs text-muted-foreground">Toast in-app e promemoria streak</p>
               </div>
               <Switch checked={profile.notifications_enabled} onCheckedChange={(v) => updateProfile.mutate({ notifications_enabled: v })} />
             </div>
+            <Button variant="secondary" className="w-full" onClick={async () => {
+              const p = await ensureNotificationPermission();
+              if (p === "granted") toast.success("Notifiche attivate 🔔");
+              else toast.error("Notifiche negate dal browser");
+            }}>
+              <Bell className="mr-2 h-4 w-4" /> Attiva notifiche del sistema
+            </Button>
           </div>
           <DialogFooter><Button className="w-full" onClick={() => setShowSettings(false)}>Fatto</Button></DialogFooter>
         </DialogContent>
@@ -368,19 +413,35 @@ function SboApp() {
           const name = await addFriend.mutateAsync(code);
           toast.success(`✅ ${name} aggiunto!`);
           setShowAddFriend(false);
-        } catch (e: any) { toast.error(e.message ?? "Errore"); }
+        } catch (e: unknown) { toast.error((e as Error).message ?? "Errore"); }
       }} />
 
       {/* CLAN MODAL */}
       <ClanDialog open={showClanModal} onClose={() => setShowClanModal(false)}
         onCreate={async (name, tag) => {
           try { await createClan.mutateAsync({ name, tag }); toast.success(`🛡️ Clan [${tag}] ${name} creato!`); setShowClanModal(false); }
-          catch (e: any) { toast.error(e.message?.includes("duplicate") ? "Tag già usato" : e.message); }
+          catch (e: unknown) { const m = (e as Error).message; toast.error(m?.includes("duplicate") ? "Tag già usato" : m); }
         }}
         onJoin={async (tag) => {
           try { const c = await joinClan.mutateAsync(tag); toast.success(`Ti sei unito a ${c.name}!`); setShowClanModal(false); }
-          catch (e: any) { toast.error(e.message); }
+          catch (e: unknown) { toast.error((e as Error).message); }
         }} />
+
+      {/* CLAN INVITE FRIEND */}
+      {showClanInviteFriend && profile.clan_id && clanQ.data && (
+        <InviteFriendToClanDialog
+          userId={userId!}
+          clanId={profile.clan_id}
+          clanName={clanQ.data.name}
+          myName={profile.username}
+          friends={friends}
+          existingMemberIds={new Set((clanMembersQ.data ?? []).map((m) => m.id))}
+          onClose={() => setShowClanInviteFriend(false)}
+        />
+      )}
+
+      {/* INCOMING INVITES */}
+      <InvitesDialog open={showInvites} onClose={() => setShowInvites(false)} />
 
       {/* DIRECT CHAT */}
       {chatWith && userId && (
@@ -391,11 +452,26 @@ function SboApp() {
       {showClanChat && profile.clan_id && userId && (
         <ClanChatDialog clanId={profile.clan_id} userId={userId} clanName={clanQ.data?.name ?? "Clan"} members={clanMembersQ.data ?? []} onClose={() => setShowClanChat(false)} />
       )}
+
+      {/* FRIEND PROFILE */}
+      {viewFriend && <FriendProfileDialog friend={viewFriend} onClose={() => setViewFriend(null)} onChat={() => { setChatWith(viewFriend); setViewFriend(null); }} />}
     </div>
   );
 }
 
 // ============ Sub-components ============
+
+function AvatarView({ profile, size = 44, className = "" }: { profile: { avatar: string; avatar_url: string | null }; size?: number; className?: string }) {
+  return (
+    <div className={`relative flex items-center justify-center overflow-hidden rounded-full bg-card/60 backdrop-blur ${className}`} style={{ width: size, height: size, fontSize: size * 0.55 }}>
+      {profile.avatar_url ? (
+        <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
+      ) : (
+        <span>{profile.avatar}</span>
+      )}
+    </div>
+  );
+}
 
 function Stat({ label, value, accent, icon }: { label: string; value: number; accent?: boolean; icon?: React.ReactNode }) {
   return (
@@ -409,13 +485,15 @@ function Stat({ label, value, accent, icon }: { label: string; value: number; ac
 function BadgeSlot({ def, onClick }: { def: BadgeDef | null; onClick?: () => void }) {
   if (!def) {
     return (
-      <button onClick={onClick} className="flex h-16 w-16 items-center justify-center rounded-2xl border-2 border-dashed border-border/60 text-muted-foreground text-xs">
-        +
+      <button onClick={onClick}
+        className="flex h-16 w-16 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-primary/50 text-primary/70 bg-card/40 backdrop-blur transition hover:bg-card/80 hover:scale-105">
+        <Plus className="h-5 w-5" />
+        <span className="text-[9px] mt-0.5 font-semibold">slot</span>
       </button>
     );
   }
   return (
-    <button onClick={onClick} className={`relative flex h-16 w-16 items-center justify-center rounded-2xl ring-2 ${def.ring}`} style={{ background: def.gradient }}>
+    <button onClick={onClick} className={`relative flex h-16 w-16 items-center justify-center rounded-2xl ring-2 ${def.ring} transition hover:scale-105`} style={{ background: def.gradient }}>
       <span className="text-3xl drop-shadow">{def.emoji}</span>
       {def.shiny && (
         <>
@@ -427,33 +505,153 @@ function BadgeSlot({ def, onClick }: { def: BadgeDef | null; onClick?: () => voi
   );
 }
 
-function ProfileDialog({ open, onClose, profile, badges, onUpdate, onSignOut }: {
+function FriendRowCard({ row, onOpenProfile, onChat, onRemove }: { row: FriendRow; onOpenProfile: () => void; onChat: () => void; onRemove: () => void }) {
+  const eventsQ = useEventsOf(row.friend_id);
+  const streak = computeStreak(eventsQ.data ?? []);
+  return (
+    <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
+      <div className="flex items-center gap-3">
+        <button onClick={onOpenProfile} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+          <AvatarView profile={row.profile} size={40} />
+          <div className="flex-1 min-w-0">
+            <p className="font-medium truncate">{row.profile.username}</p>
+            <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Flame className="h-3 w-3 text-accent" /> {streak} giorni
+            </p>
+          </div>
+        </button>
+        <Button size="sm" variant="secondary" onClick={onChat}><MessageCircle className="h-3.5 w-3.5" /></Button>
+        <Button size="sm" variant="ghost" onClick={onRemove}><Trash2 className="h-3.5 w-3.5 text-muted-foreground" /></Button>
+      </div>
+    </Card>
+  );
+}
+
+function ClanCard({ clan, members, meId, myRole, onOpenChat, onInvite }: {
+  clan: { id: string; name: string; tag: string; owner_id: string };
+  members: Profile[]; meId: string; myRole: Profile["clan_role"];
+  onOpenChat: () => void; onInvite: () => void;
+}) {
+  const setRole = useSetClanRole();
+  const kick = useKickClanMember();
+  const canInvite = myRole === "leader" || myRole === "co_leader" || myRole === "recruit";
+  const canKick = myRole === "leader";
+  const canPromote = myRole === "leader";
+
+  const sorted = [...members].sort((a, b) => {
+    const order = { leader: 0, co_leader: 1, recruit: 2 } as const;
+    return order[a.clan_role] - order[b.clan_role];
+  });
+
+  return (
+    <Card className="border-border/50 bg-card/60 p-5 backdrop-blur">
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-primary">
+          <Shield className="h-5 w-5 text-primary-foreground" />
+        </div>
+        <div className="flex-1">
+          <p className="text-xs text-muted-foreground">[{clan.tag}]</p>
+          <p className="text-lg font-bold">{clan.name}</p>
+        </div>
+        <Button size="sm" variant="secondary" onClick={onOpenChat}>
+          <MessageCircle className="mr-1.5 h-3.5 w-3.5" /> Chat
+        </Button>
+      </div>
+
+      {canInvite && (
+        <Button size="sm" className="w-full mt-3" variant="secondary" onClick={onInvite}>
+          <UserPlus className="mr-1.5 h-3.5 w-3.5" /> Invita un amico
+        </Button>
+      )}
+
+      <div className="mt-4 space-y-1.5">
+        {sorted.map((m) => (
+          <div key={m.id} className="flex items-center justify-between rounded-lg bg-background/30 px-3 py-2 text-sm">
+            <span className="flex items-center gap-2 min-w-0">
+              <AvatarView profile={m} size={28} />
+              <span className={`truncate ${m.id === meId ? "font-semibold" : ""}`}>{m.username}{m.id === meId ? " (tu)" : ""}</span>
+              <RoleBadge role={m.clan_role} />
+            </span>
+            {m.id !== meId && (canPromote || canKick) && (
+              <div className="flex gap-1">
+                {canPromote && m.clan_role === "recruit" && (
+                  <button title="Promuovi a Vice" className="p-1 rounded hover:bg-card" onClick={() => setRole.mutate({ target: m.id, role: "co_leader" })}>
+                    <Star className="h-3.5 w-3.5 text-amber-400" />
+                  </button>
+                )}
+                {canPromote && m.clan_role === "co_leader" && (
+                  <button title="Retrocedi a Recluta" className="p-1 rounded hover:bg-card" onClick={() => setRole.mutate({ target: m.id, role: "recruit" })}>
+                    <UserMinus className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                )}
+                {canKick && (
+                  <button title="Espelli" className="p-1 rounded hover:bg-destructive/20" onClick={() => { if (confirm(`Espellere ${m.username}?`)) kick.mutate(m.id); }}>
+                    <X className="h-3.5 w-3.5 text-destructive" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
+function RoleBadge({ role }: { role: Profile["clan_role"] }) {
+  const label = CLAN_ROLE_LABEL[role];
+  const cls = role === "leader" ? "bg-amber-500/25 text-amber-300 border-amber-400/40"
+    : role === "co_leader" ? "bg-primary/25 text-primary border-primary/40"
+    : "bg-muted/30 text-muted-foreground border-border";
+  const icon = role === "leader" ? <Crown className="h-3 w-3" /> : role === "co_leader" ? <Star className="h-3 w-3" /> : null;
+  return <span className={`ml-1 inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[9px] font-semibold ${cls}`}>{icon}{label}</span>;
+}
+
+function ProfileDialog({ open, onClose, profile, badges, onUpdate, onSignOut, onOpenInventory }: {
   open: boolean; onClose: () => void; profile: Profile; badges: Badge[];
   onUpdate: (p: Partial<Profile>) => void; onSignOut: () => void;
+  onOpenInventory: (slot: 0 | 1 | 2) => void;
 }) {
-  const [pickSlot, setPickSlot] = useState<0 | 1 | 2 | null>(null);
-
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
   const equipped = [profile.slot_1, profile.slot_2, profile.slot_3];
 
-  const setSlot = (idx: 0 | 1 | 2, badgeId: string | null) => {
-    const patch: Partial<Profile> = {};
-    if (idx === 0) patch.slot_1 = badgeId;
-    if (idx === 1) patch.slot_2 = badgeId;
-    if (idx === 2) patch.slot_3 = badgeId;
-    onUpdate(patch);
-    setPickSlot(null);
+  const handleFile = async (f: File) => {
+    setUploading(true);
+    try {
+      const url = await compressImageToDataUrl(f);
+      onUpdate({ avatar_url: url });
+      toast.success("Foto profilo aggiornata!");
+    } catch { toast.error("Impossibile caricare l'immagine"); }
+    finally { setUploading(false); }
   };
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="border-border bg-card max-w-md">
+      <DialogContent className="border-border bg-card max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Il tuo profilo</DialogTitle>
         </DialogHeader>
         <div className="space-y-5">
-          {/* Avatar picker */}
+          {/* Avatar */}
+          <div className="flex items-center gap-4">
+            <AvatarView profile={profile} size={72} className="border-2 border-primary/40" />
+            <div className="flex-1 space-y-2">
+              <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ""; }} />
+              <Button size="sm" variant="secondary" className="w-full" disabled={uploading} onClick={() => fileRef.current?.click()}>
+                <Camera className="mr-1.5 h-3.5 w-3.5" /> {uploading ? "Carico…" : "Carica foto"}
+              </Button>
+              {profile.avatar_url && (
+                <Button size="sm" variant="ghost" className="w-full text-xs" onClick={() => onUpdate({ avatar_url: null })}>
+                  Rimuovi foto
+                </Button>
+              )}
+            </div>
+          </div>
+
           <div>
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Avatar</Label>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Avatar emoji</Label>
             <div className="mt-2 grid grid-cols-9 gap-1">
               {AVATAR_CHOICES.map((a) => (
                 <button key={a} onClick={() => onUpdate({ avatar: a })}
@@ -462,13 +660,14 @@ function ProfileDialog({ open, onClose, profile, badges, onUpdate, onSignOut }: 
                 </button>
               ))}
             </div>
+            <p className="mt-1 text-[10px] text-muted-foreground">Usato quando non hai una foto.</p>
           </div>
 
           {/* Username display */}
           <div>
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">Username</Label>
             <p className="mt-1 text-lg font-semibold">{profile.username}</p>
-            <p className="text-[11px] text-muted-foreground">L'username non è modificabile una volta creato.</p>
+            <p className="text-[11px] text-muted-foreground">L'username non è modificabile dopo la creazione.</p>
           </div>
 
           {/* Friend code */}
@@ -477,75 +676,122 @@ function ProfileDialog({ open, onClose, profile, badges, onUpdate, onSignOut }: 
             <p className="mt-1 font-mono text-lg tracking-widest">{profile.friend_code}</p>
           </div>
 
-          {/* Equipped badge slots */}
+          {/* Slots (tap → inventory) */}
           <div>
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">Slot medaglie</Label>
+            <p className="text-[11px] text-muted-foreground">Tocca uno slot per scegliere dalla tua collezione.</p>
             <div className="mt-2 flex items-center justify-center gap-3">
               {[0, 1, 2].map((i) => {
                 const bid = equipped[i];
                 const b = bid ? badges.find((x) => x.id === bid) : null;
                 const def = b ? badgeByThreshold(b.threshold) ?? null : null;
-                return <BadgeSlot key={i} def={def} onClick={() => setPickSlot(i as 0 | 1 | 2)} />;
+                return <BadgeSlot key={i} def={def} onClick={() => onOpenInventory(i as 0 | 1 | 2)} />;
               })}
             </div>
           </div>
 
-          {/* Badge gallery */}
-          <div>
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Le tue medaglie ({badges.length})</Label>
-            {badges.length === 0 ? (
-              <p className="mt-2 text-sm text-muted-foreground text-center py-4">Nessuna medaglia ancora. Continua la tua streak per sbloccarne!</p>
-            ) : (
-              <div className="mt-2 grid grid-cols-4 gap-2">
-                {badges.map((b) => {
-                  const def = badgeByThreshold(b.threshold);
-                  if (!def) return null;
-                  return (
-                    <div key={b.id} className={`flex flex-col items-center gap-1 rounded-xl p-2 ring-2 ${def.ring}`} style={{ background: def.gradient }}>
-                      <span className="text-2xl">{def.emoji}</span>
-                      <span className="text-[10px] font-semibold text-white text-center leading-tight">{def.name}</span>
-                      <span className="text-[9px] text-white/80">{b.threshold}gg</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Streak progress towards next */}
           <StreakProgress badges={badges} />
 
           <Button variant="destructive" className="w-full" onClick={onSignOut}>
             <LogOut className="mr-2 h-4 w-4" /> Esci dall'account
           </Button>
         </div>
-
-        {/* Slot picker sub-dialog */}
-        <Dialog open={pickSlot !== null} onOpenChange={(v) => !v && setPickSlot(null)}>
-          <DialogContent className="border-border bg-card">
-            <DialogHeader>
-              <DialogTitle>Scegli medaglia per slot {pickSlot !== null ? pickSlot + 1 : ""}</DialogTitle>
-            </DialogHeader>
-            <div className="grid grid-cols-3 gap-2 max-h-72 overflow-auto">
-              <button onClick={() => pickSlot !== null && setSlot(pickSlot, null)} className="flex flex-col items-center gap-1 rounded-xl border-2 border-dashed border-border p-3 text-muted-foreground text-xs">
-                <X className="h-6 w-6" /> Nessuna
-              </button>
-              {badges.map((b) => {
-                const def = badgeByThreshold(b.threshold);
-                if (!def) return null;
-                return (
-                  <button key={b.id} onClick={() => pickSlot !== null && setSlot(pickSlot, b.id)}
-                    className={`flex flex-col items-center gap-1 rounded-xl p-3 ring-2 ${def.ring}`} style={{ background: def.gradient }}>
-                    <span className="text-2xl">{def.emoji}</span>
-                    <span className="text-[10px] font-semibold text-white">{def.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </DialogContent>
-        </Dialog>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function InventoryDialog({ slot, profile, badges, onClose, onEquip }: {
+  slot: 0 | 1 | 2; profile: Profile; badges: Badge[]; onClose: () => void; onEquip: (id: string | null) => void;
+}) {
+  const owned = new Set(badges.filter((b) => b.category === "streak").map((b) => b.threshold));
+  const equippedIds = new Set([profile.slot_1, profile.slot_2, profile.slot_3].filter(Boolean) as string[]);
+  const [preview, setPreview] = useState<BadgeDef | null>(null);
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="border-border bg-card max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Inventario medaglie — Slot {slot + 1}</DialogTitle>
+          <DialogDescription>Le medaglie che non hai sono in grigio. Toccale per vedere come sbloccarle.</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid grid-cols-3 gap-3">
+          <button onClick={() => onEquip(null)} className="flex flex-col items-center gap-1 rounded-xl border-2 border-dashed border-border p-3 text-muted-foreground text-xs hover:bg-card/50">
+            <X className="h-6 w-6" /> Nessuna
+          </button>
+          {STREAK_BADGES.map((def) => {
+            const ownedBadge = badges.find((b) => b.threshold === def.threshold);
+            const isOwned = !!ownedBadge && owned.has(def.threshold);
+            const isEquipped = ownedBadge && equippedIds.has(ownedBadge.id);
+            return (
+              <button
+                key={def.threshold}
+                onClick={() => isOwned && ownedBadge ? onEquip(ownedBadge.id) : setPreview(def)}
+                className={`relative flex flex-col items-center gap-1 rounded-xl p-3 ring-2 overflow-hidden transition hover:scale-[1.03] ${def.ring} ${isEquipped ? "outline outline-2 outline-primary" : ""}`}
+                style={{ background: def.gradient }}
+              >
+                {/* Locked overlay */}
+                {!isOwned && (
+                  <>
+                    <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px]" />
+                    <div className="absolute inset-0 pointer-events-none">
+                      <FloatingSparkles seed={def.threshold} count={4} />
+                    </div>
+                  </>
+                )}
+                <span className={`relative text-3xl ${!isOwned ? "grayscale opacity-60" : ""}`}>{def.emoji}</span>
+                <span className={`relative text-[10px] font-semibold text-center leading-tight ${isOwned ? "text-white" : "text-white/80"}`}>{def.name}</span>
+                <span className={`relative text-[9px] ${isOwned ? "text-white/80" : "text-white/60"}`}>{def.threshold}gg</span>
+                {!isOwned && <Lock className="absolute top-1.5 right-1.5 h-3.5 w-3.5 text-white/90" />}
+                {isEquipped && <span className="absolute top-1 left-1 text-[9px] bg-primary text-primary-foreground px-1 py-0.5 rounded">Equipaggiata</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Locked-preview sub-dialog */}
+        {preview && (
+          <Dialog open onOpenChange={(v) => !v && setPreview(null)}>
+            <DialogContent className="border-border bg-card overflow-hidden">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2"><Lock className="h-4 w-4" /> {preview.name} — {tierLabel(preview.tier)}</DialogTitle>
+              </DialogHeader>
+              <div className="relative flex flex-col items-center justify-center py-8 overflow-hidden rounded-xl" style={{ background: preview.gradient }}>
+                <div className="absolute inset-0 pointer-events-none">
+                  <FloatingSparkles seed={preview.threshold} count={14} />
+                </div>
+                <motion.div animate={{ y: [0, -8, 0], rotate: [0, 6, -6, 0] }} transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  className="relative text-7xl grayscale opacity-70">{preview.emoji}</motion.div>
+                <p className="relative mt-4 text-white font-bold text-lg drop-shadow">{preview.name}</p>
+                <p className="relative text-white/80 text-sm">Non ancora sbloccata</p>
+              </div>
+              <div className="rounded-lg border border-border p-4 text-sm">
+                <p className="font-semibold mb-1">Come ottenerla</p>
+                <p className="text-muted-foreground">Mantieni una streak di <b>{preview.threshold} giorni</b> senza registrare eventi.</p>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function FloatingSparkles({ seed, count = 8 }: { seed: number; count?: number }) {
+  const rnd = (i: number) => { const x = Math.sin(seed * 13 + i * 991) * 10000; return x - Math.floor(x); };
+  return (
+    <>
+      {Array.from({ length: count }, (_, i) => (
+        <motion.span key={i}
+          initial={{ opacity: 0, y: 0 }}
+          animate={{ opacity: [0, 1, 0], y: -30 }}
+          transition={{ duration: 2 + rnd(i) * 2, delay: rnd(i + 50) * 2, repeat: Infinity, ease: "easeOut" }}
+          className="absolute text-yellow-100"
+          style={{ left: `${rnd(i + 100) * 100}%`, bottom: `${rnd(i + 200) * 100}%`, fontSize: 8 + rnd(i + 300) * 8 }}>
+          ✦
+        </motion.span>
+      ))}
+    </>
   );
 }
 
@@ -606,10 +852,154 @@ function ClanDialog({ open, onClose, onCreate, onJoin }: { open: boolean; onClos
             <Button className="w-full" onClick={() => onCreate(name.trim(), tag.trim())} disabled={name.trim().length < 3 || tag.trim().length < 2}>Crea clan</Button>
           </TabsContent>
           <TabsContent value="join" className="space-y-3 mt-4">
-            <div><Label>Tag del clan da unirti</Label><Input value={joinTag} onChange={(e) => setJoinTag(e.target.value.toUpperCase().slice(0, 5))} className="font-mono uppercase" placeholder="ABC" /></div>
+            <div><Label>Tag del clan a cui unirti</Label><Input value={joinTag} onChange={(e) => setJoinTag(e.target.value.toUpperCase().slice(0, 5))} className="font-mono uppercase" placeholder="ABC" /></div>
             <Button className="w-full" onClick={() => onJoin(joinTag.trim())} disabled={joinTag.trim().length < 2}>Unisciti</Button>
           </TabsContent>
         </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InviteFriendToClanDialog({ userId, clanId, clanName, myName, friends, existingMemberIds, onClose }: {
+  userId: string; clanId: string; clanName: string; myName: string;
+  friends: FriendRow[]; existingMemberIds: Set<string>; onClose: () => void;
+}) {
+  const send = useSendClanInvite(userId);
+  const available = friends.filter((f) => !existingMemberIds.has(f.friend_id));
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="border-border bg-card">
+        <DialogHeader>
+          <DialogTitle>Invita un amico nel clan</DialogTitle>
+          <DialogDescription>Riceverà un messaggio privato con il tuo invito.</DialogDescription>
+        </DialogHeader>
+        {available.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">Tutti i tuoi amici sono già nel clan, o non ne hai ancora.</p>
+        ) : (
+          <div className="space-y-2 max-h-80 overflow-auto">
+            {available.map((f) => (
+              <div key={f.friend_id} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                <AvatarView profile={f.profile} size={36} />
+                <p className="flex-1 font-medium truncate">{f.profile.username}</p>
+                <Button size="sm" onClick={async () => {
+                  try { await send.mutateAsync({ clanId, toUserId: f.friend_id, myName, clanName }); toast.success(`Invito inviato a ${f.profile.username}`); }
+                  catch { toast.error("Invito già presente o errore"); }
+                }}>Invita</Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InvitesDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { userId } = useAuthUser();
+  const invitesQ = useIncomingInvites(userId);
+  const accept = useAcceptInvite();
+  const decline = useDeclineInvite();
+  const invites = invitesQ.data ?? [];
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="border-border bg-card">
+        <DialogHeader>
+          <DialogTitle>Notifiche</DialogTitle>
+          <DialogDescription>Inviti al clan in attesa.</DialogDescription>
+        </DialogHeader>
+        {invites.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6">Nessun invito in sospeso.</p>
+        ) : (
+          <div className="space-y-2">
+            {invites.map((inv) => <InviteRow key={inv.id} inviteId={inv.id} clanId={inv.clan_id} fromId={inv.from_user_id}
+              onAccept={async () => { try { await accept.mutateAsync(inv.id); toast.success("Ti sei unito al clan!"); } catch (e: unknown) { toast.error((e as Error).message); } }}
+              onDecline={async () => { await decline.mutateAsync(inv.id); toast("Invito rifiutato"); }} />)}
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function InviteRow({ inviteId: _inviteId, clanId, fromId, onAccept, onDecline }: { inviteId: string; clanId: string; fromId: string; onAccept: () => void; onDecline: () => void }) {
+  const clanQ = useClan(clanId);
+  const [fromName, setFromName] = useState<string>("");
+  useEffect(() => { supabase.from("profiles").select("username").eq("id", fromId).maybeSingle().then(({ data }) => setFromName(data?.username ?? "")); }, [fromId]);
+  return (
+    <div className="rounded-lg border border-border p-3 flex items-center gap-3">
+      <Shield className="h-5 w-5 text-primary" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold truncate">{clanQ.data?.name ?? "Clan"} <span className="font-mono text-[10px] text-muted-foreground">[{clanQ.data?.tag}]</span></p>
+        <p className="text-[11px] text-muted-foreground">Invito da {fromName || "…"}</p>
+      </div>
+      <Button size="sm" onClick={onAccept}><Check className="h-3.5 w-3.5" /></Button>
+      <Button size="sm" variant="ghost" onClick={onDecline}><X className="h-3.5 w-3.5" /></Button>
+    </div>
+  );
+}
+
+function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onClose: () => void; onChat: () => void }) {
+  const eventsQ = useEventsOf(friend.id);
+  const badgesQ = useBadgesOf(friend.id);
+  const events = eventsQ.data ?? [];
+  const badges = badgesQ.data ?? [];
+  const streak = computeStreak(events);
+  const month = countThisMonth(events);
+  const byDay = useMemo(() => eventsByDay(events), [events]);
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="border-border bg-card max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <div className="flex items-center gap-3">
+            <AvatarView profile={friend} size={56} className="border-2 border-primary/40" />
+            <div>
+              <DialogTitle>{friend.username}</DialogTitle>
+              <p className="font-mono text-[11px] text-muted-foreground">{friend.friend_code}</p>
+            </div>
+          </div>
+        </DialogHeader>
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><Flame className="h-3 w-3 text-accent" /> Streak</p>
+              <p className="mt-1 text-2xl font-bold">{streak}</p>
+            </Card>
+            <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
+              <p className="text-xs text-muted-foreground">Questo mese</p>
+              <p className="mt-1 text-2xl font-bold">{month}</p>
+            </Card>
+          </div>
+
+          <div>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Medaglie ({badges.length})</Label>
+            {badges.length === 0 ? (
+              <p className="mt-2 text-xs text-muted-foreground">Nessuna ancora.</p>
+            ) : (
+              <div className="mt-2 grid grid-cols-5 gap-2">
+                {badges.map((b) => {
+                  const def = badgeByThreshold(b.threshold);
+                  if (!def) return null;
+                  return (
+                    <div key={b.id} className={`flex flex-col items-center gap-0.5 rounded-lg p-2 ring-1 ${def.ring}`} style={{ background: def.gradient }}>
+                      <span className="text-xl">{def.emoji}</span>
+                      <span className="text-[8px] text-white/90 text-center leading-tight">{def.threshold}gg</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Calendario</Label>
+            <Calendar mode="single" className="pointer-events-auto mx-auto mt-2"
+              modifiers={{ logged: (d) => (byDay.get(d.toISOString().slice(0, 10)) ?? 0) > 0 }}
+              modifiersClassNames={{ logged: "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-accent" }} />
+          </div>
+
+          <Button className="w-full" onClick={onChat}><MessageCircle className="mr-2 h-4 w-4" /> Manda un messaggio</Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -619,18 +1009,29 @@ function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; 
   const msgsQ = useDirectMessages(userId, other.id);
   const send = useSendDirectMessage(userId);
   const [text, setText] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [msgsQ.data?.length]);
+
   const submit = async () => {
-    if (!text.trim()) return;
-    await send.mutateAsync({ to: other.id, content: text.trim() });
+    const t = text.trim();
+    if (!t) return;
     setText("");
+    await send.mutateAsync({ to: other.id, content: t });
+    // Keep keyboard/focus like WhatsApp
+    inputRef.current?.focus();
   };
   return (
     <Dialog open={true} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="border-border bg-card max-w-md flex flex-col h-[80vh]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2"><span className="text-2xl">{other.avatar}</span>{other.username}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <AvatarView profile={other} size={32} />
+            {other.username}
+          </DialogTitle>
         </DialogHeader>
-        <ScrollArea className="flex-1 pr-3">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto pr-2">
           <div className="space-y-2 py-2">
             {(msgsQ.data ?? []).map((m) => {
               const mine = m.sender_id === userId;
@@ -646,11 +1047,11 @@ function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; 
               <p className="text-center text-xs text-muted-foreground py-8">Inizia la conversazione, {myName}!</p>
             )}
           </div>
-        </ScrollArea>
-        <div className="flex gap-2 pt-2 border-t border-border">
-          <Input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Scrivi un messaggio…" maxLength={500} />
-          <Button onClick={submit} disabled={!text.trim()}><Send className="h-4 w-4" /></Button>
         </div>
+        <form className="flex gap-2 pt-2 border-t border-border" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+          <Input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} placeholder="Scrivi un messaggio…" maxLength={500} autoFocus />
+          <Button type="submit" disabled={!text.trim()}><Send className="h-4 w-4" /></Button>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -660,11 +1061,18 @@ function ClanChatDialog({ clanId, userId, clanName, members, onClose }: { clanId
   const msgsQ = useClanMessages(clanId);
   const send = useSendClanMessage(userId, clanId);
   const [text, setText] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const memberMap = useMemo(() => new Map(members.map((m) => [m.id, m])), [members]);
+
+  useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [msgsQ.data?.length]);
+
   const submit = async () => {
-    if (!text.trim()) return;
-    await send.mutateAsync(text.trim());
+    const t = text.trim();
+    if (!t) return;
     setText("");
+    await send.mutateAsync(t);
+    inputRef.current?.focus();
   };
   return (
     <Dialog open={true} onOpenChange={(v) => !v && onClose()}>
@@ -673,7 +1081,7 @@ function ClanChatDialog({ clanId, userId, clanName, members, onClose }: { clanId
           <DialogTitle className="flex items-center gap-2"><Shield className="h-5 w-5" /> {clanName}</DialogTitle>
           <DialogDescription>Gli annunci automatici arrivano quando qualcuno vince una medaglia epica o leggendaria.</DialogDescription>
         </DialogHeader>
-        <ScrollArea className="flex-1 pr-3">
+        <div ref={scrollRef} className="flex-1 overflow-y-auto pr-2">
           <div className="space-y-2 py-2">
             {(msgsQ.data ?? []).map((m) => {
               if (m.is_system) {
@@ -700,33 +1108,51 @@ function ClanChatDialog({ clanId, userId, clanName, members, onClose }: { clanId
               <p className="text-center text-xs text-muted-foreground py-8">Nessun messaggio ancora. Rompi il ghiaccio!</p>
             )}
           </div>
-        </ScrollArea>
-        <div className="flex gap-2 pt-2 border-t border-border">
-          <Input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder="Messaggio al clan…" maxLength={500} />
-          <Button onClick={submit} disabled={!text.trim()}><Send className="h-4 w-4" /></Button>
         </div>
+        <form className="flex gap-2 pt-2 border-t border-border" onSubmit={(e) => { e.preventDefault(); submit(); }}>
+          <Input ref={inputRef} value={text} onChange={(e) => setText(e.target.value)} placeholder="Messaggio al clan…" maxLength={500} autoFocus />
+          <Button type="submit" disabled={!text.trim()}><Send className="h-4 w-4" /></Button>
+        </form>
       </DialogContent>
     </Dialog>
   );
 }
 
+// ---------- Falling drops (varied, hardware-accelerated) ----------
+
 function FallingDrops({ seed }: { seed: number }) {
   const drops = useMemo(() => {
     const rnd = (i: number) => { const x = Math.sin(seed + i * 999) * 10000; return x - Math.floor(x); };
-    return Array.from({ length: 18 }, (_, i) => ({
-      left: rnd(i) * 100,
-      delay: rnd(i + 100) * 0.4,
-      duration: 1.1 + rnd(i + 200) * 0.9,
-      size: 8 + rnd(i + 300) * 12,
-      drift: (rnd(i + 400) - 0.5) * 40,
-    }));
+    // Random burst size: sometimes light, sometimes heavy
+    const intensity = rnd(1);
+    const count = Math.round(14 + intensity * 26); // 14–40
+    return Array.from({ length: count }, (_, i) => {
+      const r = rnd(i);
+      const isBig = r > 0.85;
+      const isSmall = r < 0.35;
+      const baseSize = isBig ? 20 + rnd(i + 10) * 18 : isSmall ? 5 + rnd(i + 20) * 5 : 9 + rnd(i + 30) * 8;
+      return {
+        left: rnd(i + 100) * 100,
+        delay: rnd(i + 200) * 0.7,
+        duration: 0.9 + rnd(i + 300) * 1.1,
+        size: baseSize,
+        drift: (rnd(i + 400) - 0.5) * 60,
+        opacity: 0.55 + rnd(i + 500) * 0.45,
+        rotate: (rnd(i + 600) - 0.5) * 20,
+      };
+    });
   }, [seed]);
   return (
     <>
       {drops.map((d, i) => (
-        <motion.span key={i} initial={{ y: -60, x: 0, opacity: 0, scale: 0.6 }} animate={{ y: "110vh", x: d.drift, opacity: [0, 1, 1, 0], scale: 1 }}
-          transition={{ duration: d.duration, delay: d.delay, ease: "easeIn" }}
-          className="absolute top-0 block" style={{ left: `${d.left}%`, width: d.size, height: d.size * 1.4 }}>
+        <motion.span
+          key={i}
+          initial={{ y: -80, x: 0, opacity: 0, scale: 0.6, rotate: d.rotate }}
+          animate={{ y: "110vh", x: d.drift, opacity: [0, d.opacity, d.opacity, 0], scale: 1, rotate: d.rotate }}
+          transition={{ duration: d.duration, delay: d.delay, ease: [0.35, 0.05, 0.5, 0.9] }}
+          className="absolute top-0 block will-change-transform"
+          style={{ left: `${d.left}%`, width: d.size, height: d.size * 1.4 }}
+        >
           <svg viewBox="0 0 20 28" className="h-full w-full drop-shadow-glow">
             <path d="M10 1 C 10 8, 18 14, 18 20 A 8 8 0 0 1 2 20 C 2 14, 10 8, 10 1 Z" fill="white" opacity="0.95" />
           </svg>

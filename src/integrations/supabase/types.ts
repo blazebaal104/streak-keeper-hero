@@ -41,6 +41,41 @@ export type Database = {
         }
         Relationships: []
       }
+      clan_invites: {
+        Row: {
+          clan_id: string
+          created_at: string
+          from_user_id: string
+          id: string
+          status: string
+          to_user_id: string
+        }
+        Insert: {
+          clan_id: string
+          created_at?: string
+          from_user_id: string
+          id?: string
+          status?: string
+          to_user_id: string
+        }
+        Update: {
+          clan_id?: string
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          status?: string
+          to_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clan_invites_clan_id_fkey"
+            columns: ["clan_id"]
+            isOneToOne: false
+            referencedRelation: "clans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clan_messages: {
         Row: {
           clan_id: string
@@ -163,7 +198,9 @@ export type Database = {
       profiles: {
         Row: {
           avatar: string
+          avatar_url: string | null
           clan_id: string | null
+          clan_role: string
           created_at: string
           daily_limit: number
           friend_code: string
@@ -177,7 +214,9 @@ export type Database = {
         }
         Insert: {
           avatar?: string
+          avatar_url?: string | null
           clan_id?: string | null
+          clan_role?: string
           created_at?: string
           daily_limit?: number
           friend_code: string
@@ -191,7 +230,9 @@ export type Database = {
         }
         Update: {
           avatar?: string
+          avatar_url?: string | null
           clan_id?: string | null
+          clan_role?: string
           created_at?: string
           daily_limit?: number
           friend_code?: string
@@ -218,11 +259,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_clan_invite: { Args: { _invite_id: string }; Returns: undefined }
+      are_friends: { Args: { _a: string; _b: string }; Returns: boolean }
       check_streak_badges: { Args: { _user_id: string }; Returns: undefined }
+      decline_clan_invite: { Args: { _invite_id: string }; Returns: undefined }
       generate_friend_code: { Args: never; Returns: string }
       is_clan_member: {
         Args: { _clan_id: string; _user_id: string }
         Returns: boolean
+      }
+      kick_clan_member: { Args: { _target: string }; Returns: undefined }
+      set_clan_role: {
+        Args: { _role: string; _target: string }
+        Returns: undefined
       }
     }
     Enums: {
