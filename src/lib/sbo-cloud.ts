@@ -6,11 +6,13 @@ export type Profile = {
   id: string;
   username: string;
   avatar: string;
+  avatar_url: string | null;
   friend_code: string;
   daily_limit: number;
   use_adaptive_limit: boolean;
   notifications_enabled: boolean;
   clan_id: string | null;
+  clan_role: "leader" | "co_leader" | "recruit";
   slot_1: string | null;
   slot_2: string | null;
   slot_3: string | null;
@@ -21,6 +23,7 @@ export type Badge = { id: string; user_id: string; category: string; tier: strin
 export type Clan = { id: string; name: string; tag: string; owner_id: string };
 export type DirectMessage = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string };
 export type ClanMessage = { id: string; clan_id: string; sender_id: string | null; content: string; is_system: boolean; created_at: string };
+export type ClanInvite = { id: string; clan_id: string; from_user_id: string; to_user_id: string; status: "pending" | "accepted" | "declined"; created_at: string };
 
 // ---------- Auth ----------
 export function useAuthUser() {
@@ -47,7 +50,7 @@ export function useMyProfile(userId: string | null) {
     queryFn: async (): Promise<Profile> => {
       const { data, error } = await supabase.from("profiles").select("*").eq("id", userId!).single();
       if (error) throw error;
-      return data as Profile;
+      return data as unknown as Profile;
     },
   });
 }
@@ -71,7 +74,7 @@ export function useProfileById(id: string | null | undefined) {
       if (!id) return null;
       const { data, error } = await supabase.from("profiles").select("*").eq("id", id).maybeSingle();
       if (error) throw error;
-      return data as Profile | null;
+      return data as unknown as Profile | null;
     },
   });
 }
@@ -85,6 +88,31 @@ export function useEvents(userId: string | null) {
       const { data, error } = await supabase.from("events").select("*").eq("user_id", userId!).order("ts", { ascending: false }).limit(1000);
       if (error) throw error;
       return (data ?? []) as SboEvent[];
+    },
+  });
+}
+
+// Public API to read another user's events (RLS restricts to friends)
+export function useEventsOf(otherId: string | null) {
+  return useQuery({
+    queryKey: ["events-of", otherId],
+    enabled: !!otherId,
+    queryFn: async (): Promise<SboEvent[]> => {
+      const { data, error } = await supabase.from("events").select("*").eq("user_id", otherId!).order("ts", { ascending: false }).limit(1000);
+      if (error) throw error;
+      return (data ?? []) as SboEvent[];
+    },
+  });
+}
+
+export function useBadgesOf(otherId: string | null) {
+  return useQuery({
+    queryKey: ["badges-of", otherId],
+    enabled: !!otherId,
+    queryFn: async (): Promise<Badge[]> => {
+      const { data, error } = await supabase.from("badges").select("*").eq("user_id", otherId!).order("threshold", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Badge[];
     },
   });
 }
@@ -155,7 +183,7 @@ export function useFriends(userId: string | null) {
       if (otherIds.length === 0) return [];
       const { data: profs, error: e2 } = await supabase.from("profiles").select("*").in("id", otherIds);
       if (e2) throw e2;
-      return (profs ?? []).map((p) => ({ friend_id: p.id, profile: p as Profile }));
+      return (profs ?? []).map((p) => ({ friend_id: p.id, profile: p as unknown as Profile }));
     },
   });
 }
@@ -203,13 +231,24 @@ export function useClan(clanId: string | null | undefined) {
 }
 
 export function useClanMembers(clanId: string | null | undefined) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!clanId) return;
+    const ch = supabase
+      .channel(`clan-members:${clanId}`)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, () => {
+        qc.invalidateQueries({ queryKey: ["clan-members", clanId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [clanId, qc]);
   return useQuery({
     queryKey: ["clan-members", clanId],
     enabled: !!clanId,
     queryFn: async (): Promise<Profile[]> => {
       const { data, error } = await supabase.from("profiles").select("*").eq("clan_id", clanId!);
       if (error) throw error;
-      return (data ?? []) as Profile[];
+      return (data ?? []) as unknown as Profile[];
     },
   });
 }
@@ -218,9 +257,9 @@ export function useCreateClan(userId: string | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ name, tag }: { name: string; tag: string }) => {
-      const { data, error } = await supabase.from("clans").insert({ name, tag, owner_id: userId! }).select().single();
+      const { data, error } = await supabase.from("clans").insert({ name, tag: tag.toUpperCase(), owner_id: userId! }).select().single();
       if (error) throw error;
-      await supabase.from("profiles").update({ clan_id: data.id }).eq("id", userId!);
+      // trigger on_clan_created will assign leader role
       return data as Clan;
     },
     onSuccess: () => {
@@ -236,7 +275,7 @@ export function useJoinClanByTag(userId: string | null) {
       const { data, error } = await supabase.from("clans").select("id,name").eq("tag", tag.toUpperCase()).maybeSingle();
       if (error) throw error;
       if (!data) throw new Error("Clan non trovato");
-      await supabase.from("profiles").update({ clan_id: data.id }).eq("id", userId!);
+      await supabase.from("profiles").update({ clan_id: data.id, clan_role: "recruit" }).eq("id", userId!);
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["profile", userId] }),
@@ -247,9 +286,94 @@ export function useLeaveClan(userId: string | null) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      await supabase.from("profiles").update({ clan_id: null }).eq("id", userId!);
+      await supabase.from("profiles").update({ clan_id: null, clan_role: "recruit" }).eq("id", userId!);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["profile", userId] }),
+  });
+}
+
+export function useSetClanRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ target, role }: { target: string; role: "leader" | "co_leader" | "recruit" }) => {
+      const { error } = await supabase.rpc("set_clan_role", { _target: target, _role: role });
+      if (error) throw error;
+    },
+    onSuccess: (_d, v) => { qc.invalidateQueries({ queryKey: ["clan-members"] }); qc.invalidateQueries({ queryKey: ["profile", v.target] }); },
+  });
+}
+
+export function useKickClanMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (target: string) => {
+      const { error } = await supabase.rpc("kick_clan_member", { _target: target });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["clan-members"] }),
+  });
+}
+
+// ---------- Clan Invites ----------
+export function useIncomingInvites(userId: string | null) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!userId) return;
+    const ch = supabase
+      .channel(`invites:${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "clan_invites", filter: `to_user_id=eq.${userId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["invites-in", userId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [userId, qc]);
+  return useQuery({
+    queryKey: ["invites-in", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("clan_invites").select("*").eq("to_user_id", userId!).eq("status", "pending");
+      if (error) throw error;
+      return (data ?? []) as ClanInvite[];
+    },
+  });
+}
+
+export function useSendClanInvite(userId: string | null) {
+  return useMutation({
+    mutationFn: async ({ clanId, toUserId, myName, clanName }: { clanId: string; toUserId: string; myName: string; clanName: string }) => {
+      const { error } = await supabase.from("clan_invites").insert({ clan_id: clanId, from_user_id: userId!, to_user_id: toUserId });
+      if (error && !error.message.includes("duplicate")) throw error;
+      // Also send a DM
+      await supabase.from("direct_messages").insert({
+        sender_id: userId!,
+        recipient_id: toUserId,
+        content: `👋 ${myName} ti invita nel clan "${clanName}"! Controlla i tuoi inviti.`,
+      });
+    },
+  });
+}
+
+export function useAcceptInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (inviteId: string) => {
+      const { error } = await supabase.rpc("accept_clan_invite", { _invite_id: inviteId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries();
+    },
+  });
+}
+
+export function useDeclineInvite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (inviteId: string) => {
+      const { error } = await supabase.rpc("decline_clan_invite", { _invite_id: inviteId });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["invites-in"] }),
   });
 }
 
