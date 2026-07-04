@@ -59,7 +59,6 @@ function AuthPage() {
       if (mode === "signup") {
         const parsed = signupSchema.safeParse({ username, email, password });
         if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
-        // Check username availability
         const { data: existing } = await supabase.from("profiles").select("id").eq("username", parsed.data.username.toLowerCase()).maybeSingle();
         if (existing) { toast.error("Username già preso, scegline un altro."); return; }
         const { error } = await supabase.auth.signUp({
@@ -100,7 +99,7 @@ function AuthPage() {
             <div>
               <Label htmlFor="username">Username</Label>
               <Input id="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="il_tuo_nome" autoComplete="username" maxLength={20} />
-              <p className="mt-1 text-[11px] text-muted-foreground">Sarà visibile agli amici. Non modificabile dopo (ma il nome mostrato sì).</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">Puoi modificarlo dopo.</p>
             </div>
           )}
           <div>
@@ -110,7 +109,6 @@ function AuthPage() {
           <div>
             <Label htmlFor="password">Password</Label>
             <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={8} />
-            {mode === "signup" && <p className="mt-1 text-[11px] text-muted-foreground">Almeno 8 caratteri.</p>}
           </div>
 
           <Button type="submit" disabled={loading} className="w-full h-11">
