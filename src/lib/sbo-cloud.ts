@@ -147,7 +147,7 @@ export function useBadges(userId: string | null) {
   useEffect(() => {
     if (!userId) return;
     const ch = supabase
-      .channel(`badges:${userId}`)
+      .channel(`badges:${userId}:${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "badges", filter: `user_id=eq.${userId}` }, () => {
         qc.invalidateQueries({ queryKey: ["badges", userId] });
       })
@@ -235,7 +235,7 @@ export function useClanMembers(clanId: string | null | undefined) {
   useEffect(() => {
     if (!clanId) return;
     const ch = supabase
-      .channel(`clan-members:${clanId}`)
+      .channel(`clan-members:${clanId}:${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "profiles" }, () => {
         qc.invalidateQueries({ queryKey: ["clan-members", clanId] });
       })
@@ -320,7 +320,7 @@ export function useIncomingInvites(userId: string | null) {
   useEffect(() => {
     if (!userId) return;
     const ch = supabase
-      .channel(`invites:${userId}`)
+      .channel(`invites:${userId}:${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "clan_invites", filter: `to_user_id=eq.${userId}` }, () => {
         qc.invalidateQueries({ queryKey: ["invites-in", userId] });
       })
@@ -384,7 +384,7 @@ export function useDirectMessages(userId: string | null, otherId: string | null)
   useEffect(() => {
     if (!userId || !otherId) return;
     const ch = supabase
-      .channel(`dm:${userId}:${otherId}`)
+      .channel(`dm:${userId}:${otherId}:${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages" }, (p) => {
         const m = p.new as DirectMessage;
         const involvesUs = (m.sender_id === userId && m.recipient_id === otherId) || (m.sender_id === otherId && m.recipient_id === userId);
@@ -426,7 +426,7 @@ export function useClanMessages(clanId: string | null | undefined) {
   useEffect(() => {
     if (!clanId) return;
     const ch = supabase
-      .channel(`clan:${clanId}`)
+      .channel(`clan:${clanId}:${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "clan_messages", filter: `clan_id=eq.${clanId}` }, () => {
         qc.invalidateQueries({ queryKey: key });
       })
