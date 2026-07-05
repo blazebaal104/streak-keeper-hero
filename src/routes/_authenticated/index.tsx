@@ -98,13 +98,15 @@ function SboApp() {
   }, [profile, streak, today]);
 
   // Realtime notifications: new DMs, invites, badges
+  const chatWithRef = useRef<{ id: string } | null>(null);
+  useEffect(() => { chatWithRef.current = chatWith ?? null; }, [chatWith]);
   useEffect(() => {
     if (!userId) return;
     const ch = supabase
-      .channel(`notify:${userId}`)
+      .channel(`notify:${userId}:${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "direct_messages", filter: `recipient_id=eq.${userId}` }, (p) => {
         const m = p.new as { sender_id: string; content: string };
-        if (chatWith?.id === m.sender_id) return; // already looking at chat
+        if (chatWithRef.current?.id === m.sender_id) return; // already looking at chat
         supabase.from("profiles").select("username").eq("id", m.sender_id).maybeSingle().then(({ data }) => {
           const from = data?.username ?? "Un amico";
           toast(`💬 ${from}`, { description: m.content });
@@ -123,7 +125,7 @@ function SboApp() {
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [userId, chatWith?.id]);
+  }, [userId]);
 
   const handleAdd = async () => {
     await addEvent.mutateAsync();
