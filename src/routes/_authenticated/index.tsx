@@ -538,7 +538,8 @@ function BadgeSlot({ def, onClick }: { def: BadgeDef | null; onClick?: () => voi
 
 function FriendRowCard({ row, onOpenProfile, onChat, onRemove }: { row: FriendRow; onOpenProfile: () => void; onChat: () => void; onRemove: () => void }) {
   const eventsQ = useEventsOf(row.friend_id);
-  const streak = computeStreak(eventsQ.data ?? []);
+  const fire = computeFireStreak(eventsQ.data ?? []);
+  const ice = computeIceStreak(eventsQ.data ?? []);
   return (
     <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
       <div className="flex items-center gap-3">
@@ -546,8 +547,9 @@ function FriendRowCard({ row, onOpenProfile, onChat, onRemove }: { row: FriendRo
           <AvatarView profile={row.profile} size={40} />
           <div className="flex-1 min-w-0">
             <p className="font-medium truncate">{row.profile.username}</p>
-            <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Flame className="h-3 w-3 text-accent" /> {streak} giorni
+            <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-0.5"><Flame className="h-3 w-3 text-orange-400" /> {fire}</span>
+              <span className="flex items-center gap-0.5"><Snowflake className="h-3 w-3 text-sky-300" /> {ice}</span>
             </p>
           </div>
         </button>
