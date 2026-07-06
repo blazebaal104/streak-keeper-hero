@@ -21,7 +21,7 @@ export type Profile = {
 export type SboEvent = { id: string; user_id: string; ts: string };
 export type Badge = { id: string; user_id: string; category: string; tier: string; threshold: number; awarded_at: string };
 export type Clan = { id: string; name: string; tag: string; owner_id: string };
-export type DirectMessage = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string };
+export type DirectMessage = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string; read_at: string | null };
 export type ClanMessage = { id: string; clan_id: string; sender_id: string | null; content: string; is_system: boolean; created_at: string };
 export type ClanInvite = { id: string; clan_id: string; from_user_id: string; to_user_id: string; status: "pending" | "accepted" | "declined"; created_at: string };
 
@@ -480,8 +480,8 @@ export function eventsByDay(events: SboEvent[]): Map<string, number> {
   }
   return m;
 }
-export function computeStreak(events: SboEvent[]): number {
-  if (events.length === 0) return 0;
+/** ICE streak: consecutive days with 0 events, walking back from today. */
+export function computeIceStreak(events: SboEvent[]): number {
   const byDay = eventsByDay(events);
   const today = startOfDayTs(new Date());
   const todayKey = new Date(today).toISOString().slice(0, 10);
@@ -496,9 +496,64 @@ export function computeStreak(events: SboEvent[]): number {
   }
   return streak;
 }
+
+/** FIRE streak: consecutive days with >=1 event including today. */
+export function computeFireStreak(events: SboEvent[]): number {
+  if (events.length === 0) return 0;
+  const byDay = eventsByDay(events);
+  const today = startOfDayTs(new Date());
+  const todayKey = new Date(today).toISOString().slice(0, 10);
+  if (!byDay.get(todayKey)) return 0;
+  let streak = 0;
+  let cursor = today;
+  while (streak < 3650) {
+    const key = new Date(cursor).toISOString().slice(0, 10);
+    if (!byDay.get(key)) break;
+    streak += 1;
+    cursor -= DAY_MS;
+  }
+  return streak;
+}
+
+/** Legacy alias — kept for old imports that treated "streak" as ice. */
+export const computeStreak = computeIceStreak;
+
 export function adaptiveLimit(events: SboEvent[], fallback = 3): number {
   const cutoff = Date.now() - 14 * DAY_MS;
   const recent = events.filter((e) => new Date(e.ts).getTime() >= cutoff);
   if (recent.length < 5) return fallback;
   return Math.max(1, Math.round(recent.length / 14));
 }
+
+/** Aggregated daily counts for the last N days, oldest first, filling gaps with 0. */
+export function dailyCountsSeries(events: SboEvent[], days = 30): { date: string; count: number; ma7: number }[] {
+  const byDay = eventsByDay(events);
+  const today = startOfDayTs(new Date());
+  const out: { date: string; count: number; ma7: number }[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(today - i * DAY_MS);
+    const key = d.toISOString().slice(0, 10);
+    out.push({ date: key, count: byDay.get(key) ?? 0, ma7: 0 });
+  }
+  // 7-day trailing moving average
+  for (let i = 0; i < out.length; i++) {
+    const from = Math.max(0, i - 6);
+    const slice = out.slice(from, i + 1);
+    const avg = slice.reduce((a, x) => a + x.count, 0) / slice.length;
+    out[i].ma7 = Math.round(avg * 100) / 100;
+  }
+  return out;
+}
+
+/** Mark all unread DMs from `otherId` to me as read. */
+export function useMarkDmsRead() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (otherId: string) => {
+      const { error } = await supabase.rpc("mark_dms_read", { _other: otherId });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["dm"] }),
+  });
+}
+

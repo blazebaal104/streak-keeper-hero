@@ -15,8 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   Plus, Droplets, Flame, CalendarDays, Users, Undo2, Sparkles, TrendingUp, Settings, Copy, UserPlus, Shield, X, LogOut,
-  MessageCircle, Send, Trash2, Camera, Lock, Crown, Star, UserMinus, Check, Bell,
+  MessageCircle, Send, Trash2, Camera, Lock, Crown, Star, UserMinus, Check, CheckCheck, Bell, Snowflake, LineChart as LineChartIcon,
 } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from "recharts";
 import logo from "@/assets/sbo-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -25,13 +26,14 @@ import {
   useClan, useClanMembers, useCreateClan, useJoinClanByTag, useLeaveClan,
   useDirectMessages, useSendDirectMessage, useClanMessages, useSendClanMessage,
   useIncomingInvites, useSendClanInvite, useAcceptInvite, useDeclineInvite,
-  useSetClanRole, useKickClanMember, useEventsOf, useBadgesOf,
-  countToday, countThisMonth, computeStreak, eventsByDay, adaptiveLimit,
+  useSetClanRole, useKickClanMember, useEventsOf, useBadgesOf, useMarkDmsRead,
+  countToday, countThisMonth, computeFireStreak, computeIceStreak, eventsByDay, adaptiveLimit, dailyCountsSeries,
   type Profile, type Badge, type FriendRow,
 } from "@/lib/sbo-cloud";
-import { STREAK_BADGES, badgeByThreshold, tierLabel, type BadgeDef } from "@/lib/sbo-badges";
-import { encourage, slowdown, restart } from "@/lib/sbo-phrases";
+import { FIRE_BADGES, ICE_BADGES, ALL_BADGES, badgeDef, badgeByThreshold, tierLabel, type BadgeDef, type BadgeCategory } from "@/lib/sbo-badges";
+import { encourage, slowdown, restart, overLimitShame, streakAtRisk } from "@/lib/sbo-phrases";
 import { ensureNotificationPermission, notify, scheduleStreakReminder, CLAN_ROLE_LABEL, compressImageToDataUrl } from "@/lib/sbo-notifications";
+import { ensureServiceWorker, subscribeToPush, schedulePush, isPushSupported } from "@/lib/sbo-push";
 
 const AVATAR_CHOICES = ["💧","🌊","⚡","🌟","🔥","🌙","⚔️","👑","🐉","🦁","🐺","🦅","🌸","🍀","🎯","🧊","☄️","🌈"];
 
@@ -79,23 +81,30 @@ function SboApp() {
 
   const today = countToday(events);
   const month = countThisMonth(events);
-  const streak = computeStreak(events);
+  const fireStreak = computeFireStreak(events);
+  const iceStreak = computeIceStreak(events);
   const limit = profile ? (profile.use_adaptive_limit ? adaptiveLimit(events, profile.daily_limit) : profile.daily_limit) : 3;
   const byDay = useMemo(() => eventsByDay(events), [events]);
+  const series30 = useMemo(() => dailyCountsSeries(events, 30), [events]);
+  const series90 = useMemo(() => dailyCountsSeries(events, 90), [events]);
+  const prevOverLimit = useRef(false);
 
-  // Streak-badge check
+  // Streak-badge check (belt & suspenders: DB trigger also runs it)
   useEffect(() => {
     if (!userId) return;
     checkStreakBadges(userId).catch(() => {});
   }, [userId, events.length]);
 
-  // Notifications: permission + streak reminder
+  // Notifications: permission + streak reminder + PWA push subscribe
   useEffect(() => {
-    if (!profile) return;
-    ensureNotificationPermission();
-    const cleanup = scheduleStreakReminder(() => ({ streak, countToday: today, username: profile.username }));
+    if (!profile || !userId) return;
+    ensureNotificationPermission().then((p) => {
+      if (p === "granted" && isPushSupported()) subscribeToPush(userId).catch(() => {});
+    });
+    ensureServiceWorker().catch(() => {});
+    const cleanup = scheduleStreakReminder(() => ({ streak: fireStreak, countToday: today, username: profile.username }));
     return cleanup;
-  }, [profile, streak, today]);
+  }, [profile, userId, fireStreak, today]);
 
   // Realtime notifications: new DMs, invites, badges
   const chatWithRef = useRef<{ id: string } | null>(null);
@@ -128,6 +137,7 @@ function SboApp() {
   }, [userId]);
 
   const handleAdd = async () => {
+    const wasOver = today >= limit;
     await addEvent.mutateAsync();
     const id = Date.now();
     setBursts((b) => [...b, id]);
@@ -136,8 +146,23 @@ function SboApp() {
     const newToday = today + 1;
     const name = profile?.username ?? "";
     if (!profile?.notifications_enabled) return;
-    if (newToday >= limit) toast("🌊 Fermati un attimo", { description: slowdown(name) });
-    else if (streak > 0) toast("💧 Streak resettata", { description: restart(name) });
+    if (newToday >= limit) {
+      toast("🌊 Fermati un attimo", { description: slowdown(name) });
+      // Schedule delayed shame push (~10 min later) only when crossing for the first time today
+      if (!wasOver && !prevOverLimit.current && userId) {
+        prevOverLimit.current = true;
+        const deliverAt = new Date(Date.now() + 10 * 60 * 1000);
+        schedulePush(userId, {
+          deliverAt,
+          title: "💧 SBO",
+          body: overLimitShame(name),
+          tag: "over-limit-shame",
+          url: "/",
+        }).catch(() => {});
+      }
+    }
+    else if (fireStreak > 0) toast("🔥 " + encourage(name));
+    else if (iceStreak > 0) toast("❄️ Streak di ghiaccio rotta", { description: restart(name) });
     else toast(encourage(name));
   };
 
@@ -182,9 +207,13 @@ function SboApp() {
           </div>
         </button>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-2 backdrop-blur">
-            <Flame className="h-4 w-4 text-accent" />
-            <span className="text-sm font-semibold">{streak}</span>
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-2 backdrop-blur" title="Streak di fuoco (giorni consecutivi con almeno un evento)">
+            <Flame className="h-4 w-4 text-orange-400" />
+            <span className="text-sm font-semibold">{fireStreak}</span>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-2 backdrop-blur" title="Streak di ghiaccio (giorni consecutivi senza eventi)">
+            <Snowflake className="h-4 w-4 text-sky-300" />
+            <span className="text-sm font-semibold">{iceStreak}</span>
           </div>
           <Button variant="ghost" size="icon" className="relative rounded-full border border-border bg-card/60 backdrop-blur" onClick={() => setShowInvites(true)} aria-label="Notifiche">
             <Bell className="h-4 w-4" />
@@ -198,10 +227,11 @@ function SboApp() {
 
       <main className="mx-auto max-w-3xl px-6 pb-24">
         <Tabs defaultValue="home" className="w-full">
-          <TabsList className="mx-auto grid w-full max-w-sm grid-cols-3 rounded-full bg-card/60 backdrop-blur">
-            <TabsTrigger value="home" className="rounded-full"><Droplets className="mr-1.5 h-4 w-4" /> Home</TabsTrigger>
-            <TabsTrigger value="calendar" className="rounded-full"><CalendarDays className="mr-1.5 h-4 w-4" /> Calendario</TabsTrigger>
-            <TabsTrigger value="friends" className="rounded-full"><Users className="mr-1.5 h-4 w-4" /> Social</TabsTrigger>
+          <TabsList className="mx-auto grid w-full max-w-md grid-cols-4 rounded-full bg-card/60 backdrop-blur">
+            <TabsTrigger value="home" className="rounded-full text-xs"><Droplets className="mr-1 h-3.5 w-3.5" /> Home</TabsTrigger>
+            <TabsTrigger value="calendar" className="rounded-full text-xs"><CalendarDays className="mr-1 h-3.5 w-3.5" /> Cal</TabsTrigger>
+            <TabsTrigger value="chart" className="rounded-full text-xs"><LineChartIcon className="mr-1 h-3.5 w-3.5" /> Trend</TabsTrigger>
+            <TabsTrigger value="friends" className="rounded-full text-xs"><Users className="mr-1 h-3.5 w-3.5" /> Social</TabsTrigger>
           </TabsList>
 
           {/* HOME */}
@@ -241,7 +271,7 @@ function SboApp() {
                 <div>
                   <p className="text-sm font-semibold">Suggerimento del giorno</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {today >= limit ? slowdown(profile.username) : streak >= 3 ? `Sei a ${streak} giorni. ${encourage(profile.username)}` : encourage(profile.username)}
+                    {today >= limit ? slowdown(profile.username) : fireStreak >= 3 ? `🔥 Sei a ${fireStreak} giorni di fila. ${encourage(profile.username)}` : iceStreak >= 3 ? `❄️ ${iceStreak} giorni puliti. ${encourage(profile.username)}` : encourage(profile.username)}
                   </p>
                 </div>
               </div>
@@ -265,6 +295,49 @@ function SboApp() {
                 <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-accent" /> attività</span>
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-destructive" /> sopra il limite</span>
               </div>
+            </Card>
+          </TabsContent>
+
+          {/* ANALYTICS */}
+          <TabsContent value="chart" className="mt-8 space-y-4">
+            <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
+              <div className="mb-3 flex items-center justify-between px-1">
+                <p className="text-sm font-semibold">Andamento — ultimi 30 giorni</p>
+                <span className="text-[10px] text-muted-foreground">📈 media mobile 7gg</span>
+              </div>
+              <div className="h-56 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={series30} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gCount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.35} />
+                    <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis allowDecimals={false} fontSize={10} stroke="hsl(var(--muted-foreground))" width={28} />
+                    <RTooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                    <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" fill="url(#gCount)" strokeWidth={2} name="Al giorno" />
+                    <Line type="monotone" dataKey="ma7" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} name="Media 7gg" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+            <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
+              <p className="mb-3 text-sm font-semibold px-1">Trend a 90 giorni</p>
+              <div className="h-48 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={series90} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.35} />
+                    <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="hsl(var(--muted-foreground))" />
+                    <YAxis allowDecimals={false} fontSize={10} stroke="hsl(var(--muted-foreground))" width={28} />
+                    <RTooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
+                    <Line type="monotone" dataKey="ma7" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} name="Media 7gg" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <p className="mt-2 px-1 text-[11px] text-muted-foreground">La curva mostra se stai salendo o scendendo. Obiettivo: portarla giù nel tempo.</p>
             </Card>
           </TabsContent>
 
@@ -509,7 +582,8 @@ function BadgeSlot({ def, onClick }: { def: BadgeDef | null; onClick?: () => voi
 
 function FriendRowCard({ row, onOpenProfile, onChat, onRemove }: { row: FriendRow; onOpenProfile: () => void; onChat: () => void; onRemove: () => void }) {
   const eventsQ = useEventsOf(row.friend_id);
-  const streak = computeStreak(eventsQ.data ?? []);
+  const fire = computeFireStreak(eventsQ.data ?? []);
+  const ice = computeIceStreak(eventsQ.data ?? []);
   return (
     <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
       <div className="flex items-center gap-3">
@@ -517,8 +591,9 @@ function FriendRowCard({ row, onOpenProfile, onChat, onRemove }: { row: FriendRo
           <AvatarView profile={row.profile} size={40} />
           <div className="flex-1 min-w-0">
             <p className="font-medium truncate">{row.profile.username}</p>
-            <p className="flex items-center gap-1 text-[11px] text-muted-foreground">
-              <Flame className="h-3 w-3 text-accent" /> {streak} giorni
+            <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-0.5"><Flame className="h-3 w-3 text-orange-400" /> {fire}</span>
+              <span className="flex items-center gap-0.5"><Snowflake className="h-3 w-3 text-sky-300" /> {ice}</span>
             </p>
           </div>
         </button>
@@ -706,38 +781,35 @@ function ProfileDialog({ open, onClose, profile, badges, onUpdate, onSignOut, on
 function InventoryDialog({ slot, profile, badges, onClose, onEquip }: {
   slot: 0 | 1 | 2; profile: Profile; badges: Badge[]; onClose: () => void; onEquip: (id: string | null) => void;
 }) {
-  const owned = new Set(badges.filter((b) => b.category === "streak").map((b) => b.threshold));
   const equippedIds = new Set([profile.slot_1, profile.slot_2, profile.slot_3].filter(Boolean) as string[]);
   const [preview, setPreview] = useState<BadgeDef | null>(null);
-  return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="border-border bg-card max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Inventario medaglie — Slot {slot + 1}</DialogTitle>
-          <DialogDescription>Le medaglie che non hai sono in grigio. Toccale per vedere come sbloccarle.</DialogDescription>
-        </DialogHeader>
 
+  const renderGroup = (title: string, defs: BadgeDef[], category: BadgeCategory) => {
+    const ownedThresholds = new Set(
+      badges.filter((b) => b.category === category || (category === "fire" && b.category === "streak")).map((b) => b.threshold),
+    );
+    return (
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
         <div className="grid grid-cols-3 gap-3">
-          <button onClick={() => onEquip(null)} className="flex flex-col items-center gap-1 rounded-xl border-2 border-dashed border-border p-3 text-muted-foreground text-xs hover:bg-card/50">
-            <X className="h-6 w-6" /> Nessuna
-          </button>
-          {STREAK_BADGES.map((def) => {
-            const ownedBadge = badges.find((b) => b.threshold === def.threshold);
-            const isOwned = !!ownedBadge && owned.has(def.threshold);
+          {defs.map((def) => {
+            const ownedBadge = badges.find(
+              (b) => b.threshold === def.threshold && (b.category === category || (category === "fire" && b.category === "streak")),
+            );
+            const isOwned = !!ownedBadge && ownedThresholds.has(def.threshold);
             const isEquipped = ownedBadge && equippedIds.has(ownedBadge.id);
             return (
               <button
-                key={def.threshold}
-                onClick={() => isOwned && ownedBadge ? onEquip(ownedBadge.id) : setPreview(def)}
+                key={`${category}-${def.threshold}`}
+                onClick={() => (isOwned && ownedBadge ? onEquip(ownedBadge.id) : setPreview(def))}
                 className={`relative flex flex-col items-center gap-1 rounded-xl p-3 ring-2 overflow-hidden transition hover:scale-[1.03] ${def.ring} ${isEquipped ? "outline outline-2 outline-primary" : ""}`}
                 style={{ background: def.gradient }}
               >
-                {/* Locked overlay */}
                 {!isOwned && (
                   <>
                     <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px]" />
                     <div className="absolute inset-0 pointer-events-none">
-                      <FloatingSparkles seed={def.threshold} count={4} />
+                      <FloatingSparkles seed={def.threshold * (category === "ice" ? 7 : 1)} count={def.shiny ? 6 : 3} />
                     </div>
                   </>
                 )}
@@ -750,8 +822,25 @@ function InventoryDialog({ slot, profile, badges, onClose, onEquip }: {
             );
           })}
         </div>
+      </div>
+    );
+  };
 
-        {/* Locked-preview sub-dialog */}
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="border-border bg-card max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Inventario medaglie — Slot {slot + 1}</DialogTitle>
+          <DialogDescription>Le medaglie che non hai sono in grigio. Toccale per vedere come sbloccarle.</DialogDescription>
+        </DialogHeader>
+
+        <button onClick={() => onEquip(null)} className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-3 text-muted-foreground text-xs hover:bg-card/50">
+          <X className="h-4 w-4" /> Rimuovi da questo slot
+        </button>
+
+        {renderGroup("🔥 Streak di fuoco (fai ogni giorno)", FIRE_BADGES, "fire")}
+        {renderGroup("❄️ Streak di ghiaccio (giorni puliti)", ICE_BADGES, "ice")}
+
         {preview && (
           <Dialog open onOpenChange={(v) => !v && setPreview(null)}>
             <DialogContent className="border-border bg-card overflow-hidden">
@@ -769,7 +858,11 @@ function InventoryDialog({ slot, profile, badges, onClose, onEquip }: {
               </div>
               <div className="rounded-lg border border-border p-4 text-sm">
                 <p className="font-semibold mb-1">Come ottenerla</p>
-                <p className="text-muted-foreground">Mantieni una streak di <b>{preview.threshold} giorni</b> senza registrare eventi.</p>
+                <p className="text-muted-foreground">
+                  {preview.category === "ice"
+                    ? <>Non registrare alcun evento per <b>{preview.threshold} giorni di fila</b>. Le medaglie di ghiaccio sono le più preziose. ❄️</>
+                    : <>Registra almeno un evento ogni giorno per <b>{preview.threshold} giorni di fila</b>. 🔥</>}
+                </p>
               </div>
             </DialogContent>
           </Dialog>
@@ -798,19 +891,24 @@ function FloatingSparkles({ seed, count = 8 }: { seed: number; count?: number })
 }
 
 function StreakProgress({ badges }: { badges: Badge[] }) {
-  const owned = new Set(badges.filter((b) => b.category === "streak").map((b) => b.threshold));
-  const next = STREAK_BADGES.find((b) => !owned.has(b.threshold));
-  if (!next) return <p className="text-xs text-center text-muted-foreground">🏆 Hai tutte le medaglie streak!</p>;
-  return (
-    <div className="rounded-lg border border-border p-3">
-      <p className="text-xs text-muted-foreground">Prossima medaglia streak</p>
-      <div className="mt-1 flex items-center gap-2">
-        <span className="text-xl">{next.emoji}</span>
-        <div className="flex-1">
-          <p className="text-sm font-semibold">{next.name} <span className="text-[10px] font-normal text-muted-foreground">({tierLabel(next.tier)})</span></p>
-          <p className="text-[11px] text-muted-foreground">{next.threshold} giorni di streak</p>
-        </div>
+  const ownedFire = new Set(badges.filter((b) => b.category === "fire" || b.category === "streak").map((b) => b.threshold));
+  const ownedIce = new Set(badges.filter((b) => b.category === "ice").map((b) => b.threshold));
+  const nextFire = FIRE_BADGES.find((b) => !ownedFire.has(b.threshold));
+  const nextIce = ICE_BADGES.find((b) => !ownedIce.has(b.threshold));
+  if (!nextFire && !nextIce) return <p className="text-xs text-center text-muted-foreground">🏆 Hai tutte le medaglie!</p>;
+  const Row = ({ n, label }: { n: BadgeDef; label: string }) => (
+    <div className="mt-1 flex items-center gap-2">
+      <span className="text-xl">{n.emoji}</span>
+      <div className="flex-1">
+        <p className="text-sm font-semibold">{n.name} <span className="text-[10px] font-normal text-muted-foreground">({tierLabel(n.tier)})</span></p>
+        <p className="text-[11px] text-muted-foreground">{label}: {n.threshold} giorni</p>
       </div>
+    </div>
+  );
+  return (
+    <div className="space-y-2">
+      {nextFire && <div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">🔥 Prossima medaglia di fuoco</p><Row n={nextFire} label="streak" /></div>}
+      {nextIce && <div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">❄️ Prossima medaglia di ghiaccio</p><Row n={nextIce} label="giorni puliti" /></div>}
     </div>
   );
 }
@@ -946,7 +1044,8 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
   const badgesQ = useBadgesOf(friend.id);
   const events = eventsQ.data ?? [];
   const badges = badgesQ.data ?? [];
-  const streak = computeStreak(events);
+  const fire = computeFireStreak(events);
+  const ice = computeIceStreak(events);
   const month = countThisMonth(events);
   const byDay = useMemo(() => eventsByDay(events), [events]);
   return (
@@ -962,13 +1061,17 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
           </div>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
-              <p className="text-xs text-muted-foreground flex items-center gap-1"><Flame className="h-3 w-3 text-accent" /> Streak</p>
-              <p className="mt-1 text-2xl font-bold">{streak}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><Flame className="h-3 w-3 text-orange-400" /> Fuoco</p>
+              <p className="mt-1 text-2xl font-bold">{fire}</p>
             </Card>
             <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
-              <p className="text-xs text-muted-foreground">Questo mese</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><Snowflake className="h-3 w-3 text-sky-300" /> Ghiaccio</p>
+              <p className="mt-1 text-2xl font-bold">{ice}</p>
+            </Card>
+            <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
+              <p className="text-xs text-muted-foreground">Mese</p>
               <p className="mt-1 text-2xl font-bold">{month}</p>
             </Card>
           </div>
@@ -1010,20 +1113,27 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
 function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; other: Profile; myName: string; onClose: () => void }) {
   const msgsQ = useDirectMessages(userId, other.id);
   const send = useSendDirectMessage(userId);
+  const markRead = useMarkDmsRead();
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [msgsQ.data?.length]);
+  // Mark incoming DMs as read whenever the list updates
+  useEffect(() => {
+    if (!msgsQ.data) return;
+    const anyUnread = msgsQ.data.some((m) => m.sender_id === other.id && !m.read_at);
+    if (anyUnread) markRead.mutate(other.id);
+  }, [msgsQ.data, other.id]);
 
   const submit = async () => {
     const t = text.trim();
     if (!t) return;
     setText("");
     await send.mutateAsync({ to: other.id, content: t });
-    // Keep keyboard/focus like WhatsApp
     inputRef.current?.focus();
   };
+  const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
   return (
     <Dialog open={true} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="border-border bg-card max-w-md flex flex-col h-[80vh]">
@@ -1040,7 +1150,13 @@ function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; 
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
-                    {m.content}
+                    <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                    <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                      <span>{fmtTime(m.created_at)}</span>
+                      {mine && (m.read_at
+                        ? <CheckCheck className="h-3 w-3 text-sky-300" />
+                        : <CheckCheck className="h-3 w-3 opacity-60" />)}
+                    </div>
                   </div>
                 </div>
               );

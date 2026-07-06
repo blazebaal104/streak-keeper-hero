@@ -140,6 +140,7 @@ export type Database = {
           content: string
           created_at: string
           id: string
+          read_at: string | null
           recipient_id: string
           sender_id: string
         }
@@ -147,6 +148,7 @@ export type Database = {
           content: string
           created_at?: string
           id?: string
+          read_at?: string | null
           recipient_id: string
           sender_id: string
         }
@@ -154,6 +156,7 @@ export type Database = {
           content?: string
           created_at?: string
           id?: string
+          read_at?: string | null
           recipient_id?: string
           sender_id?: string
         }
@@ -254,6 +257,72 @@ export type Database = {
           },
         ]
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          endpoint: string
+          id?: string
+          p256dh: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          endpoint?: string
+          id?: string
+          p256dh?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      scheduled_notifications: {
+        Row: {
+          body: string
+          created_at: string
+          deliver_at: string
+          id: string
+          sent: boolean
+          tag: string | null
+          title: string
+          url: string | null
+          user_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          deliver_at?: string
+          id?: string
+          sent?: boolean
+          tag?: string | null
+          title: string
+          url?: string | null
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          deliver_at?: string
+          id?: string
+          sent?: boolean
+          tag?: string | null
+          title?: string
+          url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -269,6 +338,7 @@ export type Database = {
         Returns: boolean
       }
       kick_clan_member: { Args: { _target: string }; Returns: undefined }
+      mark_dms_read: { Args: { _other: string }; Returns: undefined }
       set_clan_role: {
         Args: { _role: string; _target: string }
         Returns: undefined
