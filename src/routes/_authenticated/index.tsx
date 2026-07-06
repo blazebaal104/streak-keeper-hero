@@ -737,38 +737,35 @@ function ProfileDialog({ open, onClose, profile, badges, onUpdate, onSignOut, on
 function InventoryDialog({ slot, profile, badges, onClose, onEquip }: {
   slot: 0 | 1 | 2; profile: Profile; badges: Badge[]; onClose: () => void; onEquip: (id: string | null) => void;
 }) {
-  const owned = new Set(badges.filter((b) => b.category === "streak").map((b) => b.threshold));
   const equippedIds = new Set([profile.slot_1, profile.slot_2, profile.slot_3].filter(Boolean) as string[]);
   const [preview, setPreview] = useState<BadgeDef | null>(null);
-  return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="border-border bg-card max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Inventario medaglie — Slot {slot + 1}</DialogTitle>
-          <DialogDescription>Le medaglie che non hai sono in grigio. Toccale per vedere come sbloccarle.</DialogDescription>
-        </DialogHeader>
 
+  const renderGroup = (title: string, defs: BadgeDef[], category: BadgeCategory) => {
+    const ownedThresholds = new Set(
+      badges.filter((b) => b.category === category || (category === "fire" && b.category === "streak")).map((b) => b.threshold),
+    );
+    return (
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
         <div className="grid grid-cols-3 gap-3">
-          <button onClick={() => onEquip(null)} className="flex flex-col items-center gap-1 rounded-xl border-2 border-dashed border-border p-3 text-muted-foreground text-xs hover:bg-card/50">
-            <X className="h-6 w-6" /> Nessuna
-          </button>
-          {STREAK_BADGES.map((def) => {
-            const ownedBadge = badges.find((b) => b.threshold === def.threshold);
-            const isOwned = !!ownedBadge && owned.has(def.threshold);
+          {defs.map((def) => {
+            const ownedBadge = badges.find(
+              (b) => b.threshold === def.threshold && (b.category === category || (category === "fire" && b.category === "streak")),
+            );
+            const isOwned = !!ownedBadge && ownedThresholds.has(def.threshold);
             const isEquipped = ownedBadge && equippedIds.has(ownedBadge.id);
             return (
               <button
-                key={def.threshold}
-                onClick={() => isOwned && ownedBadge ? onEquip(ownedBadge.id) : setPreview(def)}
+                key={`${category}-${def.threshold}`}
+                onClick={() => (isOwned && ownedBadge ? onEquip(ownedBadge.id) : setPreview(def))}
                 className={`relative flex flex-col items-center gap-1 rounded-xl p-3 ring-2 overflow-hidden transition hover:scale-[1.03] ${def.ring} ${isEquipped ? "outline outline-2 outline-primary" : ""}`}
                 style={{ background: def.gradient }}
               >
-                {/* Locked overlay */}
                 {!isOwned && (
                   <>
                     <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px]" />
                     <div className="absolute inset-0 pointer-events-none">
-                      <FloatingSparkles seed={def.threshold} count={4} />
+                      <FloatingSparkles seed={def.threshold * (category === "ice" ? 7 : 1)} count={def.shiny ? 6 : 3} />
                     </div>
                   </>
                 )}
@@ -781,8 +778,25 @@ function InventoryDialog({ slot, profile, badges, onClose, onEquip }: {
             );
           })}
         </div>
+      </div>
+    );
+  };
 
-        {/* Locked-preview sub-dialog */}
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="border-border bg-card max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Inventario medaglie — Slot {slot + 1}</DialogTitle>
+          <DialogDescription>Le medaglie che non hai sono in grigio. Toccale per vedere come sbloccarle.</DialogDescription>
+        </DialogHeader>
+
+        <button onClick={() => onEquip(null)} className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-3 text-muted-foreground text-xs hover:bg-card/50">
+          <X className="h-4 w-4" /> Rimuovi da questo slot
+        </button>
+
+        {renderGroup("🔥 Streak di fuoco (fai ogni giorno)", FIRE_BADGES, "fire")}
+        {renderGroup("❄️ Streak di ghiaccio (giorni puliti)", ICE_BADGES, "ice")}
+
         {preview && (
           <Dialog open onOpenChange={(v) => !v && setPreview(null)}>
             <DialogContent className="border-border bg-card overflow-hidden">
@@ -800,7 +814,11 @@ function InventoryDialog({ slot, profile, badges, onClose, onEquip }: {
               </div>
               <div className="rounded-lg border border-border p-4 text-sm">
                 <p className="font-semibold mb-1">Come ottenerla</p>
-                <p className="text-muted-foreground">Mantieni una streak di <b>{preview.threshold} giorni</b> senza registrare eventi.</p>
+                <p className="text-muted-foreground">
+                  {preview.category === "ice"
+                    ? <>Non registrare alcun evento per <b>{preview.threshold} giorni di fila</b>. Le medaglie di ghiaccio sono le più preziose. ❄️</>
+                    : <>Registra almeno un evento ogni giorno per <b>{preview.threshold} giorni di fila</b>. 🔥</>}
+                </p>
               </div>
             </DialogContent>
           </Dialog>
