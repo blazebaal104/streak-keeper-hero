@@ -15,8 +15,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
   Plus, Droplets, Flame, CalendarDays, Users, Undo2, Sparkles, TrendingUp, Settings, Copy, UserPlus, Shield, X, LogOut,
-  MessageCircle, Send, Trash2, Camera, Lock, Crown, Star, UserMinus, Check, Bell,
+  MessageCircle, Send, Trash2, Camera, Lock, Crown, Star, UserMinus, Check, CheckCheck, Bell, Snowflake, LineChart as LineChartIcon,
 } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from "recharts";
 import logo from "@/assets/sbo-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -25,13 +26,14 @@ import {
   useClan, useClanMembers, useCreateClan, useJoinClanByTag, useLeaveClan,
   useDirectMessages, useSendDirectMessage, useClanMessages, useSendClanMessage,
   useIncomingInvites, useSendClanInvite, useAcceptInvite, useDeclineInvite,
-  useSetClanRole, useKickClanMember, useEventsOf, useBadgesOf,
-  countToday, countThisMonth, computeStreak, eventsByDay, adaptiveLimit,
+  useSetClanRole, useKickClanMember, useEventsOf, useBadgesOf, useMarkDmsRead,
+  countToday, countThisMonth, computeFireStreak, computeIceStreak, eventsByDay, adaptiveLimit, dailyCountsSeries,
   type Profile, type Badge, type FriendRow,
 } from "@/lib/sbo-cloud";
-import { STREAK_BADGES, badgeByThreshold, tierLabel, type BadgeDef } from "@/lib/sbo-badges";
-import { encourage, slowdown, restart } from "@/lib/sbo-phrases";
+import { FIRE_BADGES, ICE_BADGES, ALL_BADGES, badgeDef, badgeByThreshold, tierLabel, type BadgeDef, type BadgeCategory } from "@/lib/sbo-badges";
+import { encourage, slowdown, restart, overLimitShame, streakAtRisk } from "@/lib/sbo-phrases";
 import { ensureNotificationPermission, notify, scheduleStreakReminder, CLAN_ROLE_LABEL, compressImageToDataUrl } from "@/lib/sbo-notifications";
+import { ensureServiceWorker, subscribeToPush, schedulePush, isPushSupported } from "@/lib/sbo-push";
 
 const AVATAR_CHOICES = ["💧","🌊","⚡","🌟","🔥","🌙","⚔️","👑","🐉","🦁","🐺","🦅","🌸","🍀","🎯","🧊","☄️","🌈"];
 
