@@ -1,0 +1,15 @@
+{
+  "name": "SBO — Il tuo contatore personale",
+  "short_name": "SBO",
+  "description": "Monitora, capisci e migliora la tua abitudine. Streak, medaglie e clan.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -1,4 +1,4 @@
-// Encouragement / slowdown / restart phrases — 20+ per bucket.
+// 30+ variants per bucket. Personalized with {name}.
 const ENCOURAGE = [
   "{name}, ogni goccia trattenuta è una vittoria. 💧",
   "Sei più forte di ieri, {name}. Continua così.",
@@ -30,6 +30,9 @@ const ENCOURAGE = [
   "Respira profondo, {name}. È solo un momento.",
   "{name}, sei un guerriero. Comportati come tale. ⚔️",
   "Il vero flex è la costanza, {name}.",
+  "{name}, la libertà è dire di no quando tutti dicono di sì.",
+  "Ogni giorno che resisti, il cervello si ricablaggi, {name}.",
+  "{name}, sei l'architetto della tua vita. Costruisci.",
 ];
 
 const SLOWDOWN = [
@@ -53,6 +56,11 @@ const SLOWDOWN = [
   "Chiama un amico, {name}. Fai qualcosa di vero.",
   "{name}, il corpo protesta. Ascoltalo.",
   "Ok {name}, per oggi hai finito. Domani ricominciamo.",
+  "{name}, il domopamine debt sta aumentando. Fermati.",
+  "Metti il telefono lontano, {name}. Ora, non dopo.",
+  "{name}, la voglia passa. La testa lucida no.",
+  "Basta {name}. Sul serio. Ti farà male.",
+  "{name}, hai promesso a te stesso di limitarti. Ricordi?",
 ];
 
 const RESTART = [
@@ -78,10 +86,89 @@ const RESTART = [
   "{name}, sei ancora nel gioco. Continua a giocare.",
 ];
 
-function pick(arr: string[], name: string) {
-  return arr[Math.floor(Math.random() * arr.length)].replaceAll("{name}", name || "amico");
+// Delayed shame — sent ~10-15 min after crossing daily limit.
+export const OVER_LIMIT_SHAME = [
+  "{name}, sei andato oltre. Il tuo io di stamattina è deluso.",
+  "Hai superato il tuo limite, {name}. Domani sarà più duro.",
+  "{name}, quel limite l'avevi messo tu. Per te. Ricordi?",
+  "10 minuti fa hai detto 'una sola'. Come è andata, {name}?",
+  "{name}, il tuo io futuro sta guardando. E scuote la testa.",
+  "Nessuno lo saprà, {name}. Ma tu sì. Sempre.",
+  "{name}, la disciplina è dire no dopo aver detto sì una volta di troppo.",
+  "Hai rotto la promessa a te stesso, {name}. Domani meglio.",
+  "{name}, ogni volta oltre il limite è un mattone in meno nel muro.",
+  "Ti sei fatto fregare, {name}. Succede. Riprova domani.",
+  "{name}, la stanchezza mentale che senti ora è la ricevuta.",
+  "Il tuo cervello ora chiederà di più, {name}. Sii pronto.",
+  "{name}, i limiti esistono per un motivo. Il tuo li ha superati oggi.",
+  "Nessuna medaglia oggi, {name}. Ma il domani è ancora libero.",
+  "{name}, senti quella nebbia? È dopamine hangover. Prendine nota.",
+  "Hai vinto la battaglia contro il limite... perdendola, {name}.",
+  "{name}, questa sensazione — ricordatela. Domani ti servirà.",
+  "Ok {name}, sbagliato oggi. Non sbagliare stanotte anche.",
+  "{name}, contavi su di te. Ti sei tradito. Ripartiamo.",
+  "Il limite era 3, tu 4. Non è la fine del mondo, {name}, ma è un segnale.",
+  "{name}, non è dramma, è responsabilità. Domani un giorno in meno.",
+  "Hai bruciato oggi, {name}. Sistema domani.",
+  "{name}, questa notte dormi presto. Reset del sistema.",
+  "Il muro l'hai bucato tu, {name}. Ora rimettici i mattoni.",
+  "{name}, un limite superato è un dato, non una condanna. Ma pesa.",
+  "Bene {name}, ora sai cosa NON funziona per te. Utile.",
+];
+
+// Streak-at-risk (fire streak nearly lost — evening reminder).
+export const STREAK_AT_RISK = [
+  "{name}, non perdere ora. Un tap salva la streak di fuoco.",
+  "🔥 {name}, sei a {streak} giorni. Non fermarti proprio oggi.",
+  "{name}, mancano poche ore per proteggere la tua streak.",
+  "La tua streak ti guarda, {name}. Non deluderla.",
+  "{name}, un piccolo gesto oggi, grande orgoglio domani.",
+  "🔥 {name}, {streak} giorni di fila stanno per finire?",
+  "{name}, tieni viva la fiamma. Un tap è tutto quello che serve.",
+  "{name}, il tuo futuro se ne accorgerà. Registra oggi.",
+  "Non lasciare che la routine si spezzi, {name}.",
+  "{name}, questa streak la porti a casa? Solo tu decidi.",
+];
+
+// Ice-streak-at-risk — right after user seems tempted (client-side heuristic).
+export const ICE_AT_RISK = [
+  "❄️ {name}, resisti. La streak di ghiaccio vale doppio.",
+  "{name}, un momento di voglia non è una decisione. Respira.",
+  "❄️ Il ghiaccio si rompe con un solo colpo, {name}. Non darlo.",
+  "{name}, sei più forte di quello che stai per fare.",
+];
+
+// Push variants — friend / clan / badge / social
+export const FRIEND_REQUEST_PING = [
+  "{sender} vuole essere tuo amico su SBO 👋",
+  "Nuova richiesta di amicizia da {sender}",
+  "{sender} ti ha appena mandato una richiesta di amicizia",
+];
+
+export const NEW_MESSAGE_PING = [
+  "{sender} ti ha scritto",
+  "Nuovo messaggio da {sender}",
+  "{sender}: {preview}",
+];
+
+export const CLAN_ANNOUNCE_PING = [
+  "Novità nel tuo clan",
+  "Aggiornamento clan",
+  "Il tuo clan ha un annuncio",
+];
+
+function pick(arr: string[], name: string, extras: Record<string, string | number> = {}) {
+  let s = arr[Math.floor(Math.random() * arr.length)].replaceAll("{name}", name || "amico");
+  for (const [k, v] of Object.entries(extras)) s = s.replaceAll(`{${k}}`, String(v));
+  return s;
 }
 
 export const encourage = (n: string) => pick(ENCOURAGE, n);
 export const slowdown = (n: string) => pick(SLOWDOWN, n);
 export const restart = (n: string) => pick(RESTART, n);
+export const overLimitShame = (n: string) => pick(OVER_LIMIT_SHAME, n);
+export const streakAtRisk = (n: string, streak: number) => pick(STREAK_AT_RISK, n, { streak });
+export const iceAtRisk = (n: string) => pick(ICE_AT_RISK, n);
+export const friendPing = (sender: string) => pick(FRIEND_REQUEST_PING, "amico", { sender });
+export const messagePing = (sender: string, preview: string) => pick(NEW_MESSAGE_PING, "amico", { sender, preview });
+export const clanPing = () => pick(CLAN_ANNOUNCE_PING, "amico");
