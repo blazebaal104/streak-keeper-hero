@@ -1000,7 +1000,8 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
   const badgesQ = useBadgesOf(friend.id);
   const events = eventsQ.data ?? [];
   const badges = badgesQ.data ?? [];
-  const streak = computeStreak(events);
+  const fire = computeFireStreak(events);
+  const ice = computeIceStreak(events);
   const month = countThisMonth(events);
   const byDay = useMemo(() => eventsByDay(events), [events]);
   return (
@@ -1016,13 +1017,17 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
           </div>
         </DialogHeader>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
-              <p className="text-xs text-muted-foreground flex items-center gap-1"><Flame className="h-3 w-3 text-accent" /> Streak</p>
-              <p className="mt-1 text-2xl font-bold">{streak}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><Flame className="h-3 w-3 text-orange-400" /> Fuoco</p>
+              <p className="mt-1 text-2xl font-bold">{fire}</p>
             </Card>
             <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
-              <p className="text-xs text-muted-foreground">Questo mese</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1"><Snowflake className="h-3 w-3 text-sky-300" /> Ghiaccio</p>
+              <p className="mt-1 text-2xl font-bold">{ice}</p>
+            </Card>
+            <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
+              <p className="text-xs text-muted-foreground">Mese</p>
               <p className="mt-1 text-2xl font-bold">{month}</p>
             </Card>
           </div>
