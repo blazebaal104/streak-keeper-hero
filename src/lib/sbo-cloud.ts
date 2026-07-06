@@ -21,7 +21,7 @@ export type Profile = {
 export type SboEvent = { id: string; user_id: string; ts: string };
 export type Badge = { id: string; user_id: string; category: string; tier: string; threshold: number; awarded_at: string };
 export type Clan = { id: string; name: string; tag: string; owner_id: string };
-export type DirectMessage = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string };
+export type DirectMessage = { id: string; sender_id: string; recipient_id: string; content: string; created_at: string; read_at: string | null };
 export type ClanMessage = { id: string; clan_id: string; sender_id: string | null; content: string; is_system: boolean; created_at: string };
 export type ClanInvite = { id: string; clan_id: string; from_user_id: string; to_user_id: string; status: "pending" | "accepted" | "declined"; created_at: string };
 
