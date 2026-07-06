@@ -847,19 +847,24 @@ function FloatingSparkles({ seed, count = 8 }: { seed: number; count?: number })
 }
 
 function StreakProgress({ badges }: { badges: Badge[] }) {
-  const owned = new Set(badges.filter((b) => b.category === "streak").map((b) => b.threshold));
-  const next = STREAK_BADGES.find((b) => !owned.has(b.threshold));
-  if (!next) return <p className="text-xs text-center text-muted-foreground">🏆 Hai tutte le medaglie streak!</p>;
-  return (
-    <div className="rounded-lg border border-border p-3">
-      <p className="text-xs text-muted-foreground">Prossima medaglia streak</p>
-      <div className="mt-1 flex items-center gap-2">
-        <span className="text-xl">{next.emoji}</span>
-        <div className="flex-1">
-          <p className="text-sm font-semibold">{next.name} <span className="text-[10px] font-normal text-muted-foreground">({tierLabel(next.tier)})</span></p>
-          <p className="text-[11px] text-muted-foreground">{next.threshold} giorni di streak</p>
-        </div>
+  const ownedFire = new Set(badges.filter((b) => b.category === "fire" || b.category === "streak").map((b) => b.threshold));
+  const ownedIce = new Set(badges.filter((b) => b.category === "ice").map((b) => b.threshold));
+  const nextFire = FIRE_BADGES.find((b) => !ownedFire.has(b.threshold));
+  const nextIce = ICE_BADGES.find((b) => !ownedIce.has(b.threshold));
+  if (!nextFire && !nextIce) return <p className="text-xs text-center text-muted-foreground">🏆 Hai tutte le medaglie!</p>;
+  const Row = ({ n, label }: { n: BadgeDef; label: string }) => (
+    <div className="mt-1 flex items-center gap-2">
+      <span className="text-xl">{n.emoji}</span>
+      <div className="flex-1">
+        <p className="text-sm font-semibold">{n.name} <span className="text-[10px] font-normal text-muted-foreground">({tierLabel(n.tier)})</span></p>
+        <p className="text-[11px] text-muted-foreground">{label}: {n.threshold} giorni</p>
       </div>
+    </div>
+  );
+  return (
+    <div className="space-y-2">
+      {nextFire && <div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">🔥 Prossima medaglia di fuoco</p><Row n={nextFire} label="streak" /></div>}
+      {nextIce && <div className="rounded-lg border border-border p-3"><p className="text-xs text-muted-foreground">❄️ Prossima medaglia di ghiaccio</p><Row n={nextIce} label="giorni puliti" /></div>}
     </div>
   );
 }
