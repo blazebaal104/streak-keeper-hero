@@ -1113,20 +1113,27 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
 function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; other: Profile; myName: string; onClose: () => void }) {
   const msgsQ = useDirectMessages(userId, other.id);
   const send = useSendDirectMessage(userId);
+  const markRead = useMarkDmsRead();
   const [text, setText] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [msgsQ.data?.length]);
+  // Mark incoming DMs as read whenever the list updates
+  useEffect(() => {
+    if (!msgsQ.data) return;
+    const anyUnread = msgsQ.data.some((m) => m.sender_id === other.id && !m.read_at);
+    if (anyUnread) markRead.mutate(other.id);
+  }, [msgsQ.data, other.id]);
 
   const submit = async () => {
     const t = text.trim();
     if (!t) return;
     setText("");
     await send.mutateAsync({ to: other.id, content: t });
-    // Keep keyboard/focus like WhatsApp
     inputRef.current?.focus();
   };
+  const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
   return (
     <Dialog open={true} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="border-border bg-card max-w-md flex flex-col h-[80vh]">
@@ -1143,7 +1150,13 @@ function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; 
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
-                    {m.content}
+                    <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                    <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                      <span>{fmtTime(m.created_at)}</span>
+                      {mine && (m.read_at
+                        ? <CheckCheck className="h-3 w-3 text-sky-300" />
+                        : <CheckCheck className="h-3 w-3 opacity-60" />)}
+                    </div>
                   </div>
                 </div>
               );
