@@ -270,7 +270,7 @@ function SboApp() {
                 <div>
                   <p className="text-sm font-semibold">Suggerimento del giorno</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {today >= limit ? slowdown(profile.username) : streak >= 3 ? `Sei a ${streak} giorni. ${encourage(profile.username)}` : encourage(profile.username)}
+                    {today >= limit ? slowdown(profile.username) : fireStreak >= 3 ? `🔥 Sei a ${fireStreak} giorni di fila. ${encourage(profile.username)}` : iceStreak >= 3 ? `❄️ ${iceStreak} giorni puliti. ${encourage(profile.username)}` : encourage(profile.username)}
                   </p>
                 </div>
               </div>
