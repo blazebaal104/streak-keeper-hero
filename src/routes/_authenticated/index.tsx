@@ -137,6 +137,7 @@ function SboApp() {
   }, [userId]);
 
   const handleAdd = async () => {
+    const wasOver = today >= limit;
     await addEvent.mutateAsync();
     const id = Date.now();
     setBursts((b) => [...b, id]);
@@ -145,8 +146,23 @@ function SboApp() {
     const newToday = today + 1;
     const name = profile?.username ?? "";
     if (!profile?.notifications_enabled) return;
-    if (newToday >= limit) toast("🌊 Fermati un attimo", { description: slowdown(name) });
-    else if (streak > 0) toast("💧 Streak resettata", { description: restart(name) });
+    if (newToday >= limit) {
+      toast("🌊 Fermati un attimo", { description: slowdown(name) });
+      // Schedule delayed shame push (~10 min later) only when crossing for the first time today
+      if (!wasOver && !prevOverLimit.current && userId) {
+        prevOverLimit.current = true;
+        const deliverAt = new Date(Date.now() + 10 * 60 * 1000);
+        schedulePush(userId, {
+          deliverAt,
+          title: "💧 SBO",
+          body: overLimitShame(name),
+          tag: "over-limit-shame",
+          url: "/",
+        }).catch(() => {});
+      }
+    }
+    else if (fireStreak > 0) toast("🔥 " + encourage(name));
+    else if (iceStreak > 0) toast("❄️ Streak di ghiaccio rotta", { description: restart(name) });
     else toast(encourage(name));
   };
 
