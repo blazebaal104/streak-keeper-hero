@@ -81,23 +81,30 @@ function SboApp() {
 
   const today = countToday(events);
   const month = countThisMonth(events);
-  const streak = computeStreak(events);
+  const fireStreak = computeFireStreak(events);
+  const iceStreak = computeIceStreak(events);
   const limit = profile ? (profile.use_adaptive_limit ? adaptiveLimit(events, profile.daily_limit) : profile.daily_limit) : 3;
   const byDay = useMemo(() => eventsByDay(events), [events]);
+  const series30 = useMemo(() => dailyCountsSeries(events, 30), [events]);
+  const series90 = useMemo(() => dailyCountsSeries(events, 90), [events]);
+  const prevOverLimit = useRef(false);
 
-  // Streak-badge check
+  // Streak-badge check (belt & suspenders: DB trigger also runs it)
   useEffect(() => {
     if (!userId) return;
     checkStreakBadges(userId).catch(() => {});
   }, [userId, events.length]);
 
-  // Notifications: permission + streak reminder
+  // Notifications: permission + streak reminder + PWA push subscribe
   useEffect(() => {
-    if (!profile) return;
-    ensureNotificationPermission();
-    const cleanup = scheduleStreakReminder(() => ({ streak, countToday: today, username: profile.username }));
+    if (!profile || !userId) return;
+    ensureNotificationPermission().then((p) => {
+      if (p === "granted" && isPushSupported()) subscribeToPush(userId).catch(() => {});
+    });
+    ensureServiceWorker().catch(() => {});
+    const cleanup = scheduleStreakReminder(() => ({ streak: fireStreak, countToday: today, username: profile.username }));
     return cleanup;
-  }, [profile, streak, today]);
+  }, [profile, userId, fireStreak, today]);
 
   // Realtime notifications: new DMs, invites, badges
   const chatWithRef = useRef<{ id: string } | null>(null);
