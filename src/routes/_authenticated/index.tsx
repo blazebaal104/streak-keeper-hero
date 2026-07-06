@@ -207,9 +207,13 @@ function SboApp() {
           </div>
         </button>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-2 backdrop-blur">
-            <Flame className="h-4 w-4 text-accent" />
-            <span className="text-sm font-semibold">{streak}</span>
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-2 backdrop-blur" title="Streak di fuoco (giorni consecutivi con almeno un evento)">
+            <Flame className="h-4 w-4 text-orange-400" />
+            <span className="text-sm font-semibold">{fireStreak}</span>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-2 backdrop-blur" title="Streak di ghiaccio (giorni consecutivi senza eventi)">
+            <Snowflake className="h-4 w-4 text-sky-300" />
+            <span className="text-sm font-semibold">{iceStreak}</span>
           </div>
           <Button variant="ghost" size="icon" className="relative rounded-full border border-border bg-card/60 backdrop-blur" onClick={() => setShowInvites(true)} aria-label="Notifiche">
             <Bell className="h-4 w-4" />
