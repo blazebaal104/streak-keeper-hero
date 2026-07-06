@@ -227,10 +227,11 @@ function SboApp() {
 
       <main className="mx-auto max-w-3xl px-6 pb-24">
         <Tabs defaultValue="home" className="w-full">
-          <TabsList className="mx-auto grid w-full max-w-sm grid-cols-3 rounded-full bg-card/60 backdrop-blur">
-            <TabsTrigger value="home" className="rounded-full"><Droplets className="mr-1.5 h-4 w-4" /> Home</TabsTrigger>
-            <TabsTrigger value="calendar" className="rounded-full"><CalendarDays className="mr-1.5 h-4 w-4" /> Calendario</TabsTrigger>
-            <TabsTrigger value="friends" className="rounded-full"><Users className="mr-1.5 h-4 w-4" /> Social</TabsTrigger>
+          <TabsList className="mx-auto grid w-full max-w-md grid-cols-4 rounded-full bg-card/60 backdrop-blur">
+            <TabsTrigger value="home" className="rounded-full text-xs"><Droplets className="mr-1 h-3.5 w-3.5" /> Home</TabsTrigger>
+            <TabsTrigger value="calendar" className="rounded-full text-xs"><CalendarDays className="mr-1 h-3.5 w-3.5" /> Cal</TabsTrigger>
+            <TabsTrigger value="chart" className="rounded-full text-xs"><LineChartIcon className="mr-1 h-3.5 w-3.5" /> Trend</TabsTrigger>
+            <TabsTrigger value="friends" className="rounded-full text-xs"><Users className="mr-1 h-3.5 w-3.5" /> Social</TabsTrigger>
           </TabsList>
 
           {/* HOME */}
