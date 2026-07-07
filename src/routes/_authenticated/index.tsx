@@ -761,7 +761,7 @@ function ProfileDialog({ open, onClose, profile, badges, onUpdate, onSignOut, on
               {[0, 1, 2].map((i) => {
                 const bid = equipped[i];
                 const b = bid ? badges.find((x) => x.id === bid) : null;
-                const def = b ? badgeByThreshold(b.threshold) ?? null : null;
+                const def = b ? badgeDef(b.category as BadgeCategory, b.threshold) ?? null : null;
                 return <BadgeSlot key={i} def={def} onClick={() => onOpenInventory(i as 0 | 1 | 2)} />;
               })}
             </div>
