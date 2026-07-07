@@ -1083,7 +1083,7 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
             ) : (
               <div className="mt-2 grid grid-cols-5 gap-2">
                 {badges.map((b) => {
-                  const def = badgeByThreshold(b.threshold);
+                  const def = badgeDef(b.category as BadgeCategory, b.threshold);
                   if (!def) return null;
                   return (
                     <div key={b.id} className={`flex flex-col items-center gap-0.5 rounded-lg p-2 ring-1 ${def.ring}`} style={{ background: def.gradient }}>
