@@ -183,7 +183,7 @@ function SboApp() {
     if (!s) return null;
     const b = badges.find((x) => x.id === s);
     if (!b) return null;
-    return badgeByThreshold(b.threshold) ?? null;
+    return badgeDef(b.category as BadgeCategory, b.threshold) ?? null;
   });
 
   return (
