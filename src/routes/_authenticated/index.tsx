@@ -305,38 +305,46 @@ function SboApp() {
                 <p className="text-sm font-semibold">Andamento — ultimi 30 giorni</p>
                 <span className="text-[10px] text-muted-foreground">📈 media mobile 7gg</span>
               </div>
-              <div className="h-56 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={series30} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gCount" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.35} />
-                    <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="hsl(var(--muted-foreground))" />
-                    <YAxis allowDecimals={false} fontSize={10} stroke="hsl(var(--muted-foreground))" width={28} />
-                    <RTooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
-                    <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" fill="url(#gCount)" strokeWidth={2} name="Al giorno" />
-                    <Line type="monotone" dataKey="ma7" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} name="Media 7gg" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+              {series30.every((d) => d.count === 0) ? (
+                <p className="py-10 text-center text-xs text-muted-foreground">Nessun dato ancora. Il grafico si popolerà con l'uso.</p>
+              ) : (
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={series30} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gCount" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#f97316" stopOpacity={0.55} />
+                          <stop offset="100%" stopColor="#f97316" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff" opacity={0.15} />
+                      <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
+                      <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
+                      <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
+                      <Area type="monotone" dataKey="count" stroke="#fb923c" fill="url(#gCount)" strokeWidth={2} name="Al giorno" />
+                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media 7gg" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </Card>
             <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
               <p className="mb-3 text-sm font-semibold px-1">Trend a 90 giorni</p>
-              <div className="h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={series90} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.35} />
-                    <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="hsl(var(--muted-foreground))" />
-                    <YAxis allowDecimals={false} fontSize={10} stroke="hsl(var(--muted-foreground))" width={28} />
-                    <RTooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
-                    <Line type="monotone" dataKey="ma7" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} name="Media 7gg" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              {series90.every((d) => d.count === 0) ? (
+                <p className="py-8 text-center text-xs text-muted-foreground">Nessun dato ancora.</p>
+              ) : (
+                <div className="h-48 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={series90} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff" opacity={0.15} />
+                      <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
+                      <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
+                      <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
+                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media 7gg" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
               <p className="mt-2 px-1 text-[11px] text-muted-foreground">La curva mostra se stai salendo o scendendo. Obiettivo: portarla giù nel tempo.</p>
             </Card>
           </TabsContent>
