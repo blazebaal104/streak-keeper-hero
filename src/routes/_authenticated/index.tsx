@@ -183,7 +183,7 @@ function SboApp() {
     if (!s) return null;
     const b = badges.find((x) => x.id === s);
     if (!b) return null;
-    return badgeByThreshold(b.threshold) ?? null;
+    return badgeDef(b.category as BadgeCategory, b.threshold) ?? null;
   });
 
   return (
@@ -305,38 +305,46 @@ function SboApp() {
                 <p className="text-sm font-semibold">Andamento — ultimi 30 giorni</p>
                 <span className="text-[10px] text-muted-foreground">📈 media mobile 7gg</span>
               </div>
-              <div className="h-56 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={series30} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gCount" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                        <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.35} />
-                    <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="hsl(var(--muted-foreground))" />
-                    <YAxis allowDecimals={false} fontSize={10} stroke="hsl(var(--muted-foreground))" width={28} />
-                    <RTooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
-                    <Area type="monotone" dataKey="count" stroke="hsl(var(--primary))" fill="url(#gCount)" strokeWidth={2} name="Al giorno" />
-                    <Line type="monotone" dataKey="ma7" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} name="Media 7gg" />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
+              {series30.every((d) => d.count === 0) ? (
+                <p className="py-10 text-center text-xs text-muted-foreground">Nessun dato ancora. Il grafico si popolerà con l'uso.</p>
+              ) : (
+                <div className="h-56 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={series30} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gCount" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#f97316" stopOpacity={0.55} />
+                          <stop offset="100%" stopColor="#f97316" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff" opacity={0.15} />
+                      <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
+                      <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
+                      <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
+                      <Area type="monotone" dataKey="count" stroke="#fb923c" fill="url(#gCount)" strokeWidth={2} name="Al giorno" />
+                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media 7gg" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
             </Card>
             <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
               <p className="mb-3 text-sm font-semibold px-1">Trend a 90 giorni</p>
-              <div className="h-48 w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={series90} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.35} />
-                    <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="hsl(var(--muted-foreground))" />
-                    <YAxis allowDecimals={false} fontSize={10} stroke="hsl(var(--muted-foreground))" width={28} />
-                    <RTooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 12 }} />
-                    <Line type="monotone" dataKey="ma7" stroke="hsl(var(--accent))" strokeWidth={2} dot={false} name="Media 7gg" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              {series90.every((d) => d.count === 0) ? (
+                <p className="py-8 text-center text-xs text-muted-foreground">Nessun dato ancora.</p>
+              ) : (
+                <div className="h-48 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={series90} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff" opacity={0.15} />
+                      <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
+                      <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
+                      <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
+                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media 7gg" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
               <p className="mt-2 px-1 text-[11px] text-muted-foreground">La curva mostra se stai salendo o scendendo. Obiettivo: portarla giù nel tempo.</p>
             </Card>
           </TabsContent>
@@ -761,7 +769,7 @@ function ProfileDialog({ open, onClose, profile, badges, onUpdate, onSignOut, on
               {[0, 1, 2].map((i) => {
                 const bid = equipped[i];
                 const b = bid ? badges.find((x) => x.id === bid) : null;
-                const def = b ? badgeByThreshold(b.threshold) ?? null : null;
+                const def = b ? badgeDef(b.category as BadgeCategory, b.threshold) ?? null : null;
                 return <BadgeSlot key={i} def={def} onClick={() => onOpenInventory(i as 0 | 1 | 2)} />;
               })}
             </div>
@@ -1083,7 +1091,7 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
             ) : (
               <div className="mt-2 grid grid-cols-5 gap-2">
                 {badges.map((b) => {
-                  const def = badgeByThreshold(b.threshold);
+                  const def = badgeDef(b.category as BadgeCategory, b.threshold);
                   if (!def) return null;
                   return (
                     <div key={b.id} className={`flex flex-col items-center gap-0.5 rounded-lg p-2 ring-1 ${def.ring}`} style={{ background: def.gradient }}>
@@ -1101,6 +1109,36 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
             <Calendar mode="single" className="pointer-events-auto mx-auto mt-2"
               modifiers={{ logged: (d) => (byDay.get(d.toISOString().slice(0, 10)) ?? 0) > 0 }}
               modifiersClassNames={{ logged: "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-accent" }} />
+          </div>
+
+          <div>
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Andamento (30gg)</Label>
+            {(() => {
+              const fSeries = dailyCountsSeries(events, 30);
+              if (fSeries.every((d) => d.count === 0)) {
+                return <p className="mt-2 py-6 text-center text-xs text-muted-foreground">Nessun dato ancora.</p>;
+              }
+              return (
+                <div className="mt-2 h-40 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={fSeries} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id={`gFriend-${friend.id}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#fb923c" stopOpacity={0.55} />
+                          <stop offset="100%" stopColor="#fb923c" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#ffffff" opacity={0.15} />
+                      <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
+                      <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
+                      <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
+                      <Area type="monotone" dataKey="count" stroke="#fb923c" fill={`url(#gFriend-${friend.id})`} strokeWidth={2} name="Al giorno" />
+                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media 7gg" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })()}
           </div>
 
           <Button className="w-full" onClick={onChat}><MessageCircle className="mr-2 h-4 w-4" /> Manda un messaggio</Button>
@@ -1155,7 +1193,7 @@ function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; 
                       <span>{fmtTime(m.created_at)}</span>
                       {mine && (m.read_at
                         ? <CheckCheck className="h-3 w-3 text-sky-300" />
-                        : <CheckCheck className="h-3 w-3 opacity-60" />)}
+                        : <Check className="h-3 w-3 opacity-70" />)}
                     </div>
                   </div>
                 </div>

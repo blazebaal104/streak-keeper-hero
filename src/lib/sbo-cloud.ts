@@ -480,15 +480,22 @@ export function eventsByDay(events: SboEvent[]): Map<string, number> {
   }
   return m;
 }
-/** ICE streak: consecutive days with 0 events, walking back from today. */
+/** ICE streak: consecutive days with 0 events, walking back from today.
+ *  Returns 0 if the user has never logged an event — otherwise a brand-new
+ *  account would appear to have a decade-long ice streak. */
 export function computeIceStreak(events: SboEvent[]): number {
+  if (events.length === 0) return 0;
   const byDay = eventsByDay(events);
   const today = startOfDayTs(new Date());
   const todayKey = new Date(today).toISOString().slice(0, 10);
   if (byDay.get(todayKey)) return 0;
+  const firstTs = startOfDayTs(new Date(events.reduce((min, e) => {
+    const t = new Date(e.ts).getTime();
+    return t < min ? t : min;
+  }, Number.POSITIVE_INFINITY)));
   let streak = 0;
   let cursor = today;
-  while (streak < 3650) {
+  while (cursor >= firstTs) {
     const key = new Date(cursor).toISOString().slice(0, 10);
     if (byDay.get(key)) break;
     streak += 1;
