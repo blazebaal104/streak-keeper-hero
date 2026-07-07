@@ -1163,7 +1163,7 @@ function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; 
                       <span>{fmtTime(m.created_at)}</span>
                       {mine && (m.read_at
                         ? <CheckCheck className="h-3 w-3 text-sky-300" />
-                        : <CheckCheck className="h-3 w-3 opacity-60" />)}
+                        : <Check className="h-3 w-3 opacity-70" />)}
                     </div>
                   </div>
                 </div>
