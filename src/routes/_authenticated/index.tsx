@@ -1107,7 +1107,7 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
           <div>
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">Calendario</Label>
             <Calendar mode="single" className="pointer-events-auto mx-auto mt-2"
-              modifiers={{ logged: (d) => (byDay.get(d.toISOString().slice(0, 10)) ?? 0) > 0 }}
+              modifiers={{ logged: (d) => (byDay.get(localDayKey(d)) ?? 0) > 0 }}
               modifiersClassNames={{ logged: "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-accent" }} />
           </div>
 
