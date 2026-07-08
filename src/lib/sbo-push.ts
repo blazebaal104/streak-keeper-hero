@@ -1,9 +1,23 @@
 // Client-side push subscription helpers.
-// The service worker lives at /sw.js. Public VAPID key is safe to embed.
+// Works in two environments:
+//  - Web (browser / PWA): uses the Service Worker at /sw.js + Web Push (VAPID).
+//  - Native (Capacitor Android/iOS): uses @capacitor/push-notifications for
+//    the native permission prompt and FCM/APNs token registration.
+// The public API (isPushSupported / ensureServiceWorker / subscribeToPush /
+// unsubscribeFromPush / schedulePush) stays the same so the rest of the app
+// doesn't need to know which environment it's in.
+
 import { supabase } from "@/integrations/supabase/client";
+import { Capacitor } from "@capacitor/core";
 
 export const VAPID_PUBLIC_KEY =
   "BDK44fy_3Q3lUMVmKoP01jrY4Hf1jYO1PtO_PdVPG6dsrUJ8eIP5ANvRJ00DD4kGRBJ_H4m6XNVc_fVqFo4vQeA";
+
+// --- platform helpers ---------------------------------------------------
+
+function isNative(): boolean {
+  try { return Capacitor.isNativePlatform(); } catch { return false; }
+}
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -23,13 +37,67 @@ function arrayBufferToBase64(buf: ArrayBuffer | null): string {
 }
 
 export function isPushSupported(): boolean {
+  if (isNative()) return true; // native plugin handles everything
   return typeof window !== "undefined"
     && "serviceWorker" in navigator
     && "PushManager" in window
     && "Notification" in window;
 }
 
+// --- native (Capacitor) path -------------------------------------------
+
+let nativeListenersAttached = false;
+
+async function subscribeNative(userId: string): Promise<boolean> {
+  try {
+    const { PushNotifications } = await import("@capacitor/push-notifications");
+
+    let perm = await PushNotifications.checkPermissions();
+    if (perm.receive === "prompt" || perm.receive === "prompt-with-rationale") {
+      perm = await PushNotifications.requestPermissions();
+    }
+    if (perm.receive !== "granted") return false;
+
+    if (!nativeListenersAttached) {
+      nativeListenersAttached = true;
+      await PushNotifications.addListener("registration", async (token) => {
+        try {
+          await supabase
+            .from("push_subscriptions")
+            .upsert(
+              {
+                user_id: userId,
+                endpoint: `capacitor://${Capacitor.getPlatform()}/${token.value}`,
+                p256dh: "native",
+                auth: "native",
+                user_agent: `capacitor-${Capacitor.getPlatform()}`,
+              },
+              { onConflict: "endpoint" },
+            );
+        } catch (e) {
+          console.warn("[push] native token save failed", e);
+        }
+      });
+      await PushNotifications.addListener("registrationError", (err) => {
+        console.warn("[push] native registration error", err);
+      });
+      // Foreground receive is handled by the OS; we can hook here if needed.
+      await PushNotifications.addListener("pushNotificationReceived", () => {});
+      await PushNotifications.addListener("pushNotificationActionPerformed", () => {});
+    }
+
+    await PushNotifications.register();
+    return true;
+  } catch (e) {
+    console.warn("[push] native subscribe failed", e);
+    return false;
+  }
+}
+
+// --- web (Service Worker + Web Push) path ------------------------------
+
 export async function ensureServiceWorker(): Promise<ServiceWorkerRegistration | null> {
+  if (isNative()) return null;
   if (!isPushSupported()) return null;
   try {
     const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" });
@@ -40,8 +108,8 @@ export async function ensureServiceWorker(): Promise<ServiceWorkerRegistration |
   }
 }
 
-export async function subscribeToPush(userId: string): Promise<boolean> {
-  if (!isPushSupported()) return false;
+async function subscribeWeb(userId: string): Promise<boolean> {
+  if (typeof window === "undefined" || !("Notification" in window)) return false;
   if (Notification.permission === "default") {
     const p = await Notification.requestPermission();
     if (p !== "granted") return false;
@@ -71,7 +139,6 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
   const authKey = json.keys?.auth || arrayBufferToBase64(sub.getKey("auth"));
   if (!endpoint || !p256dh || !authKey) return false;
 
-  // Upsert by endpoint
   const { error } = await supabase
     .from("push_subscriptions")
     .upsert({ user_id: userId, endpoint, p256dh, auth: authKey, user_agent: navigator.userAgent }, { onConflict: "endpoint" });
@@ -79,7 +146,22 @@ export async function subscribeToPush(userId: string): Promise<boolean> {
   return true;
 }
 
+// --- public API --------------------------------------------------------
+
+export async function subscribeToPush(userId: string): Promise<boolean> {
+  if (isNative()) return subscribeNative(userId);
+  return subscribeWeb(userId);
+}
+
 export async function unsubscribeFromPush(): Promise<void> {
+  if (isNative()) {
+    try {
+      const { PushNotifications } = await import("@capacitor/push-notifications");
+      await PushNotifications.removeAllListeners();
+      nativeListenersAttached = false;
+    } catch {}
+    return;
+  }
   if (!isPushSupported()) return;
   const reg = await navigator.serviceWorker.getRegistration("/");
   const sub = await reg?.pushManager.getSubscription();
@@ -89,8 +171,9 @@ export async function unsubscribeFromPush(): Promise<void> {
   }
 }
 
-// Schedule a server-delivered push at a future time (used for the delayed
-// "over-limit shame" notification). The server cron picks it up.
+// Schedule a server-delivered push at a future time. The server cron picks it up
+// and sends it via whichever transport is registered for this user (web push
+// and/or native FCM/APNs).
 export async function schedulePush(userId: string, args: { deliverAt: Date; title: string; body: string; tag?: string; url?: string }) {
   const { error } = await supabase.from("scheduled_notifications").insert({
     user_id: userId,

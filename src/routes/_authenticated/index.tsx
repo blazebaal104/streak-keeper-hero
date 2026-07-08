@@ -98,9 +98,13 @@ function SboApp() {
   // Notifications: permission + streak reminder + PWA push subscribe
   useEffect(() => {
     if (!profile || !userId) return;
-    ensureNotificationPermission().then((p) => {
-      if (p === "granted" && isPushSupported()) subscribeToPush(userId).catch(() => {});
-    });
+    // On native (Capacitor) subscribeToPush handles the OS permission prompt itself;
+    // on the web it uses the browser's Notification permission + Service Worker.
+    if (isPushSupported()) {
+      subscribeToPush(userId).catch(() => {});
+    } else {
+      ensureNotificationPermission().catch(() => {});
+    }
     ensureServiceWorker().catch(() => {});
     const cleanup = scheduleStreakReminder(() => ({ streak: fireStreak, countToday: today, username: profile.username }));
     return cleanup;
