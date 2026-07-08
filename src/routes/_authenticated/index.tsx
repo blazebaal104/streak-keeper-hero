@@ -27,7 +27,7 @@ import {
   useDirectMessages, useSendDirectMessage, useClanMessages, useSendClanMessage,
   useIncomingInvites, useSendClanInvite, useAcceptInvite, useDeclineInvite,
   useSetClanRole, useKickClanMember, useEventsOf, useBadgesOf, useMarkDmsRead,
-  countToday, countThisMonth, computeFireStreak, computeIceStreak, eventsByDay, adaptiveLimit, dailyCountsSeries,
+  countToday, countThisMonth, computeFireStreak, computeIceStreak, eventsByDay, adaptiveLimit, dailyCountsSeries, localDayKey,
   type Profile, type Badge, type FriendRow,
 } from "@/lib/sbo-cloud";
 import { FIRE_BADGES, ICE_BADGES, ALL_BADGES, badgeDef, badgeByThreshold, tierLabel, type BadgeDef, type BadgeCategory } from "@/lib/sbo-badges";
