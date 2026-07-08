@@ -27,7 +27,7 @@ import {
   useDirectMessages, useSendDirectMessage, useClanMessages, useSendClanMessage,
   useIncomingInvites, useSendClanInvite, useAcceptInvite, useDeclineInvite,
   useSetClanRole, useKickClanMember, useEventsOf, useBadgesOf, useMarkDmsRead,
-  countToday, countThisMonth, computeFireStreak, computeIceStreak, eventsByDay, adaptiveLimit, dailyCountsSeries,
+  countToday, countThisMonth, computeFireStreak, computeIceStreak, eventsByDay, adaptiveLimit, dailyCountsSeries, localDayKey,
   type Profile, type Badge, type FriendRow,
 } from "@/lib/sbo-cloud";
 import { FIRE_BADGES, ICE_BADGES, ALL_BADGES, badgeDef, badgeByThreshold, tierLabel, type BadgeDef, type BadgeCategory } from "@/lib/sbo-badges";
@@ -284,8 +284,8 @@ function SboApp() {
               <p className="mb-3 px-2 text-sm text-muted-foreground">Registro personale — solo per uso medico e di monitoraggio.</p>
               <Calendar mode="single" className="pointer-events-auto mx-auto"
                 modifiers={{
-                  logged: (d) => (byDay.get(d.toISOString().slice(0, 10)) ?? 0) > 0,
-                  heavy: (d) => (byDay.get(d.toISOString().slice(0, 10)) ?? 0) >= limit,
+                  logged: (d) => (byDay.get(localDayKey(d)) ?? 0) > 0,
+                  heavy: (d) => (byDay.get(localDayKey(d)) ?? 0) >= limit,
                 }}
                 modifiersClassNames={{
                   logged: "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-accent",
@@ -1107,7 +1107,7 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
           <div>
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">Calendario</Label>
             <Calendar mode="single" className="pointer-events-auto mx-auto mt-2"
-              modifiers={{ logged: (d) => (byDay.get(d.toISOString().slice(0, 10)) ?? 0) > 0 }}
+              modifiers={{ logged: (d) => (byDay.get(localDayKey(d)) ?? 0) > 0 }}
               modifiersClassNames={{ logged: "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-accent" }} />
           </div>
 

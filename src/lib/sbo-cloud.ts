@@ -472,49 +472,55 @@ export function countThisMonth(events: SboEvent[]) {
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }).length;
 }
+/** Local YYYY-MM-DD key for a date/timestamp — avoids UTC drift for CET/CEST users. */
+export function localDayKey(d: Date | number | string): string {
+  const x = new Date(d);
+  const y = x.getFullYear();
+  const m = String(x.getMonth() + 1).padStart(2, "0");
+  const day = String(x.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 export function eventsByDay(events: SboEvent[]): Map<string, number> {
   const m = new Map<string, number>();
   for (const e of events) {
-    const k = new Date(startOfDayTs(e.ts)).toISOString().slice(0, 10);
+    const k = localDayKey(e.ts);
     m.set(k, (m.get(k) ?? 0) + 1);
   }
   return m;
 }
-/** ICE streak: consecutive days with 0 events, walking back from today.
- *  Returns 0 if the user has never logged an event — otherwise a brand-new
- *  account would appear to have a decade-long ice streak. */
+/** ICE streak with 24h grace: activates only the day AFTER a fully empty day.
+ *  - 0 events ever → 0
+ *  - last event today → 0
+ *  - last event yesterday → 0 (grace day, fire is still alive)
+ *  - last event N days ago (N>=2) → N-1
+ */
 export function computeIceStreak(events: SboEvent[]): number {
   if (events.length === 0) return 0;
-  const byDay = eventsByDay(events);
   const today = startOfDayTs(new Date());
-  const todayKey = new Date(today).toISOString().slice(0, 10);
-  if (byDay.get(todayKey)) return 0;
-  const firstTs = startOfDayTs(new Date(events.reduce((min, e) => {
+  const lastTs = events.reduce((mx, e) => {
     const t = new Date(e.ts).getTime();
-    return t < min ? t : min;
-  }, Number.POSITIVE_INFINITY)));
-  let streak = 0;
-  let cursor = today;
-  while (cursor >= firstTs) {
-    const key = new Date(cursor).toISOString().slice(0, 10);
-    if (byDay.get(key)) break;
-    streak += 1;
-    cursor -= DAY_MS;
-  }
-  return streak;
+    return t > mx ? t : mx;
+  }, 0);
+  const lastDay = startOfDayTs(lastTs);
+  const daysSince = Math.round((today - lastDay) / DAY_MS);
+  if (daysSince <= 1) return 0;
+  return daysSince - 1;
 }
 
-/** FIRE streak: consecutive days with >=1 event including today. */
+/** FIRE streak: consecutive days with >=1 event, ending at today OR yesterday (24h grace). */
 export function computeFireStreak(events: SboEvent[]): number {
   if (events.length === 0) return 0;
   const byDay = eventsByDay(events);
   const today = startOfDayTs(new Date());
-  const todayKey = new Date(today).toISOString().slice(0, 10);
-  if (!byDay.get(todayKey)) return 0;
+  const todayKey = localDayKey(today);
+  const yestKey = localDayKey(today - DAY_MS);
+  let cursor: number;
+  if (byDay.get(todayKey)) cursor = today;
+  else if (byDay.get(yestKey)) cursor = today - DAY_MS;
+  else return 0;
   let streak = 0;
-  let cursor = today;
   while (streak < 3650) {
-    const key = new Date(cursor).toISOString().slice(0, 10);
+    const key = localDayKey(cursor);
     if (!byDay.get(key)) break;
     streak += 1;
     cursor -= DAY_MS;
@@ -538,8 +544,8 @@ export function dailyCountsSeries(events: SboEvent[], days = 30): { date: string
   const today = startOfDayTs(new Date());
   const out: { date: string; count: number; ma7: number }[] = [];
   for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(today - i * DAY_MS);
-    const key = d.toISOString().slice(0, 10);
+    const ts = today - i * DAY_MS;
+    const key = localDayKey(ts);
     out.push({ date: key, count: byDay.get(key) ?? 0, ma7: 0 });
   }
   // 7-day trailing moving average
