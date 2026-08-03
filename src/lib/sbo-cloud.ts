@@ -11,12 +11,16 @@ export type Profile = {
   daily_limit: number;
   use_adaptive_limit: boolean;
   notifications_enabled: boolean;
+  notif_messages: boolean;
+  notif_streak: boolean;
+  notif_social: boolean;
   clan_id: string | null;
   clan_role: "leader" | "co_leader" | "recruit";
   slot_1: string | null;
   slot_2: string | null;
   slot_3: string | null;
 };
+
 
 export type SboEvent = { id: string; user_id: string; ts: string };
 export type Badge = { id: string; user_id: string; category: string; tier: string; threshold: number; awarded_at: string };
@@ -569,4 +573,62 @@ export function useMarkDmsRead() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["dm"] }),
   });
 }
+
+/** Best (all-time) fire streak: longest run of consecutive days with >=1 event. */
+export function maxFireStreak(events: SboEvent[]): number {
+  if (events.length === 0) return 0;
+  const days = [...eventsByDay(events).keys()].map((k) => startOfDayTs(`${k}T12:00:00`)).sort((a, b) => a - b);
+  let best = 1, cur = 1;
+  for (let i = 1; i < days.length; i++) {
+    const gap = Math.round((days[i] - days[i - 1]) / DAY_MS);
+    cur = gap === 1 ? cur + 1 : 1;
+    if (cur > best) best = cur;
+  }
+  return best;
+}
+
+/** Best (all-time) ice streak: longest gap between active days, minus the 24h grace day. */
+export function maxIceStreak(events: SboEvent[]): number {
+  if (events.length === 0) return 0;
+  const days = [...eventsByDay(events).keys()].map((k) => startOfDayTs(`${k}T12:00:00`)).sort((a, b) => a - b);
+  let best = 0;
+  for (let i = 1; i < days.length; i++) {
+    const gap = Math.round((days[i] - days[i - 1]) / DAY_MS) - 1; // empty days in between
+    const counted = Math.max(0, gap - 1); // 24h grace
+    if (counted > best) best = counted;
+  }
+  const current = computeIceStreak(events);
+  return Math.max(best, current);
+}
+
+/** Unread direct-message counts per sender, for the friends list. */
+export function useUnreadDmCounts(userId: string | null) {
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!userId) return;
+    const ch = supabase
+      .channel(`unread:${userId}:${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "direct_messages", filter: `recipient_id=eq.${userId}` }, () => {
+        qc.invalidateQueries({ queryKey: ["unread-dm", userId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [userId, qc]);
+  return useQuery({
+    queryKey: ["unread-dm", userId],
+    enabled: !!userId,
+    queryFn: async (): Promise<Record<string, number>> => {
+      const { data, error } = await supabase
+        .from("direct_messages")
+        .select("sender_id")
+        .eq("recipient_id", userId!)
+        .is("read_at", null);
+      if (error) throw error;
+      const out: Record<string, number> = {};
+      for (const r of data ?? []) out[r.sender_id] = (out[r.sender_id] ?? 0) + 1;
+      return out;
+    },
+  });
+}
+
 

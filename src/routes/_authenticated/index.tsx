@@ -26,14 +26,18 @@ import {
   useClan, useClanMembers, useCreateClan, useJoinClanByTag, useLeaveClan,
   useDirectMessages, useSendDirectMessage, useClanMessages, useSendClanMessage,
   useIncomingInvites, useSendClanInvite, useAcceptInvite, useDeclineInvite,
-  useSetClanRole, useKickClanMember, useEventsOf, useBadgesOf, useMarkDmsRead,
-  countToday, countThisMonth, computeFireStreak, computeIceStreak, eventsByDay, adaptiveLimit, dailyCountsSeries, localDayKey,
+  useSetClanRole, useKickClanMember, useEventsOf, useBadgesOf, useMarkDmsRead, useUnreadDmCounts,
+  countToday, countThisMonth, computeFireStreak, computeIceStreak, maxFireStreak, maxIceStreak,
+  eventsByDay, adaptiveLimit, dailyCountsSeries, localDayKey,
   type Profile, type Badge, type FriendRow,
 } from "@/lib/sbo-cloud";
 import { FIRE_BADGES, ICE_BADGES, ALL_BADGES, badgeDef, badgeByThreshold, tierLabel, type BadgeDef, type BadgeCategory } from "@/lib/sbo-badges";
-import { encourage, slowdown, restart, overLimitShame, streakAtRisk } from "@/lib/sbo-phrases";
+import { encourage, slowdown, restart, overLimitShame, streakAtRisk, fireEncourage, iceEncourage } from "@/lib/sbo-phrases";
 import { ensureNotificationPermission, notify, scheduleStreakReminder, CLAN_ROLE_LABEL, compressImageToDataUrl } from "@/lib/sbo-notifications";
 import { ensureServiceWorker, subscribeToPush, schedulePush, isPushSupported } from "@/lib/sbo-push";
+import { BadgeArt } from "@/components/sbo/badge-art";
+import { StreakButton } from "@/components/sbo/streak-button";
+
 
 const AVATAR_CHOICES = ["💧","🌊","⚡","🌟","🔥","🌙","⚔️","👑","🐉","🦁","🐺","🦅","🌸","🍀","🎯","🧊","☄️","🌈"];
 
@@ -72,6 +76,10 @@ function SboApp() {
   const [viewFriend, setViewFriend] = useState<Profile | null>(null);
   const [showInvites, setShowInvites] = useState(false);
   const [bursts, setBursts] = useState<number[]>([]);
+  const [melting, setMelting] = useState(false);
+  const unreadQ = useUnreadDmCounts(userId);
+  const unread = unreadQ.data ?? {};
+
 
   const profile = profileQ.data;
   const events = eventsQ.data ?? [];
@@ -142,10 +150,15 @@ function SboApp() {
 
   const handleAdd = async () => {
     const wasOver = today >= limit;
+    const brokeIce = iceStreak > 0;
     await addEvent.mutateAsync();
     const id = Date.now();
     setBursts((b) => [...b, id]);
     setTimeout(() => setBursts((b) => b.filter((x) => x !== id)), 2400);
+    if (brokeIce) {
+      setMelting(true);
+      setTimeout(() => setMelting(false), 1400);
+    }
 
     const newToday = today + 1;
     const name = profile?.username ?? "";
@@ -165,10 +178,11 @@ function SboApp() {
         }).catch(() => {});
       }
     }
-    else if (fireStreak > 0) toast("🔥 " + encourage(name));
-    else if (iceStreak > 0) toast("❄️ Streak di ghiaccio rotta", { description: restart(name) });
+    else if (brokeIce) toast("❄️ Streak di ghiaccio rotta", { description: restart(name) });
+    else if (fireStreak > 0) toast(fireEncourage(name, fireStreak + (today === 0 ? 1 : 0)));
     else toast(encourage(name));
   };
+
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -254,14 +268,14 @@ function SboApp() {
             </div>
 
             <div className="relative flex flex-col items-center justify-center py-6">
-              <motion.button onClick={handleAdd} whileTap={{ scale: 0.9 }} whileHover={{ scale: 1.04 }} transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                className="group relative flex h-48 w-48 items-center justify-center rounded-full"
-                style={{ background: "var(--gradient-drop)", boxShadow: "var(--shadow-drop)" }}
-                aria-label="Aggiungi 1 al contatore">
-                <div className="absolute inset-2 rounded-full bg-gradient-to-br from-white/40 to-transparent" />
-                <Plus className="relative h-16 w-16 text-primary-foreground" strokeWidth={2.5} />
-              </motion.button>
-              <p className="mt-8 text-center text-sm text-muted-foreground">Premi per aggiungere. Tutto è salvato sul tuo account.</p>
+              <StreakButton fireStreak={fireStreak} iceStreak={iceStreak} onPress={handleAdd} melting={melting} />
+              <p className="mt-4 text-center text-sm text-muted-foreground">
+                {fireStreak > 0
+                  ? `🔥 La tua fiamma cresce: ${fireStreak} giorni di fila.`
+                  : iceStreak > 0
+                    ? `❄️ Sei congelato da ${iceStreak} giorni. Premere rompe il ghiaccio.`
+                    : "Premi per aggiungere. Tutto è salvato sul tuo account."}
+              </p>
               {events.length > 0 && (
                 <Button variant="ghost" size="sm" className="mt-2 text-muted-foreground" onClick={() => undoLast.mutate()}>
                   <Undo2 className="mr-1.5 h-3.5 w-3.5" /> Annulla ultimo
@@ -269,14 +283,16 @@ function SboApp() {
               )}
             </div>
 
+
             <Card className="border-border/50 bg-card/60 p-5 backdrop-blur">
               <div className="flex items-start gap-3">
                 <Sparkles className="mt-1 h-5 w-5 shrink-0 text-accent" />
                 <div>
                   <p className="text-sm font-semibold">Suggerimento del giorno</p>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    {today >= limit ? slowdown(profile.username) : fireStreak >= 3 ? `🔥 Sei a ${fireStreak} giorni di fila. ${encourage(profile.username)}` : iceStreak >= 3 ? `❄️ ${iceStreak} giorni puliti. ${encourage(profile.username)}` : encourage(profile.username)}
+                    {today >= limit ? slowdown(profile.username) : fireStreak >= 3 ? fireEncourage(profile.username, fireStreak) : iceStreak >= 3 ? iceEncourage(profile.username, iceStreak) : encourage(profile.username)}
                   </p>
+
                 </div>
               </div>
             </Card>
@@ -410,11 +426,12 @@ function SboApp() {
               ) : (
                 <div className="space-y-2">
                   {friends.map((f) => (
-                    <FriendRowCard key={f.friend_id} row={f}
+                    <FriendRowCard key={f.friend_id} row={f} unread={unread[f.friend_id] ?? 0}
                       onOpenProfile={() => setViewFriend(f.profile)}
                       onChat={() => setChatWith(f.profile)}
                       onRemove={() => { if (confirm(`Rimuovere ${f.profile.username}?`)) removeFriend.mutate(f.friend_id); }} />
                   ))}
+
                 </div>
               )}
             </div>
@@ -482,6 +499,22 @@ function SboApp() {
               </div>
               <Switch checked={profile.notifications_enabled} onCheckedChange={(v) => updateProfile.mutate({ notifications_enabled: v })} />
             </div>
+            <div className="space-y-3 rounded-lg border border-border p-3">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Cosa vuoi ricevere</p>
+              <div className="flex items-center justify-between">
+                <Label className="font-normal">💬 Messaggi</Label>
+                <Switch checked={profile.notif_messages} onCheckedChange={(v) => updateProfile.mutate({ notif_messages: v })} />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="font-normal">🔥 Streak a rischio</Label>
+                <Switch checked={profile.notif_streak} onCheckedChange={(v) => updateProfile.mutate({ notif_streak: v })} />
+              </div>
+              <div className="flex items-center justify-between">
+                <Label className="font-normal">🛡️ Amici e clan</Label>
+                <Switch checked={profile.notif_social} onCheckedChange={(v) => updateProfile.mutate({ notif_social: v })} />
+              </div>
+            </div>
+
             <Button variant="secondary" className="w-full" onClick={async () => {
               const p = await ensureNotificationPermission();
               if (p === "granted") toast.success("Notifiche attivate 🔔");
@@ -580,22 +613,19 @@ function BadgeSlot({ def, onClick }: { def: BadgeDef | null; onClick?: () => voi
     );
   }
   return (
-    <button onClick={onClick} className={`relative flex h-16 w-16 items-center justify-center rounded-2xl ring-2 ${def.ring} transition hover:scale-105`} style={{ background: def.gradient }}>
-      <span className="text-3xl drop-shadow">{def.emoji}</span>
-      {def.shiny && (
-        <>
-          <span className="absolute -top-1 -right-1 text-yellow-200 animate-pulse text-sm">✨</span>
-          <span className="absolute -bottom-1 -left-1 text-yellow-200 animate-pulse text-xs" style={{ animationDelay: "0.4s" }}>✨</span>
-        </>
-      )}
+    <button onClick={onClick} title={`${def.name} — ${tierLabel(def.tier)} (${def.threshold}gg)`} className="transition hover:scale-105">
+      <BadgeArt def={def} size={64} />
     </button>
   );
 }
 
-function FriendRowCard({ row, onOpenProfile, onChat, onRemove }: { row: FriendRow; onOpenProfile: () => void; onChat: () => void; onRemove: () => void }) {
+
+function FriendRowCard({ row, unread = 0, onOpenProfile, onChat, onRemove }: { row: FriendRow; unread?: number; onOpenProfile: () => void; onChat: () => void; onRemove: () => void }) {
   const eventsQ = useEventsOf(row.friend_id);
-  const fire = computeFireStreak(eventsQ.data ?? []);
-  const ice = computeIceStreak(eventsQ.data ?? []);
+  const evs = eventsQ.data ?? [];
+  const fire = computeFireStreak(evs);
+  const ice = computeIceStreak(evs);
+  const todayCount = countToday(evs);
   return (
     <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
       <div className="flex items-center gap-3">
@@ -606,15 +636,24 @@ function FriendRowCard({ row, onOpenProfile, onChat, onRemove }: { row: FriendRo
             <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <span className="flex items-center gap-0.5"><Flame className="h-3 w-3 text-orange-400" /> {fire}</span>
               <span className="flex items-center gap-0.5"><Snowflake className="h-3 w-3 text-sky-300" /> {ice}</span>
+              <span className="flex items-center gap-0.5"><Droplets className="h-3 w-3 text-primary" /> {todayCount} oggi</span>
             </p>
           </div>
         </button>
-        <Button size="sm" variant="secondary" onClick={onChat}><MessageCircle className="h-3.5 w-3.5" /></Button>
+        <Button size="sm" variant="secondary" className="relative" onClick={onChat}>
+          <MessageCircle className="h-3.5 w-3.5" />
+          {unread > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-destructive px-1 text-[10px] font-bold text-white">
+              {unread > 9 ? "9+" : unread}
+            </span>
+          )}
+        </Button>
         <Button size="sm" variant="ghost" onClick={onRemove}><Trash2 className="h-3.5 w-3.5 text-muted-foreground" /></Button>
       </div>
     </Card>
   );
 }
+
 
 function ClanCard({ clan, members, meId, myRole, onOpenChat, onInvite }: {
   clan: { id: string; name: string; tag: string; owner_id: string };
@@ -814,24 +853,16 @@ function InventoryDialog({ slot, profile, badges, onClose, onEquip }: {
               <button
                 key={`${category}-${def.threshold}`}
                 onClick={() => (isOwned && ownedBadge ? onEquip(ownedBadge.id) : setPreview(def))}
-                className={`relative flex flex-col items-center gap-1 rounded-xl p-3 ring-2 overflow-hidden transition hover:scale-[1.03] ${def.ring} ${isEquipped ? "outline outline-2 outline-primary" : ""}`}
-                style={{ background: def.gradient }}
+                className={`relative flex flex-col items-center gap-1 rounded-xl transition hover:scale-[1.03] ${isEquipped ? "outline outline-2 outline-primary rounded-xl" : ""}`}
               >
-                {!isOwned && (
-                  <>
-                    <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px]" />
-                    <div className="absolute inset-0 pointer-events-none">
-                      <FloatingSparkles seed={def.threshold * (category === "ice" ? 7 : 1)} count={def.shiny ? 6 : 3} />
-                    </div>
-                  </>
-                )}
-                <span className={`relative text-3xl ${!isOwned ? "grayscale opacity-60" : ""}`}>{def.emoji}</span>
-                <span className={`relative text-[10px] font-semibold text-center leading-tight ${isOwned ? "text-white" : "text-white/80"}`}>{def.name}</span>
-                <span className={`relative text-[9px] ${isOwned ? "text-white/80" : "text-white/60"}`}>{def.threshold}gg</span>
+                <BadgeArt def={def} size={84} locked={!isOwned} className="w-full" />
+                <span className={`text-[10px] font-semibold text-center leading-tight ${isOwned ? "" : "text-muted-foreground"}`}>{def.name}</span>
+                <span className="text-[9px] text-muted-foreground">{def.threshold}gg</span>
                 {!isOwned && <Lock className="absolute top-1.5 right-1.5 h-3.5 w-3.5 text-white/90" />}
                 {isEquipped && <span className="absolute top-1 left-1 text-[9px] bg-primary text-primary-foreground px-1 py-0.5 rounded">Equipaggiata</span>}
               </button>
             );
+
           })}
         </div>
       </div>
@@ -1088,25 +1119,32 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
             </Card>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
+              <p className="text-xs text-muted-foreground">🔥 Record fuoco</p>
+              <p className="mt-1 text-xl font-bold">{maxFireStreak(events)} gg</p>
+            </Card>
+            <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
+              <p className="text-xs text-muted-foreground">❄️ Record ghiaccio</p>
+              <p className="mt-1 text-xl font-bold">{maxIceStreak(events)} gg</p>
+            </Card>
+          </div>
+
           <div>
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">Medaglie ({badges.length})</Label>
             {badges.length === 0 ? (
               <p className="mt-2 text-xs text-muted-foreground">Nessuna ancora.</p>
             ) : (
-              <div className="mt-2 grid grid-cols-5 gap-2">
+              <div className="mt-2 flex flex-wrap gap-2">
                 {badges.map((b) => {
                   const def = badgeDef(b.category as BadgeCategory, b.threshold);
                   if (!def) return null;
-                  return (
-                    <div key={b.id} className={`flex flex-col items-center gap-0.5 rounded-lg p-2 ring-1 ${def.ring}`} style={{ background: def.gradient }}>
-                      <span className="text-xl">{def.emoji}</span>
-                      <span className="text-[8px] text-white/90 text-center leading-tight">{def.threshold}gg</span>
-                    </div>
-                  );
+                  return <BadgeArt key={b.id} def={def} size={52} />;
                 })}
               </div>
             )}
           </div>
+
 
           <div>
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">Calendario</Label>

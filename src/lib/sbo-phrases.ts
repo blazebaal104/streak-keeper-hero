@@ -157,6 +157,30 @@ export const CLAN_ANNOUNCE_PING = [
   "Il tuo clan ha un annuncio",
 ];
 
+// Fire-streak specific encouragements ({fire} = days)
+export const FIRE_ENCOURAGE = [
+  "🔥 {name}, {fire} giorni di fiamma viva. Continua.",
+  "La tua fiamma brucia da {fire} giorni, {name}.",
+  "{name}, {fire} giorni di costanza. La fiamma cresce.",
+  "🔥 Nessuno ti ha regalato questi {fire} giorni, {name}.",
+  "{name}, la fiamma a {fire} giorni è tutta tua.",
+  "Ogni giorno la fiamma diventa più alta, {name}.",
+  "{name}, {fire} giorni. Il fuoco ti riconosce.",
+  "🔥 Costanza pura: {fire} giorni, {name}.",
+];
+
+// Ice-streak specific encouragements ({ice} = days)
+export const ICE_ENCOURAGE = [
+  "❄️ {name}, {ice} giorni di ghiaccio. Sei di cristallo puro.",
+  "{name}, {ice} giorni puliti. Il ghiaccio è la medaglia più rara.",
+  "❄️ Resistere è più difficile che fare, {name}. {ice} giorni.",
+  "{name}, il tuo ghiaccio a {ice} giorni vale doppio.",
+  "Freddo, lucido, in controllo. {ice} giorni, {name}.",
+  "{name}, {ice} giorni senza cedere. Rispetto.",
+  "❄️ Il gelo non si rompe da solo, {name}. {ice} giorni.",
+  "{name}, ogni giorno di ghiaccio è un pezzo di libertà.",
+];
+
 function pick(arr: string[], name: string, extras: Record<string, string | number> = {}) {
   let s = arr[Math.floor(Math.random() * arr.length)].replaceAll("{name}", name || "amico");
   for (const [k, v] of Object.entries(extras)) s = s.replaceAll(`{${k}}`, String(v));
@@ -169,6 +193,9 @@ export const restart = (n: string) => pick(RESTART, n);
 export const overLimitShame = (n: string) => pick(OVER_LIMIT_SHAME, n);
 export const streakAtRisk = (n: string, streak: number) => pick(STREAK_AT_RISK, n, { streak });
 export const iceAtRisk = (n: string) => pick(ICE_AT_RISK, n);
+export const fireEncourage = (n: string, fire: number) => pick(FIRE_ENCOURAGE, n, { fire });
+export const iceEncourage = (n: string, ice: number) => pick(ICE_ENCOURAGE, n, { ice });
 export const friendPing = (sender: string) => pick(FRIEND_REQUEST_PING, "amico", { sender });
 export const messagePing = (sender: string, preview: string) => pick(NEW_MESSAGE_PING, "amico", { sender, preview });
 export const clanPing = () => pick(CLAN_ANNOUNCE_PING, "amico");
+
