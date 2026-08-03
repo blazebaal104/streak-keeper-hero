@@ -208,6 +208,9 @@ export type Database = {
           daily_limit: number
           friend_code: string
           id: string
+          notif_messages: boolean
+          notif_social: boolean
+          notif_streak: boolean
           notifications_enabled: boolean
           slot_1: string | null
           slot_2: string | null
@@ -224,6 +227,9 @@ export type Database = {
           daily_limit?: number
           friend_code: string
           id: string
+          notif_messages?: boolean
+          notif_social?: boolean
+          notif_streak?: boolean
           notifications_enabled?: boolean
           slot_1?: string | null
           slot_2?: string | null
@@ -240,6 +246,9 @@ export type Database = {
           daily_limit?: number
           friend_code?: string
           id?: string
+          notif_messages?: boolean
+          notif_social?: boolean
+          notif_streak?: boolean
           notifications_enabled?: boolean
           slot_1?: string | null
           slot_2?: string | null
