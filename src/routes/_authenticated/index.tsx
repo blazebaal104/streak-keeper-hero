@@ -130,9 +130,11 @@ function SboApp() {
         if (chatWithRef.current?.id === m.sender_id) return; // already looking at chat
         supabase.from("profiles").select("username").eq("id", m.sender_id).maybeSingle().then(({ data }) => {
           const from = data?.username ?? "Un amico";
-          toast(`💬 ${from}`, { description: m.content });
-          notify(`💬 ${from}`, m.content, `dm-${m.sender_id}`);
+          const preview = m.content.length > 90 ? `${m.content.slice(0, 90).trimEnd()}…` : m.content;
+          toast(`💬 ${from}`, { description: preview, duration: 6000 });
+          notify(`💬 ${from}`, preview, `dm-${m.sender_id}`);
         });
+
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "clan_invites", filter: `to_user_id=eq.${userId}` }, () => {
         toast("🛡️ Nuovo invito al clan!", { description: "Apri gli inviti per rispondere." });
@@ -208,7 +210,19 @@ function SboApp() {
     <div className="min-h-screen text-foreground">
       <Toaster position="top-center" theme="dark" />
 
-      {/* Falling drops overlay */}
+      {/* Whole-screen fire ambience once the flame is lit (fire streak >= 2) */}
+      {fireStreak >= 2 && (
+        <div
+          className="pointer-events-none fixed inset-0 z-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 65%, rgba(255,120,20,0.55), rgba(200,40,0,0.25) 45%, transparent 75%)",
+            animation: "sbo-room-fire 3.4s ease-in-out infinite",
+          }}
+        />
+      )}
+
+
       <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
         <AnimatePresence>
           {bursts.map((id) => <FallingDrops key={id} seed={id} />)}
