@@ -1387,3 +1387,18 @@ function FallingDrops({ seed }: { seed: number }) {
     </>
   );
 }
+
+/** WhatsApp-style day separator: Oggi / Ieri / weekday name (last 7 days) / numeric date. */
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const key = localDayKey(d);
+  const today = new Date();
+  const diff = Math.round(
+    (new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() -
+      new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86400000,
+  );
+  if (key === localDayKey(today)) return "Oggi";
+  if (diff === 1) return "Ieri";
+  if (diff > 1 && diff < 7) return d.toLocaleDateString("it-IT", { weekday: "long" });
+  return d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
