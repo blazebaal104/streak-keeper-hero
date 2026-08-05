@@ -130,9 +130,11 @@ function SboApp() {
         if (chatWithRef.current?.id === m.sender_id) return; // already looking at chat
         supabase.from("profiles").select("username").eq("id", m.sender_id).maybeSingle().then(({ data }) => {
           const from = data?.username ?? "Un amico";
-          toast(`💬 ${from}`, { description: m.content });
-          notify(`💬 ${from}`, m.content, `dm-${m.sender_id}`);
+          const preview = m.content.length > 90 ? `${m.content.slice(0, 90).trimEnd()}…` : m.content;
+          toast(`💬 ${from}`, { description: preview, duration: 6000 });
+          notify(`💬 ${from}`, preview, `dm-${m.sender_id}`);
         });
+
       })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "clan_invites", filter: `to_user_id=eq.${userId}` }, () => {
         toast("🛡️ Nuovo invito al clan!", { description: "Apri gli inviti per rispondere." });
@@ -208,7 +210,19 @@ function SboApp() {
     <div className="min-h-screen text-foreground">
       <Toaster position="top-center" theme="dark" />
 
-      {/* Falling drops overlay */}
+      {/* Whole-screen fire ambience once the flame is lit (fire streak >= 2) */}
+      {fireStreak >= 2 && (
+        <div
+          className="pointer-events-none fixed inset-0 z-0"
+          style={{
+            background:
+              "radial-gradient(ellipse at 50% 65%, rgba(255,120,20,0.55), rgba(200,40,0,0.25) 45%, transparent 75%)",
+            animation: "sbo-room-fire 3.4s ease-in-out infinite",
+          }}
+        />
+      )}
+
+
       <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
         <AnimatePresence>
           {bursts.map((id) => <FallingDrops key={id} seed={id} />)}
@@ -1225,22 +1239,36 @@ function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; 
         </DialogHeader>
         <div ref={scrollRef} className="flex-1 overflow-y-auto pr-2">
           <div className="space-y-2 py-2">
-            {(msgsQ.data ?? []).map((m) => {
+            {(msgsQ.data ?? []).map((m, i, arr) => {
               const mine = m.sender_id === userId;
+              const prev = i > 0 ? arr[i - 1] : null;
+              const showDay = !prev || localDayKey(new Date(prev.created_at)) !== localDayKey(new Date(m.created_at));
               return (
-                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
-                    <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                    <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                      <span>{fmtTime(m.created_at)}</span>
-                      {mine && (m.read_at
-                        ? <CheckCheck className="h-3 w-3 text-sky-300" />
-                        : <Check className="h-3 w-3 opacity-70" />)}
+                <div key={m.id}>
+                  {showDay && (
+                    <div className="my-3 flex items-center gap-3">
+                      <span className="h-px flex-1 bg-border" />
+                      <span className="rounded-full bg-muted/60 px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {dayLabel(m.created_at)}
+                      </span>
+                      <span className="h-px flex-1 bg-border" />
+                    </div>
+                  )}
+                  <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
+                      <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                      <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                        <span>{fmtTime(m.created_at)}</span>
+                        {mine && (m.read_at
+                          ? <CheckCheck className="h-3.5 w-3.5 text-slate-200" strokeWidth={3} />
+                          : <Check className="h-3.5 w-3.5 text-slate-300/80" strokeWidth={3} />)}
+                      </div>
                     </div>
                   </div>
                 </div>
               );
             })}
+
             {(msgsQ.data ?? []).length === 0 && (
               <p className="text-center text-xs text-muted-foreground py-8">Inizia la conversazione, {myName}!</p>
             )}
@@ -1358,4 +1386,19 @@ function FallingDrops({ seed }: { seed: number }) {
       ))}
     </>
   );
+}
+
+/** WhatsApp-style day separator: Oggi / Ieri / weekday name (last 7 days) / numeric date. */
+function dayLabel(iso: string): string {
+  const d = new Date(iso);
+  const key = localDayKey(d);
+  const today = new Date();
+  const diff = Math.round(
+    (new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() -
+      new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86400000,
+  );
+  if (key === localDayKey(today)) return "Oggi";
+  if (diff === 1) return "Ieri";
+  if (diff > 1 && diff < 7) return d.toLocaleDateString("it-IT", { weekday: "long" });
+  return d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
