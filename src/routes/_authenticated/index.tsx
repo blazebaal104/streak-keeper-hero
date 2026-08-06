@@ -95,6 +95,20 @@ function SboApp() {
   const byDay = useMemo(() => eventsByDay(events), [events]);
   const series30 = useMemo(() => dailyCountsSeries(events, 30), [events]);
   const series90 = useMemo(() => dailyCountsSeries(events, 90), [events]);
+  // Giorni "puliti" totali: giorni senza eventi dal primo evento a oggi.
+  const totalCleanDays = useMemo(() => {
+    if (events.length === 0) return 0;
+    const first = new Date(Math.min(...events.map((e) => new Date(e.ts).getTime())));
+    first.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const days = Math.floor((today.getTime() - first.getTime()) / 86400000) + 1;
+    let clean = 0;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(first.getTime() + i * 86400000);
+      if (!(byDay.get(localDayKey(d)) ?? 0)) clean++;
+    }
+    return clean;
+  }, [events, byDay]);
   const prevOverLimit = useRef(false);
 
   // Streak-badge check (belt & suspenders: DB trigger also runs it)
