@@ -1285,6 +1285,16 @@ function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; 
     inputRef.current?.focus();
   };
   const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+  const fmtDay = (iso: string) => {
+    const d = new Date(iso);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const dk = new Date(d); dk.setHours(0, 0, 0, 0);
+    const diff = Math.round((today.getTime() - dk.getTime()) / 86400000);
+    if (diff === 0) return "Oggi";
+    if (diff === 1) return "Ieri";
+    return d.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+  };
+  const messages = msgsQ.data ?? [];
   return (
     <Dialog open={true} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="border-border bg-card max-w-md flex flex-col h-[80vh]">
@@ -1296,17 +1306,28 @@ function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; 
         </DialogHeader>
         <div ref={scrollRef} className="flex-1 overflow-y-auto pr-2">
           <div className="space-y-2 py-2">
-            {(msgsQ.data ?? []).map((m) => {
+            {messages.map((m, idx) => {
               const mine = m.sender_id === userId;
+              const prev = idx > 0 ? messages[idx - 1] : null;
+              const showDay = !prev || localDayKey(prev.created_at) !== localDayKey(m.created_at);
               return (
-                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
-                    <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                    <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                      <span>{fmtTime(m.created_at)}</span>
-                      {mine && (m.read_at
-                        ? <CheckCheck className="h-3 w-3 text-sky-300" />
-                        : <Check className="h-3 w-3 opacity-70" />)}
+                <div key={m.id}>
+                  {showDay && (
+                    <div className="my-3 flex justify-center">
+                      <span className="rounded-full bg-muted px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {fmtDay(m.created_at)}
+                      </span>
+                    </div>
+                  )}
+                  <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
+                      <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                      <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                        <span>{fmtTime(m.created_at)}</span>
+                        {mine && (m.read_at
+                          ? <CheckCheck className="h-3 w-3 text-sky-300" />
+                          : <Check className="h-3 w-3 opacity-70" />)}
+                      </div>
                     </div>
                   </div>
                 </div>
