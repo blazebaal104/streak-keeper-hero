@@ -901,6 +901,8 @@ function InventoryDialog({ slot, profile, badges, totalEvents, totalCleanDays, o
         {renderGroup("🔥 Streak di fuoco (fai ogni giorno)", FIRE_BADGES, "fire")}
         {renderGroup("❄️ Streak di ghiaccio (giorni puliti)", ICE_BADGES, "ice")}
 
+        <TitlesSection totalEvents={totalEvents} totalCleanDays={totalCleanDays} />
+
         {preview && (
           <Dialog open onOpenChange={(v) => !v && setPreview(null)}>
             <DialogContent className="border-border bg-card overflow-hidden">
