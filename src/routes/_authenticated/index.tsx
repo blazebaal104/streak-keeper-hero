@@ -456,6 +456,8 @@ function SboApp() {
           slot={showInventory.slot}
           profile={profile}
           badges={badges}
+          totalEvents={events.length}
+          totalCleanDays={totalCleanDays}
           onClose={() => setShowInventory(false)}
           onEquip={(badgeId) => {
             const patch: Partial<Profile> = {};
