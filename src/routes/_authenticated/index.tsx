@@ -32,6 +32,7 @@ import {
   type Profile, type Badge, type FriendRow,
 } from "@/lib/sbo-cloud";
 import { FIRE_BADGES, ICE_BADGES, ALL_BADGES, badgeDef, badgeByThreshold, tierLabel, type BadgeDef, type BadgeCategory } from "@/lib/sbo-badges";
+import { FIRE_TITLES, ICE_TITLES, currentTitle, nextTitle, titleTierLabel, type TitleDef } from "@/lib/sbo-titles";
 import { encourage, slowdown, restart, overLimitShame, streakAtRisk, fireEncourage, iceEncourage } from "@/lib/sbo-phrases";
 import { ensureNotificationPermission, notify, scheduleStreakReminder, CLAN_ROLE_LABEL, compressImageToDataUrl } from "@/lib/sbo-notifications";
 import { ensureServiceWorker, subscribeToPush, schedulePush, isPushSupported } from "@/lib/sbo-push";
