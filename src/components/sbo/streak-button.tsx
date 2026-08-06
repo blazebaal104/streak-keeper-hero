@@ -2,10 +2,11 @@ import { motion, AnimatePresence } from "motion/react";
 import { Plus } from "lucide-react";
 
 /**
- * Main SBO button. Its look reacts to the two streaks:
- * - fire streak → warm gradient, a live flame that grows with the streak, embers
- * - ice streak  → frozen shell, frost crystals, cold glow
- * When both are 0 it falls back to the neutral water-drop look.
+ * Main SBO button.
+ * - fire streak → warm gradient + stylized flame tongues that grow OUT of the
+ *   button rim (no separate overlay artwork sitting on top of the circle).
+ * - ice streak  → frozen shell whose surface cracks get denser as the streak grows.
+ * - neutral     → the plain water-drop look.
  */
 export function StreakButton({
   fireStreak,
@@ -33,7 +34,7 @@ export function StreakButton({
     mode === "fire"
       ? `0 20px 70px -12px rgba(249,115,22,${0.35 + fire * 0.45}), 0 0 ${40 + fire * 70}px -10px rgba(255,160,60,${0.3 + fire * 0.4})`
       : mode === "ice"
-        ? `0 20px 70px -12px rgba(56,189,248,${0.3 + ice * 0.4}), 0 0 ${40 + ice * 70}px -10px rgba(180,235,255,${0.3 + ice * 0.4})`
+        ? `0 20px 70px -12px rgba(56,189,248,${0.3 + ice * 0.4}), 0 0 ${40 + ice * 70}px -10px rgba(180,235,255,${0.35 + ice * 0.4})`
         : "var(--shadow-drop)";
 
   return (
@@ -42,8 +43,8 @@ export function StreakButton({
       {mode === "fire" && (
         <motion.div
           className="pointer-events-none absolute inset-0 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(255,140,40,0.35), transparent 62%)" }}
-          animate={{ scale: [1, 1.06 + fire * 0.06, 1], opacity: [0.6, 1, 0.6] }}
+          style={{ background: "radial-gradient(circle, rgba(255,140,40,0.32), transparent 62%)" }}
+          animate={{ scale: [1, 1.05 + fire * 0.05, 1], opacity: [0.55, 0.95, 0.55] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         />
       )}
@@ -51,50 +52,38 @@ export function StreakButton({
       {mode === "ice" && (
         <motion.div
           className="pointer-events-none absolute inset-0 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(140,220,255,0.32), transparent 62%)" }}
-          animate={{ scale: [1, 1.05, 1], opacity: [0.5, 0.95, 0.5] }}
-          transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
+          style={{ background: "radial-gradient(circle, rgba(140,220,255,0.28), transparent 62%)" }}
+          animate={{ scale: [1, 1.04, 1], opacity: [0.45, 0.85, 0.45] }}
+          transition={{ duration: 3.6, repeat: Infinity, ease: "easeInOut" }}
         />
       )}
 
-      {/* Flame that grows with the fire streak */}
-      {mode === "fire" && <Flame intensity={fire} />}
-
-      {/* Ice crown crystals */}
-      {mode === "ice" && <IceCrown intensity={ice} />}
+      {/* Stylized flame tongues licking out of the button rim */}
+      {mode === "fire" && <FlameRing intensity={fire} />}
 
       <motion.button
         onClick={onPress}
         whileTap={{ scale: 0.9 }}
         whileHover={{ scale: 1.04 }}
         transition={{ type: "spring", stiffness: 400, damping: 15 }}
-        className="group relative flex h-48 w-48 items-center justify-center rounded-full will-change-transform"
+        className="group relative flex h-48 w-48 items-center justify-center overflow-hidden rounded-full will-change-transform"
         style={{ background, boxShadow: glow }}
         aria-label="Aggiungi 1 al contatore"
       >
         <div className="absolute inset-2 rounded-full bg-gradient-to-br from-white/45 to-transparent" />
 
-        {/* Frost shell */}
-        {mode === "ice" && (
-          <svg viewBox="0 0 100 100" className="absolute inset-0 h-full w-full opacity-70">
-            <g stroke="white" strokeWidth="0.9" fill="none" opacity={0.5 + ice * 0.4}>
-              <path d="M50 4 L50 96 M4 50 L96 50 M16 16 L84 84 M84 16 L16 84" />
-              <path d="M50 20 L38 30 M50 20 L62 30 M50 80 L38 70 M50 80 L62 70 M20 50 L30 38 M20 50 L30 62 M80 50 L70 38 M80 50 L70 62" />
-            </g>
-          </svg>
-        )}
+        {/* Ice: surface cracks that get denser with the streak */}
+        {mode === "ice" && <IceCracks intensity={ice} />}
 
-        {/* Embers rising from the surface */}
-        {mode === "fire" &&
-          Array.from({ length: 6 + Math.round(fire * 8) }, (_, i) => (
-            <motion.span
-              key={i}
-              className="absolute bottom-6 h-1.5 w-1.5 rounded-full bg-amber-200"
-              style={{ left: `${12 + ((i * 37) % 76)}%` }}
-              animate={{ y: [-4, -70 - fire * 40], opacity: [0, 1, 0], scale: [0.6, 1, 0.3] }}
-              transition={{ duration: 1.8 + (i % 4) * 0.4, delay: (i % 6) * 0.35, repeat: Infinity, ease: "easeOut" }}
-            />
-          ))}
+        {/* Fire: heat shimmer inside the disc */}
+        {mode === "fire" && (
+          <motion.div
+            className="pointer-events-none absolute inset-0"
+            style={{ background: "radial-gradient(circle at 50% 85%, rgba(255,210,120,0.55), transparent 62%)" }}
+            animate={{ opacity: [0.45, 0.9, 0.45] }}
+            transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut" }}
+          />
+        )}
 
         <Plus className="relative h-16 w-16 text-primary-foreground" strokeWidth={2.5} />
       </motion.button>
@@ -120,75 +109,123 @@ export function StreakButton({
   );
 }
 
-function Flame({ intensity }: { intensity: number }) {
-  const scale = 0.75 + intensity * 0.75;
+/**
+ * Flame tongues placed around the circle rim, pointing outwards.
+ * They start *behind* the button (their base is under the disc) so they read as
+ * flames coming out of the button instead of an image pasted on top.
+ */
+function FlameRing({ intensity }: { intensity: number }) {
+  const count = 7 + Math.round(intensity * 5);
+  // Only the upper half of the circle (from -150° to -30°) plus small side licks.
+  const tongues = Array.from({ length: count }, (_, i) => {
+    const t = count === 1 ? 0.5 : i / (count - 1);
+    const angle = -160 + t * 140; // degrees
+    const centerness = 1 - Math.abs(t - 0.5) * 2; // 0 at edges, 1 in the middle
+    const len = 26 + centerness * (34 + intensity * 46);
+    const w = 12 + centerness * (8 + intensity * 8);
+    return { angle, len, w, delay: (i % 5) * 0.17, i };
+  });
+
   return (
-    <motion.div
-      className="pointer-events-none absolute"
-      style={{ top: -18 - intensity * 26, transformOrigin: "bottom center" }}
-      animate={{ scale: [scale, scale * 1.08, scale * 0.96, scale], rotate: [-2, 2, -1, -2] }}
-      transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-    >
-      <svg width={96} height={130} viewBox="0 0 96 130">
-        <defs>
-          <linearGradient id="flameOuter" x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stopColor="#f97316" stopOpacity="0.95" />
-            <stop offset="55%" stopColor="#fb923c" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#fde68a" stopOpacity="0.6" />
-          </linearGradient>
-          <linearGradient id="flameInner" x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stopColor="#fde047" />
-            <stop offset="100%" stopColor="#fff7ed" />
-          </linearGradient>
-        </defs>
-        <motion.path
-          d="M48 4 C 66 34, 86 52, 86 78 A 38 38 0 0 1 10 78 C 10 52, 30 40, 48 4 Z"
-          fill="url(#flameOuter)"
-          animate={{ scaleY: [1, 1.08, 0.97, 1] }}
-          transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut" }}
-          style={{ transformOrigin: "50% 100%" }}
+    <div className="pointer-events-none absolute inset-0">
+      {tongues.map((f) => (
+        <div
+          key={f.i}
+          className="absolute left-1/2 top-1/2"
+          style={{ transform: `rotate(${f.angle + 90}deg)` }}
+        >
+          <motion.div
+            style={{ transformOrigin: "50% 100%", position: "absolute", left: -f.w / 2, top: -96 - f.len }}
+            animate={{ scaleY: [0.86, 1.08, 0.94, 0.86], scaleX: [1, 0.92, 1.04, 1], opacity: [0.75, 1, 0.85, 0.75] }}
+            transition={{ duration: 1 + (f.i % 3) * 0.25, delay: f.delay, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <svg width={f.w} height={f.len + 6} viewBox="0 0 20 100" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id={`ft-${f.i}`} x1="0" y1="1" x2="0" y2="0">
+                  <stop offset="0%" stopColor="#f97316" stopOpacity="0.95" />
+                  <stop offset="45%" stopColor="#fb923c" stopOpacity="0.85" />
+                  <stop offset="100%" stopColor="#fde68a" stopOpacity="0.15" />
+                </linearGradient>
+              </defs>
+              <path d="M10 100 C 20 70, 18 46, 10 0 C 2 46, 0 70, 10 100 Z" fill={`url(#ft-${f.i})`} />
+            </svg>
+          </motion.div>
+        </div>
+      ))}
+
+      {/* Embers drifting up from the rim */}
+      {Array.from({ length: 5 + Math.round(intensity * 7) }, (_, i) => (
+        <motion.span
+          key={`e${i}`}
+          className="absolute h-1 w-1 rounded-full bg-amber-200"
+          style={{ left: `${18 + ((i * 29) % 64)}%`, top: "34%" }}
+          animate={{ y: [0, -60 - intensity * 50], opacity: [0, 0.9, 0], scale: [0.5, 1, 0.3] }}
+          transition={{ duration: 1.8 + (i % 4) * 0.4, delay: (i % 6) * 0.32, repeat: Infinity, ease: "easeOut" }}
         />
-        <motion.path
-          d="M48 36 C 58 54, 68 64, 68 80 A 20 20 0 0 1 28 80 C 28 64, 40 56, 48 36 Z"
-          fill="url(#flameInner)"
-          animate={{ scaleY: [1, 0.9, 1.1, 1], opacity: [0.9, 1, 0.85, 0.9] }}
-          transition={{ duration: 0.7, repeat: Infinity, ease: "easeInOut" }}
-          style={{ transformOrigin: "50% 100%" }}
-        />
-      </svg>
-    </motion.div>
+      ))}
+    </div>
   );
 }
 
-function IceCrown({ intensity }: { intensity: number }) {
+/** Deterministic crack network: more (and deeper) cracks as the ice streak grows. */
+function IceCracks({ intensity }: { intensity: number }) {
+  const rnd = (i: number) => {
+    const x = Math.sin(i * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  };
+  const main = 3 + Math.round(intensity * 7); // 3 → 10 main cracks
+  const cracks = Array.from({ length: main }, (_, i) => {
+    const a = rnd(i) * Math.PI * 2;
+    const startR = 6 + rnd(i + 20) * 12;
+    const endR = 30 + rnd(i + 40) * 18;
+    const x1 = 50 + Math.cos(a) * startR;
+    const y1 = 50 + Math.sin(a) * startR;
+    const bend = (rnd(i + 60) - 0.5) * 0.9;
+    const mx = 50 + Math.cos(a + bend * 0.5) * ((startR + endR) / 2);
+    const my = 50 + Math.sin(a + bend * 0.5) * ((startR + endR) / 2);
+    const x2 = 50 + Math.cos(a + bend) * endR;
+    const y2 = 50 + Math.sin(a + bend) * endR;
+    // small branch
+    const bx = x2 + Math.cos(a + bend + 1.1) * (5 + rnd(i + 80) * 8);
+    const by = y2 + Math.sin(a + bend + 1.1) * (5 + rnd(i + 80) * 8);
+    return { d: `M${x1} ${y1} Q${mx} ${my} ${x2} ${y2}`, branch: `M${x2} ${y2} L${bx} ${by}`, i };
+  });
+
   return (
-    <motion.div
-      className="pointer-events-none absolute"
-      style={{ top: -10 - intensity * 18 }}
-      animate={{ y: [0, -4, 0], opacity: [0.85, 1, 0.85] }}
-      transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
-    >
-      <svg width={120} height={70} viewBox="0 0 120 70">
-        <defs>
-          <linearGradient id="iceShard" x1="0" y1="1" x2="0" y2="0">
-            <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.95" />
-          </linearGradient>
-        </defs>
-        {[
-          "M18 68 L28 26 L38 68 Z",
-          "M42 68 L60 4 L78 68 Z",
-          "M82 68 L92 26 L102 68 Z",
-        ].map((d, i) => (
-          <motion.path
-            key={i}
-            d={d}
-            fill="url(#iceShard)"
-            animate={{ opacity: [0.6, 1, 0.6] }}
-            transition={{ duration: 2.4, delay: i * 0.4, repeat: Infinity, ease: "easeInOut" }}
-          />
+    <svg viewBox="0 0 100 100" className="pointer-events-none absolute inset-0 h-full w-full">
+      {/* frosted surface */}
+      <circle cx="50" cy="50" r="49" fill="rgba(255,255,255,0.10)" />
+      <g strokeLinecap="round" fill="none">
+        {cracks.map((c) => (
+          <g key={c.i}>
+            {/* dark fissure */}
+            <path d={c.d} stroke="rgba(12,60,95,0.45)" strokeWidth={1.6 + intensity * 0.9} />
+            <path d={c.branch} stroke="rgba(12,60,95,0.35)" strokeWidth={1.1 + intensity * 0.6} />
+            {/* bright highlight edge */}
+            <motion.path
+              d={c.d}
+              stroke="rgba(255,255,255,0.9)"
+              strokeWidth={0.7 + intensity * 0.5}
+              animate={{ opacity: [0.35, 0.85, 0.35] }}
+              transition={{ duration: 3 + (c.i % 4) * 0.6, repeat: Infinity, ease: "easeInOut" }}
+            />
+            <path d={c.branch} stroke="rgba(255,255,255,0.6)" strokeWidth={0.5 + intensity * 0.3} />
+          </g>
         ))}
-      </svg>
-    </motion.div>
+      </g>
+      {/* fine hairline fractures appear only on long streaks */}
+      {intensity > 0.35 && (
+        <g stroke="rgba(255,255,255,0.35)" strokeWidth="0.4" fill="none">
+          {Array.from({ length: Math.round(intensity * 14) }, (_, i) => {
+            const a = rnd(i + 200) * Math.PI * 2;
+            const r = 18 + rnd(i + 220) * 26;
+            const x = 50 + Math.cos(a) * r;
+            const y = 50 + Math.sin(a) * r;
+            const l = 4 + rnd(i + 240) * 7;
+            return <path key={i} d={`M${x} ${y} l${Math.cos(a + 1) * l} ${Math.sin(a + 1) * l}`} />;
+          })}
+        </g>
+      )}
+    </svg>
   );
 }

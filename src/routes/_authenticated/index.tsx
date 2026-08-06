@@ -32,6 +32,7 @@ import {
   type Profile, type Badge, type FriendRow,
 } from "@/lib/sbo-cloud";
 import { FIRE_BADGES, ICE_BADGES, ALL_BADGES, badgeDef, badgeByThreshold, tierLabel, type BadgeDef, type BadgeCategory } from "@/lib/sbo-badges";
+import { FIRE_TITLES, ICE_TITLES, currentTitle, nextTitle, titleTierLabel, type TitleDef } from "@/lib/sbo-titles";
 import { encourage, slowdown, restart, overLimitShame, streakAtRisk, fireEncourage, iceEncourage } from "@/lib/sbo-phrases";
 import { ensureNotificationPermission, notify, scheduleStreakReminder, CLAN_ROLE_LABEL, compressImageToDataUrl } from "@/lib/sbo-notifications";
 import { ensureServiceWorker, subscribeToPush, schedulePush, isPushSupported } from "@/lib/sbo-push";
@@ -95,6 +96,20 @@ function SboApp() {
   const byDay = useMemo(() => eventsByDay(events), [events]);
   const series30 = useMemo(() => dailyCountsSeries(events, 30), [events]);
   const series90 = useMemo(() => dailyCountsSeries(events, 90), [events]);
+  // Giorni "puliti" totali: giorni senza eventi dal primo evento a oggi.
+  const totalCleanDays = useMemo(() => {
+    if (events.length === 0) return 0;
+    const first = new Date(Math.min(...events.map((e) => new Date(e.ts).getTime())));
+    first.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const days = Math.floor((today.getTime() - first.getTime()) / 86400000) + 1;
+    let clean = 0;
+    for (let i = 0; i < days; i++) {
+      const d = new Date(first.getTime() + i * 86400000);
+      if (!(byDay.get(localDayKey(d)) ?? 0)) clean++;
+    }
+    return clean;
+  }, [events, byDay]);
   const prevOverLimit = useRef(false);
 
   // Streak-badge check (belt & suspenders: DB trigger also runs it)
@@ -456,6 +471,8 @@ function SboApp() {
           slot={showInventory.slot}
           profile={profile}
           badges={badges}
+          totalEvents={events.length}
+          totalCleanDays={totalCleanDays}
           onClose={() => setShowInventory(false)}
           onEquip={(badgeId) => {
             const patch: Partial<Profile> = {};
@@ -829,8 +846,9 @@ function ProfileDialog({ open, onClose, profile, badges, onUpdate, onSignOut, on
   );
 }
 
-function InventoryDialog({ slot, profile, badges, onClose, onEquip }: {
-  slot: 0 | 1 | 2; profile: Profile; badges: Badge[]; onClose: () => void; onEquip: (id: string | null) => void;
+function InventoryDialog({ slot, profile, badges, totalEvents, totalCleanDays, onClose, onEquip }: {
+  slot: 0 | 1 | 2; profile: Profile; badges: Badge[]; totalEvents: number; totalCleanDays: number;
+  onClose: () => void; onEquip: (id: string | null) => void;
 }) {
   const equippedIds = new Set([profile.slot_1, profile.slot_2, profile.slot_3].filter(Boolean) as string[]);
   const [preview, setPreview] = useState<BadgeDef | null>(null);
@@ -884,6 +902,8 @@ function InventoryDialog({ slot, profile, badges, onClose, onEquip }: {
         {renderGroup("🔥 Streak di fuoco (fai ogni giorno)", FIRE_BADGES, "fire")}
         {renderGroup("❄️ Streak di ghiaccio (giorni puliti)", ICE_BADGES, "ice")}
 
+        <TitlesSection totalEvents={totalEvents} totalCleanDays={totalCleanDays} />
+
         {preview && (
           <Dialog open onOpenChange={(v) => !v && setPreview(null)}>
             <DialogContent className="border-border bg-card overflow-hidden">
@@ -912,6 +932,57 @@ function InventoryDialog({ slot, profile, badges, onClose, onEquip }: {
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Titoli onorifici basati sul totale complessivo di eventi / giorni puliti. */
+function TitlesSection({ totalEvents, totalCleanDays }: { totalEvents: number; totalCleanDays: number }) {
+  const Group = ({ title, list, total, unit }: { title: string; list: TitleDef[]; total: number; unit: string }) => {
+    const cur = currentTitle(list[0].category, total);
+    const next = nextTitle(list[0].category, total);
+    return (
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+        <div className="rounded-xl border border-border p-3">
+          <p className="text-xs text-muted-foreground">Totale: <b className="text-foreground">{total}</b> {unit}</p>
+          <p className="mt-1 text-sm font-bold">{cur ? `${cur.emoji} ${cur.name}` : "Nessun titolo — ancora"}</p>
+          {cur && <p className="text-[11px] text-muted-foreground">{titleTierLabel(cur.tier)}</p>}
+          {next && (
+            <div className="mt-2">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, (total / next.threshold) * 100)}%` }} />
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Prossimo: <b>{next.emoji} {next.name}</b> a {next.threshold} {unit}
+              </p>
+            </div>
+          )}
+        </div>
+        <div className="mt-2 space-y-1">
+          {list.map((t) => {
+            const owned = total >= t.threshold;
+            return (
+              <div key={t.name} className={`flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 ${owned ? "" : "opacity-50"}`}>
+                <span className="text-base" style={owned ? undefined : { filter: "grayscale(1)" }}>{t.emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12px] font-semibold">{t.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{titleTierLabel(t.tier)} · {t.threshold} {unit}</p>
+                </div>
+                {!owned && <Lock className="h-3 w-3 text-muted-foreground" />}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <div className="mt-6 border-t border-border pt-2">
+      <p className="text-sm font-bold">🏅 Titoli</p>
+      <p className="text-[11px] text-muted-foreground">Si sbloccano con il totale complessivo, non con le streak.</p>
+      <Group title="🔥 Titoli di fuoco" list={FIRE_TITLES} total={totalEvents} unit="eventi" />
+      <Group title="❄️ Titoli di ghiaccio" list={ICE_TITLES} total={totalCleanDays} unit="giorni puliti" />
+    </div>
   );
 }
 
@@ -1214,6 +1285,16 @@ function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; 
     inputRef.current?.focus();
   };
   const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" });
+  const fmtDay = (iso: string) => {
+    const d = new Date(iso);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const dk = new Date(d); dk.setHours(0, 0, 0, 0);
+    const diff = Math.round((today.getTime() - dk.getTime()) / 86400000);
+    if (diff === 0) return "Oggi";
+    if (diff === 1) return "Ieri";
+    return d.toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" });
+  };
+  const messages = msgsQ.data ?? [];
   return (
     <Dialog open={true} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="border-border bg-card max-w-md flex flex-col h-[80vh]">
@@ -1225,17 +1306,28 @@ function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; 
         </DialogHeader>
         <div ref={scrollRef} className="flex-1 overflow-y-auto pr-2">
           <div className="space-y-2 py-2">
-            {(msgsQ.data ?? []).map((m) => {
+            {messages.map((m, idx) => {
               const mine = m.sender_id === userId;
+              const prev = idx > 0 ? messages[idx - 1] : null;
+              const showDay = !prev || localDayKey(prev.created_at) !== localDayKey(m.created_at);
               return (
-                <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
-                    <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                    <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-                      <span>{fmtTime(m.created_at)}</span>
-                      {mine && (m.read_at
-                        ? <CheckCheck className="h-3 w-3 text-sky-300" />
-                        : <Check className="h-3 w-3 opacity-70" />)}
+                <div key={m.id}>
+                  {showDay && (
+                    <div className="my-3 flex justify-center">
+                      <span className="rounded-full bg-muted px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        {fmtDay(m.created_at)}
+                      </span>
+                    </div>
+                  )}
+                  <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                    <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
+                      <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                      <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                        <span>{fmtTime(m.created_at)}</span>
+                        {mine && (m.read_at
+                          ? <CheckCheck className="h-3 w-3 text-sky-300" />
+                          : <Check className="h-3 w-3 opacity-70" />)}
+                      </div>
                     </div>
                   </div>
                 </div>
