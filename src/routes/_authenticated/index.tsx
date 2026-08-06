@@ -934,6 +934,57 @@ function InventoryDialog({ slot, profile, badges, totalEvents, totalCleanDays, o
   );
 }
 
+/** Titoli onorifici basati sul totale complessivo di eventi / giorni puliti. */
+function TitlesSection({ totalEvents, totalCleanDays }: { totalEvents: number; totalCleanDays: number }) {
+  const Group = ({ title, list, total, unit }: { title: string; list: TitleDef[]; total: number; unit: string }) => {
+    const cur = currentTitle(list[0].category, total);
+    const next = nextTitle(list[0].category, total);
+    return (
+      <div className="mt-4">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+        <div className="rounded-xl border border-border p-3">
+          <p className="text-xs text-muted-foreground">Totale: <b className="text-foreground">{total}</b> {unit}</p>
+          <p className="mt-1 text-sm font-bold">{cur ? `${cur.emoji} ${cur.name}` : "Nessun titolo — ancora"}</p>
+          {cur && <p className="text-[11px] text-muted-foreground">{titleTierLabel(cur.tier)}</p>}
+          {next && (
+            <div className="mt-2">
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, (total / next.threshold) * 100)}%` }} />
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Prossimo: <b>{next.emoji} {next.name}</b> a {next.threshold} {unit}
+              </p>
+            </div>
+          )}
+        </div>
+        <div className="mt-2 space-y-1">
+          {list.map((t) => {
+            const owned = total >= t.threshold;
+            return (
+              <div key={t.name} className={`flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 ${owned ? "" : "opacity-50"}`}>
+                <span className="text-base" style={owned ? undefined : { filter: "grayscale(1)" }}>{t.emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12px] font-semibold">{t.name}</p>
+                  <p className="text-[10px] text-muted-foreground">{titleTierLabel(t.tier)} · {t.threshold} {unit}</p>
+                </div>
+                {!owned && <Lock className="h-3 w-3 text-muted-foreground" />}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <div className="mt-6 border-t border-border pt-2">
+      <p className="text-sm font-bold">🏅 Titoli</p>
+      <p className="text-[11px] text-muted-foreground">Si sbloccano con il totale complessivo, non con le streak.</p>
+      <Group title="🔥 Titoli di fuoco" list={FIRE_TITLES} total={totalEvents} unit="eventi" />
+      <Group title="❄️ Titoli di ghiaccio" list={ICE_TITLES} total={totalCleanDays} unit="giorni puliti" />
+    </div>
+  );
+}
+
 function FloatingSparkles({ seed, count = 8 }: { seed: number; count?: number }) {
   const rnd = (i: number) => { const x = Math.sin(seed * 13 + i * 991) * 10000; return x - Math.floor(x); };
   return (
