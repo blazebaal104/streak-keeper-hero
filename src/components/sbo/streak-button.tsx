@@ -67,17 +67,21 @@ export function StreakButton({
       {/* Real flames licking OUT of the rim (black frames removed by screen blend) */}
       {mode === "fire" && (
         <div
-          className="pointer-events-none absolute inset-0 overflow-hidden"
+          className="pointer-events-none absolute -inset-6 overflow-hidden"
           style={{
             mixBlendMode: "screen",
-            opacity: 0.55 + fire * 0.45,
-            maskImage: "radial-gradient(circle at 50% 58%, #000 34%, rgba(0,0,0,0.55) 52%, transparent 72%)",
-            WebkitMaskImage: "radial-gradient(circle at 50% 58%, #000 34%, rgba(0,0,0,0.55) 52%, transparent 72%)",
+            opacity: 0.6 + fire * 0.4,
+            maskImage: "radial-gradient(circle at 50% 56%, #000 30%, rgba(0,0,0,0.6) 46%, transparent 66%)",
+            WebkitMaskImage: "radial-gradient(circle at 50% 56%, #000 30%, rgba(0,0,0,0.6) 46%, transparent 66%)",
           }}
         >
-          <FireVideo className="absolute left-1/2 top-1/2 h-[112%] w-[112%] -translate-x-1/2 -translate-y-1/2 object-cover" />
+          <FireVideo className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-[1.35] object-cover" />
+          <FireVideo
+            className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-x-[-1.15] scale-y-[1.15] object-cover opacity-70"
+          />
         </div>
       )}
+
 
       {/* Ice aura */}
       {mode === "ice" && (
