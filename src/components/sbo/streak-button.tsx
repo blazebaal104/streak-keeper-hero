@@ -240,24 +240,24 @@ function IceShatter() {
             backgroundImage: `url(${shardsSheet.url})`,
             backgroundSize: `${SHARD_COLS * 100}% ${SHARD_ROWS * 100}%`,
             backgroundPosition: `${(s.cell % SHARD_COLS) * (100 / (SHARD_COLS - 1))}% ${Math.floor(s.cell / SHARD_COLS) * 100}%`,
-            filter: "drop-shadow(0 2px 4px rgba(8,47,73,0.5))",
+            filter: "drop-shadow(0 2px 4px rgba(8,47,73,0.5)) hue-rotate(-10deg) saturate(1.4)",
           }}
-          initial={{ x: 0, y: 0, opacity: 1, rotate: 0, scale: 0.5 }}
+          initial={{ x: 0, y: 0, opacity: 1, rotate: 0, scale: 1 }}
           animate={{
             x: s.xs,
             y: s.ys,
             rotate: [0, s.spin],
-            scale: [0.5, 1, 1, 1, 1, 0.95, 0.85],
-            opacity: [1, 1, 1, 1, 1, 0.7, 0],
+            opacity: [1, 1, 1, 1, 1, 1, 0.9, 0.6, 0],
           }}
           transition={{
-            duration: 1.15,
+            duration: 1.05,
             delay: s.delay,
             ease: "linear",
             times: s.times,
-            rotate: { duration: 1.15, delay: s.delay, ease: "linear" },
+            rotate: { duration: 1.05, delay: s.delay, ease: "linear" },
           }}
         />
+
       ))}
     </motion.div>
   );
