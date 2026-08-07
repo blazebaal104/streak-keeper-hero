@@ -166,7 +166,7 @@ function FireVideo({ className, style }: { className?: string; style?: React.CSS
 
 const SHARD_COLS = 6;
 const SHARD_ROWS = 2;
-const SHARD_CELL = 80;
+
 
 /** Explosive shatter: shards fly outwards fast, then fall under gravity and spin. */
 function IceShatter() {
@@ -250,5 +250,3 @@ function IceShatter() {
   );
 }
 
-// SHARD_CELL is referenced for tooling clarity of the sprite grid.
-void SHARD_CELL;
