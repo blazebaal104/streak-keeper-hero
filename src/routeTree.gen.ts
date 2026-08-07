@@ -9,11 +9,17 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ButtontestRouteImport } from './routes/buttontest'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as ApiPublicHooksSendPushRouteImport } from './routes/api/public/hooks/send-push'
 
+const ButtontestRoute = ButtontestRouteImport.update({
+  id: '/buttontest',
+  path: '/buttontest',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -37,10 +43,12 @@ const ApiPublicHooksSendPushRoute = ApiPublicHooksSendPushRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/auth': typeof AuthRoute
+  '/buttontest': typeof ButtontestRoute
   '/api/public/hooks/send-push': typeof ApiPublicHooksSendPushRoute
 }
 export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
+  '/buttontest': typeof ButtontestRoute
   '/': typeof AuthenticatedIndexRoute
   '/api/public/hooks/send-push': typeof ApiPublicHooksSendPushRoute
 }
@@ -48,18 +56,20 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/buttontest': typeof ButtontestRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/api/public/hooks/send-push': typeof ApiPublicHooksSendPushRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/api/public/hooks/send-push'
+  fullPaths: '/' | '/auth' | '/buttontest' | '/api/public/hooks/send-push'
   fileRoutesByTo: FileRoutesByTo
-  to: '/auth' | '/' | '/api/public/hooks/send-push'
+  to: '/auth' | '/buttontest' | '/' | '/api/public/hooks/send-push'
   id:
     | '__root__'
     | '/_authenticated'
     | '/auth'
+    | '/buttontest'
     | '/_authenticated/'
     | '/api/public/hooks/send-push'
   fileRoutesById: FileRoutesById
@@ -67,11 +77,19 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  ButtontestRoute: typeof ButtontestRoute
   ApiPublicHooksSendPushRoute: typeof ApiPublicHooksSendPushRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/buttontest': {
+      id: '/buttontest'
+      path: '/buttontest'
+      fullPath: '/buttontest'
+      preLoaderRoute: typeof ButtontestRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -117,6 +135,7 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  ButtontestRoute: ButtontestRoute,
   ApiPublicHooksSendPushRoute: ApiPublicHooksSendPushRoute,
 }
 export const routeTree = rootRouteImport
