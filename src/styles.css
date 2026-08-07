@@ -103,3 +103,23 @@
   0% { transform: translateY(0) scale(1); opacity: 1; }
   100% { transform: translateY(-80px) scale(1.4); opacity: 0; }
 }
+
+/* --- Badge art (GPU-friendly, CSS-driven) --- */
+@keyframes badge-spin { to { transform: rotate(360deg); } }
+@keyframes badge-sheen {
+  0% { transform: translateX(-120%) skewX(-12deg); }
+  22% { transform: translateX(220%) skewX(-12deg); }
+  100% { transform: translateX(220%) skewX(-12deg); }
+}
+@keyframes badge-sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: 1; transform: scale(1); }
+}
+@keyframes badge-bob {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-6%) rotate(3deg); }
+}
+@keyframes badge-ember {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.9; }
+}
