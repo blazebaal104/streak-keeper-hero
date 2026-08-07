@@ -68,23 +68,22 @@ export function StreakButton({
 
   return (
     <div className="relative flex h-64 w-64 items-center justify-center">
-      {/* Real flames licking OUT of the rim (black frames removed by screen blend) */}
+      {/* Single real-fire layer: burns behind the (transparent) disc and licks out
+          past the rim. Black frames vanish thanks to the screen blend. */}
       {mode === "fire" && (
         <div
-          className="pointer-events-none absolute -inset-6 overflow-hidden"
+          className="pointer-events-none absolute -inset-4 overflow-hidden"
           style={{
             mixBlendMode: "screen",
-            opacity: 0.6 + fire * 0.4,
-            maskImage: "radial-gradient(circle at 50% 56%, #000 30%, rgba(0,0,0,0.6) 46%, transparent 66%)",
-            WebkitMaskImage: "radial-gradient(circle at 50% 56%, #000 30%, rgba(0,0,0,0.6) 46%, transparent 66%)",
+            opacity: 0.65 + fire * 0.35,
+            maskImage: "radial-gradient(circle at 50% 55%, #000 40%, rgba(0,0,0,0.75) 55%, transparent 74%)",
+            WebkitMaskImage: "radial-gradient(circle at 50% 55%, #000 40%, rgba(0,0,0,0.75) 55%, transparent 74%)",
           }}
         >
-          <FireVideo className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-[1.35] object-cover" />
-          <FireVideo
-            className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-x-[-1.15] scale-y-[1.15] object-cover opacity-70"
-          />
+          <FireVideo className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-[1.45] object-cover" />
         </div>
       )}
+
 
 
       {/* Ice aura */}
