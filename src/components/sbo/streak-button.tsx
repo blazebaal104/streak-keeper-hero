@@ -48,12 +48,16 @@ export function StreakButton({
   const mode: "fire" | "ice" | "neutral" = fireStreak > 0 ? "fire" : iceStreak > 0 ? "ice" : "neutral";
   const stage = iceStage(iceStreak);
 
+  // In fire mode the disc itself is transparent: the single fire video sits behind
+  // it (one decoder only) and shows through, so the flames inside and outside the
+  // rim are literally the same real footage.
   const background =
     mode === "fire"
-      ? "radial-gradient(circle at 50% 70%, oklch(0.42 0.14 45), oklch(0.22 0.08 35))"
+      ? "radial-gradient(circle at 50% 75%, rgba(90,20,0,0.35), rgba(20,6,0,0.55))"
       : mode === "ice"
         ? "oklch(0.35 0.06 230)"
         : "var(--gradient-drop)";
+
 
   const glow =
     mode === "fire"
