@@ -129,8 +129,13 @@ export function StreakButton({
           </AnimatePresence>
         )}
 
-        {/* Glass dome highlight */}
-        <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br from-white/30 via-transparent to-black/35" />
+        {/* Glass dome highlight (kept subtle over the fire so the footage stays vivid) */}
+        <div
+          className={`pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br ${
+            mode === "fire" ? "from-white/10 via-transparent to-black/10" : "from-white/30 via-transparent to-black/35"
+          }`}
+        />
+
         {mode === "ice" && (
           <div
             className="pointer-events-none absolute inset-0 rounded-full"
