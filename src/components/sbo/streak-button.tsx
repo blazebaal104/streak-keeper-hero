@@ -182,25 +182,26 @@ const SHARD_ROWS = 2;
 /** Explosive shatter: shards fly outwards fast, then fall under gravity and spin. */
 function IceShatter() {
   const shards = useMemo(() => {
-    const n = 42;
+    const n = 46;
     return Array.from({ length: n }, (_, i) => {
-      const angle = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-      const speed = 90 + Math.random() * 170;
+      const angle = (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
+      const speed = 260 + Math.random() * 420;
       const vx = Math.cos(angle) * speed;
-      const vy = Math.sin(angle) * speed - 60; // slight upward bias
-      const size = 12 + Math.random() * 30;
+      const vy = Math.sin(angle) * speed - 110; // slight upward bias
+      const r0 = 30 + Math.random() * 45; // start on the rim, not in one point
+      const size = 7 + Math.random() * 22;
       const cell = Math.floor(Math.random() * (SHARD_COLS * SHARD_ROWS));
-      const g = 900 + Math.random() * 400;
-      const T = 1.15;
-      // sample a parabolic trajectory
-      const steps = 6;
+      const g = 1500 + Math.random() * 700;
+      const T = 1.05;
+      // sample a parabolic trajectory (ballistic, no easing)
+      const steps = 8;
       const xs: number[] = [];
       const ys: number[] = [];
       const times: number[] = [];
       for (let s = 0; s <= steps; s++) {
         const t = (s / steps) * T;
-        xs.push(vx * t);
-        ys.push(vy * t + 0.5 * g * t * t);
+        xs.push(Math.cos(angle) * r0 + vx * t);
+        ys.push(Math.sin(angle) * r0 + vy * t + 0.5 * g * t * t);
         times.push(s / steps);
       }
       return {
@@ -210,11 +211,12 @@ function IceShatter() {
         times,
         size,
         cell,
-        spin: (Math.random() - 0.5) * 900,
-        delay: Math.random() * 0.06,
+        spin: (Math.random() - 0.5) * 1200,
+        delay: Math.random() * 0.05,
       };
     });
   }, []);
+
 
   return (
     <motion.div className="pointer-events-none absolute inset-0" exit={{ opacity: 0 }}>
