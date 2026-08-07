@@ -53,7 +53,7 @@ export function StreakButton({
   // rim are literally the same real footage.
   const background =
     mode === "fire"
-      ? "radial-gradient(circle at 50% 75%, rgba(90,20,0,0.35), rgba(20,6,0,0.55))"
+      ? "radial-gradient(circle at 50% 75%, rgba(80,20,0,0.12), rgba(20,6,0,0.22))"
       : mode === "ice"
         ? "oklch(0.35 0.06 230)"
         : "var(--gradient-drop)";
@@ -76,8 +76,8 @@ export function StreakButton({
           style={{
             mixBlendMode: "screen",
             opacity: 0.65 + fire * 0.35,
-            maskImage: "radial-gradient(circle at 50% 55%, #000 40%, rgba(0,0,0,0.75) 55%, transparent 74%)",
-            WebkitMaskImage: "radial-gradient(circle at 50% 55%, #000 40%, rgba(0,0,0,0.75) 55%, transparent 74%)",
+            maskImage: "radial-gradient(circle 132px at 50% 52%, #000 62%, rgba(0,0,0,0.55) 84%, transparent 100%)",
+            WebkitMaskImage: "radial-gradient(circle 132px at 50% 52%, #000 62%, rgba(0,0,0,0.55) 84%, transparent 100%)",
           }}
         >
           <FireVideo className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-[1.45] object-cover" />
