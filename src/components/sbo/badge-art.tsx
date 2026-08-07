@@ -1,4 +1,3 @@
-import { motion } from "motion/react";
 import { tierRank, type BadgeDef } from "@/lib/sbo-badges";
 
 /** Deterministic pseudo-random from a seed. */
@@ -10,6 +9,8 @@ const rnd = (seed: number, i: number) => {
 /**
  * Unified badge artwork used everywhere (slot, inventory, friend profile).
  * The visual richness scales with the badge tier: higher rarity = more layers.
+ * All motion is CSS-driven (transform/opacity only) so long lists of badges stay
+ * cheap even on low-end phones.
  */
 export function BadgeArt({
   def,
@@ -26,25 +27,24 @@ export function BadgeArt({
 }) {
   const rank = tierRank(def.tier); // 1..7
   const seed = def.threshold * (def.category === "ice" ? 7 : 3);
-  const sparkles = rank <= 2 ? 0 : rank === 3 ? 3 : rank === 4 ? 5 : rank === 5 ? 7 : rank === 6 ? 9 : 12;
+  const sparkles = !animated ? 0 : rank <= 2 ? 0 : rank === 3 ? 2 : rank === 4 ? 3 : rank === 5 ? 4 : rank === 6 ? 5 : 6;
   const isIce = def.category === "ice";
 
   return (
     <div
       className={`relative overflow-hidden rounded-2xl ring-2 ${def.ring} ${className}`}
-      style={{ width: size, height: size, background: def.gradient }}
+      style={{ width: size, height: size, background: def.gradient, contain: "paint" }}
     >
       {/* Rarity aura: rotating conic sheen for epic and above */}
       {rank >= 5 && animated && (
-        <motion.div
-          className="absolute -inset-1/2 opacity-40"
+        <div
+          className="absolute -inset-1/2 opacity-40 will-change-transform"
           style={{
             background: isIce
               ? "conic-gradient(from 0deg, transparent, rgba(255,255,255,0.9), transparent 40%)"
               : "conic-gradient(from 0deg, transparent, rgba(255,240,180,0.9), transparent 40%)",
+            animation: `badge-spin ${rank >= 7 ? 4 : 7}s linear infinite`,
           }}
-          animate={{ rotate: 360 }}
-          transition={{ duration: rank >= 7 ? 4 : 7, repeat: Infinity, ease: "linear" }}
         />
       )}
 
@@ -53,11 +53,9 @@ export function BadgeArt({
 
       {/* Shine sweep for rare and above */}
       {rank >= 3 && animated && (
-        <motion.div
-          className="absolute inset-y-0 w-1/3 -skew-x-12 bg-white/35 blur-[2px]"
-          initial={{ x: -size }}
-          animate={{ x: size * 1.6 }}
-          transition={{ duration: 1.4, repeat: Infinity, repeatDelay: rank >= 6 ? 1.6 : 3.6, ease: "easeInOut" }}
+        <div
+          className="absolute inset-y-0 w-1/3 bg-white/35 blur-[2px] will-change-transform"
+          style={{ animation: `badge-sheen ${rank >= 6 ? 3 : 5}s ease-in-out infinite` }}
         />
       )}
 
@@ -73,60 +71,47 @@ export function BadgeArt({
 
       {/* Fire ember glow */}
       {!isIce && rank >= 4 && animated && (
-        <motion.div
+        <div
           className="absolute inset-0"
-          style={{ background: "radial-gradient(circle at 50% 80%, rgba(255,200,80,0.55), transparent 60%)" }}
-          animate={{ opacity: [0.4, 0.9, 0.4] }}
-          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            background: "radial-gradient(circle at 50% 80%, rgba(255,200,80,0.55), transparent 60%)",
+            animation: "badge-ember 2.2s ease-in-out infinite",
+          }}
         />
       )}
 
       {/* Emblem */}
       <div className="absolute inset-0 grid place-items-center">
-        {animated && rank >= 4 ? (
-          <motion.span
-            className={`drop-shadow ${locked ? "grayscale opacity-50" : ""}`}
-            style={{ fontSize: size * 0.46, lineHeight: 1 }}
-            animate={{ y: [0, -size * 0.04, 0], rotate: [0, 4, -4, 0] }}
-            transition={{ duration: 3.4, repeat: Infinity, ease: "easeInOut" }}
-          >
-            {def.emoji}
-          </motion.span>
-        ) : (
-          <span
-            className={`drop-shadow ${locked ? "grayscale opacity-50" : ""}`}
-            style={{ fontSize: size * 0.46, lineHeight: 1 }}
-          >
-            {def.emoji}
-          </span>
-        )}
+        <span
+          className={`drop-shadow ${locked ? "grayscale opacity-50" : ""}`}
+          style={{
+            fontSize: size * 0.46,
+            lineHeight: 1,
+            animation: animated && rank >= 4 ? "badge-bob 3.4s ease-in-out infinite" : undefined,
+          }}
+        >
+          {def.emoji}
+        </span>
       </div>
 
       {/* Sparkles */}
-      {animated &&
-        Array.from({ length: sparkles }, (_, i) => (
-          <motion.span
-            key={i}
-            className={isIce ? "absolute text-white" : "absolute text-yellow-100"}
-            style={{
-              left: `${rnd(seed, i) * 88}%`,
-              top: `${rnd(seed, i + 40) * 84}%`,
-              fontSize: Math.max(6, size * (0.08 + rnd(seed, i + 80) * 0.08)),
-            }}
-            animate={{ opacity: [0, 1, 0], scale: [0.4, 1, 0.4] }}
-            transition={{
-              duration: 1.4 + rnd(seed, i + 120) * 1.8,
-              delay: rnd(seed, i + 160) * 2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          >
-            ✦
-          </motion.span>
-        ))}
+      {Array.from({ length: sparkles }, (_, i) => (
+        <span
+          key={i}
+          className={isIce ? "absolute text-white will-change-transform" : "absolute text-yellow-100 will-change-transform"}
+          style={{
+            left: `${rnd(seed, i) * 88}%`,
+            top: `${rnd(seed, i + 40) * 84}%`,
+            fontSize: Math.max(6, size * (0.08 + rnd(seed, i + 80) * 0.08)),
+            animation: `badge-sparkle ${(1.4 + rnd(seed, i + 120) * 1.8).toFixed(2)}s ease-in-out ${(rnd(seed, i + 160) * 2).toFixed(2)}s infinite`,
+          }}
+        >
+          ✦
+        </span>
+      ))}
 
       {/* Locked veil */}
-      {locked && <div className="absolute inset-0 bg-black/55 backdrop-blur-[1px]" />}
+      {locked && <div className="absolute inset-0 bg-black/55" />}
     </div>
   );
 }
