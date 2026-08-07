@@ -105,10 +105,9 @@ export function StreakButton({
         style={{ background, boxShadow: glow }}
         aria-label="Aggiungi 1 al contatore"
       >
-        {/* Fire: the real footage burning inside the disc */}
-        {mode === "fire" && (
-          <FireVideo className="absolute inset-0 h-full w-full scale-125 object-cover" style={{ mixBlendMode: "screen" }} />
-        )}
+        {/* Fire: nothing here — the disc is transparent and the single video layer
+            behind it provides the real flames. */}
+
 
         {/* Ice: real photographic ice, crossfaded when the streak reaches a new stage */}
         {mode === "ice" && (
