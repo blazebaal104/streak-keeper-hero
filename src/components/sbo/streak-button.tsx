@@ -143,13 +143,13 @@ export function StreakButton({
           burns and the flames rise above the rim. Black frames vanish with `screen`. */}
       {mode === "fire" && (
         <div
-          className="pointer-events-none absolute inset-x-[-16px] bottom-[24px] top-[-56px] overflow-hidden"
+          className="pointer-events-none absolute inset-x-[-16px] bottom-[6px] top-[-56px] overflow-hidden"
           style={{
             mixBlendMode: "screen",
             maskImage:
-              "radial-gradient(ellipse 58% 60% at 50% 80%, #000 62%, rgba(0,0,0,0.8) 80%, transparent 100%), linear-gradient(to top, transparent 0%, #000 16%)",
+              "radial-gradient(ellipse 58% 60% at 50% 80%, #000 62%, rgba(0,0,0,0.8) 80%, transparent 100%), linear-gradient(to top, transparent 2%, #000 34%)",
             WebkitMaskImage:
-              "radial-gradient(ellipse 58% 60% at 50% 80%, #000 62%, rgba(0,0,0,0.8) 80%, transparent 100%), linear-gradient(to top, transparent 0%, #000 16%)",
+              "radial-gradient(ellipse 58% 60% at 50% 80%, #000 62%, rgba(0,0,0,0.8) 80%, transparent 100%), linear-gradient(to top, transparent 2%, #000 34%)",
             maskComposite: "intersect",
             WebkitMaskComposite: "source-in",
           }}
