@@ -1,14 +1,15 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
-import fireMp4 from "@/assets/sbo/fire-loop.mp4.asset.json";
-import fireWebm from "@/assets/sbo/fire-loop.webm.asset.json";
+import fireMp4 from "@/assets/sbo/fire-blaze.mp4.asset.json";
+import fireWebm from "@/assets/sbo/fire-blaze.webm.asset.json";
 import shardsSheet from "@/assets/sbo/ice-shards.png.asset.json";
 import ice1 from "@/assets/sbo/ice-1.webp.asset.json";
 import ice2 from "@/assets/sbo/ice-2.webp.asset.json";
 import ice3 from "@/assets/sbo/ice-3.webp.asset.json";
 import ice4 from "@/assets/sbo/ice-4.webp.asset.json";
 import ice5 from "@/assets/sbo/ice-5.webp.asset.json";
+
 
 /** Texture evolution: each ice badge threshold unlocks a denser, purer ice. */
 const ICE_STAGES = [
