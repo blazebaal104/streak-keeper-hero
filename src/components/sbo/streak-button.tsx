@@ -49,12 +49,11 @@ export function StreakButton({
   const mode: "fire" | "ice" | "neutral" = fireStreak > 0 ? "fire" : iceStreak > 0 ? "ice" : "neutral";
   const stage = iceStage(iceStreak);
 
-  // In fire mode the disc itself is transparent: the single fire video sits behind
-  // it (one decoder only) and shows through, so the flames inside and outside the
-  // rim are literally the same real footage.
+  // In fire mode the disc is pitch black so the screen-blended real footage reads
+  // at full saturation: the whole button burns and the flames rise past the rim.
   const background =
     mode === "fire"
-      ? "radial-gradient(circle at 50% 75%, rgba(80,20,0,0.12), rgba(20,6,0,0.22))"
+      ? "#000"
       : mode === "ice"
         ? "oklch(0.35 0.06 230)"
         : "var(--gradient-drop)";
@@ -62,28 +61,34 @@ export function StreakButton({
 
   const glow =
     mode === "fire"
-      ? `0 24px 80px -14px rgba(249,115,22,${0.4 + fire * 0.45}), 0 0 ${50 + fire * 80}px -12px rgba(255,150,50,${0.35 + fire * 0.4})`
+      ? `0 18px 70px -10px rgba(249,115,22,${0.6 + fire * 0.4}), 0 0 ${70 + fire * 90}px -8px rgba(255,120,20,${0.55 + fire * 0.45})`
       : mode === "ice"
         ? `0 24px 80px -14px rgba(56,189,248,${0.3 + ice * 0.4}), 0 0 ${45 + ice * 70}px -12px rgba(190,240,255,${0.35 + ice * 0.4})`
         : "var(--shadow-drop)";
 
   return (
     <div className="relative flex h-64 w-64 items-center justify-center">
-      {/* Single real-fire layer: burns behind the (transparent) disc and licks out
-          past the rim. Black frames vanish thanks to the screen blend. */}
+      {/* Single real-fire layer (one decoder): the disc is black and transparent to
+          the blend, so the very same footage burns inside the button and licks out
+          above the rim. Black video frames disappear thanks to `screen`. */}
       {mode === "fire" && (
         <div
-          className="pointer-events-none absolute -inset-4 overflow-hidden"
+          className="pointer-events-none absolute inset-x-[-14px] bottom-[26px] top-[-52px] overflow-hidden"
           style={{
             mixBlendMode: "screen",
-            opacity: 0.65 + fire * 0.35,
-            maskImage: "radial-gradient(circle 132px at 50% 52%, #000 62%, rgba(0,0,0,0.55) 84%, transparent 100%)",
-            WebkitMaskImage: "radial-gradient(circle 132px at 50% 52%, #000 62%, rgba(0,0,0,0.55) 84%, transparent 100%)",
+            maskImage:
+              "radial-gradient(ellipse 58% 62% at 50% 82%, #000 62%, rgba(0,0,0,0.8) 80%, transparent 100%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse 58% 62% at 50% 82%, #000 62%, rgba(0,0,0,0.8) 80%, transparent 100%)",
           }}
         >
-          <FireVideo className="absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 scale-[1.45] object-cover" />
+          <FireVideo
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{ objectPosition: "50% 100%", filter: `saturate(${1.25 + fire * 0.35}) contrast(1.2) brightness(${1.05 + fire * 0.15})` }}
+          />
         </div>
       )}
+
 
 
 
