@@ -139,6 +139,31 @@ export function StreakButton({
         />
       </motion.button>
 
+      {/* Real fire, ON TOP of the black disc (single decoder): the whole button
+          burns and the flames rise above the rim. Black frames vanish with `screen`. */}
+      {mode === "fire" && (
+        <div
+          className="pointer-events-none absolute inset-x-[-16px] bottom-[24px] top-[-56px] overflow-hidden"
+          style={{
+            mixBlendMode: "screen",
+            maskImage:
+              "radial-gradient(ellipse 58% 60% at 50% 82%, #000 66%, rgba(0,0,0,0.85) 82%, transparent 100%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse 58% 60% at 50% 82%, #000 66%, rgba(0,0,0,0.85) 82%, transparent 100%)",
+          }}
+        >
+          <FireVideo
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{
+              objectPosition: "50% 100%",
+              filter: `saturate(${1.3 + fire * 0.35}) contrast(1.25) brightness(${1.1 + fire * 0.15})`,
+            }}
+          />
+        </div>
+      )}
+
+
+
       {/* Ice shatter: real shard fragments blasted out, then pulled down by gravity */}
       <AnimatePresence>{melting && <IceShatter key="shatter" />}</AnimatePresence>
     </div>
