@@ -68,26 +68,8 @@ export function StreakButton({
 
   return (
     <div className="relative flex h-64 w-64 items-center justify-center">
-      {/* Single real-fire layer (one decoder): the disc is black and transparent to
-          the blend, so the very same footage burns inside the button and licks out
-          above the rim. Black video frames disappear thanks to `screen`. */}
-      {mode === "fire" && (
-        <div
-          className="pointer-events-none absolute inset-x-[-14px] bottom-[26px] top-[-52px] overflow-hidden"
-          style={{
-            mixBlendMode: "screen",
-            maskImage:
-              "radial-gradient(ellipse 58% 62% at 50% 82%, #000 62%, rgba(0,0,0,0.8) 80%, transparent 100%)",
-            WebkitMaskImage:
-              "radial-gradient(ellipse 58% 62% at 50% 82%, #000 62%, rgba(0,0,0,0.8) 80%, transparent 100%)",
-          }}
-        >
-          <FireVideo
-            className="absolute inset-0 h-full w-full object-cover"
-            style={{ objectPosition: "50% 100%", filter: `saturate(${1.25 + fire * 0.35}) contrast(1.2) brightness(${1.05 + fire * 0.15})` }}
-          />
-        </div>
-      )}
+
+
 
 
 
