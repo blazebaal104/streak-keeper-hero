@@ -93,8 +93,9 @@ export function StreakButton({
         style={{ background, boxShadow: glow }}
         aria-label="Aggiungi 1 al contatore"
       >
-        {/* Fire: nothing here — the disc is transparent and the single video layer
-            behind it provides the real flames. */}
+        {/* Fire: the disc is pitch black; the screen-blended video layer on top of
+            the button (rendered after it) sets the whole surface ablaze. */}
+
 
 
         {/* Ice: real photographic ice, crossfaded when the streak reaches a new stage */}
