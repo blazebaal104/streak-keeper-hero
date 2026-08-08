@@ -38,12 +38,20 @@ import { ensureNotificationPermission, notify, scheduleStreakReminder, CLAN_ROLE
 import { ensureServiceWorker, subscribeToPush, schedulePush, isPushSupported } from "@/lib/sbo-push";
 import { BadgeArt } from "@/components/sbo/badge-art";
 import { StreakButton } from "@/components/sbo/streak-button";
+import { AmbientMood } from "@/components/sbo/ambient-mood";
+import fireMp4 from "@/assets/sbo/fire-blaze.mp4.asset.json";
 
 
 const AVATAR_CHOICES = ["💧","🌊","⚡","🌟","🔥","🌙","⚔️","👑","🐉","🦁","🐺","🦅","🌸","🍀","🎯","🧊","☄️","🌈"];
 
 export const Route = createFileRoute("/_authenticated/")({
   component: SboApp,
+  head: () => ({
+    links: [
+      // Preload the fire loop so the button is already ablaze on first paint.
+      { rel: "preload", as: "video", href: fireMp4.url, type: "video/mp4" },
+    ],
+  }),
 });
 
 function SboApp() {
@@ -222,6 +230,9 @@ function SboApp() {
   return (
     <div className="min-h-screen text-foreground">
       <Toaster position="top-center" theme="dark" />
+
+      {/* Page-wide mood: ignition flash on fire, permanent frost haze on ice */}
+      <AmbientMood mode={fireStreak > 0 ? "fire" : iceStreak > 0 ? "ice" : "neutral"} />
 
       {/* Falling drops overlay */}
       <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
