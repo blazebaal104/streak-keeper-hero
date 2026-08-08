@@ -49,11 +49,11 @@ export function StreakButton({
   const mode: "fire" | "ice" | "neutral" = fireStreak > 0 ? "fire" : iceStreak > 0 ? "ice" : "neutral";
   const stage = iceStage(iceStreak);
 
-  // In fire mode the disc is pitch black so the screen-blended real footage reads
-  // at full saturation: the whole button burns and the flames rise past the rim.
+  // In fire mode the disc is a dark ember bed: the screen-blended real footage on
+  // top reads at full saturation and the gaps between flames glow like coals.
   const background =
     mode === "fire"
-      ? "#000"
+      ? "radial-gradient(circle at 50% 72%, #5a1600, #1a0400 78%)"
       : mode === "ice"
         ? "oklch(0.35 0.06 230)"
         : "var(--gradient-drop)";
