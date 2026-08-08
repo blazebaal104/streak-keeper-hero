@@ -147,9 +147,11 @@ export function StreakButton({
           style={{
             mixBlendMode: "screen",
             maskImage:
-              "radial-gradient(ellipse 58% 60% at 50% 82%, #000 66%, rgba(0,0,0,0.85) 82%, transparent 100%)",
+              "radial-gradient(ellipse 58% 60% at 50% 80%, #000 62%, rgba(0,0,0,0.8) 80%, transparent 100%), linear-gradient(to top, transparent 0%, #000 16%)",
             WebkitMaskImage:
-              "radial-gradient(ellipse 58% 60% at 50% 82%, #000 66%, rgba(0,0,0,0.85) 82%, transparent 100%)",
+              "radial-gradient(ellipse 58% 60% at 50% 80%, #000 62%, rgba(0,0,0,0.8) 80%, transparent 100%), linear-gradient(to top, transparent 0%, #000 16%)",
+            maskComposite: "intersect",
+            WebkitMaskComposite: "source-in",
           }}
         >
           <FireVideo
