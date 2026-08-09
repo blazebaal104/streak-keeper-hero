@@ -862,9 +862,9 @@ function ProfileDialog({ open, onClose, profile, badges, onUpdate, onSignOut, on
   );
 }
 
-function InventoryDialog({ slot, profile, badges, totalEvents, totalCleanDays, onClose, onEquip }: {
+function InventoryDialog({ slot, profile, badges, totalEvents, totalCleanDays, onClose, onEquip, onEquipTitle }: {
   slot: 0 | 1 | 2; profile: Profile; badges: Badge[]; totalEvents: number; totalCleanDays: number;
-  onClose: () => void; onEquip: (id: string | null) => void;
+  onClose: () => void; onEquip: (id: string | null) => void; onEquipTitle: (id: string | null) => void;
 }) {
   const equippedIds = new Set([profile.slot_1, profile.slot_2, profile.slot_3].filter(Boolean) as string[]);
   const [preview, setPreview] = useState<BadgeDef | null>(null);
