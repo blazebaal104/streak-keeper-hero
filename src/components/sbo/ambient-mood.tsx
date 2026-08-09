@@ -3,8 +3,9 @@ import { useEffect, useState } from "react";
 
 /**
  * Full-page mood layer.
- * - fire: a one-shot "ignition" flash (the room catches fire for a moment) that
- *   fades away, leaving only the button burning.
+ * - fire: a strong orange ignition pulse when the fire starts, settling into a
+ *   permanent warmer orange halo around the edges of the screen (something is
+ *   burning).
  * - ice: a permanent, slowly breathing frost haze so the whole page reads frozen.
  */
 export function AmbientMood({ mode }: { mode: "fire" | "ice" | "neutral" }) {
@@ -13,7 +14,7 @@ export function AmbientMood({ mode }: { mode: "fire" | "ice" | "neutral" }) {
   useEffect(() => {
     if (mode !== "fire") return;
     setIgnite(true);
-    const t = setTimeout(() => setIgnite(false), 1900);
+    const t = setTimeout(() => setIgnite(false), 2600);
     return () => clearTimeout(t);
   }, [mode]);
 
@@ -40,7 +41,30 @@ export function AmbientMood({ mode }: { mode: "fire" | "ice" | "neutral" }) {
         </>
       )}
 
-      {/* Fire: ignition flash */}
+      {/* Fire: permanent burning halo around the screen edges */}
+      {mode === "fire" && (
+        <>
+          <motion.div
+            className="absolute inset-0"
+            style={{
+              boxShadow: "inset 0 0 200px rgba(249,115,22,0.32), inset 0 0 60px rgba(255,170,60,0.16)",
+            }}
+            animate={{ opacity: [0.75, 1, 0.75] }}
+            transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div
+            className="absolute inset-x-0 bottom-0 h-2/3"
+            style={{
+              background:
+                "radial-gradient(ellipse 75% 100% at 50% 100%, rgba(255,120,20,0.18), transparent 72%)",
+            }}
+            animate={{ opacity: [0.6, 1, 0.6] }}
+            transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
+          />
+        </>
+      )}
+
+      {/* Fire: ignition flare — bright orange, then settles as the flame stabilises */}
       <AnimatePresence>
         {ignite && (
           <motion.div
@@ -48,27 +72,15 @@ export function AmbientMood({ mode }: { mode: "fire" | "ice" | "neutral" }) {
             className="absolute inset-0"
             style={{
               background:
-                "radial-gradient(ellipse 80% 55% at 50% 62%, rgba(255,140,30,0.55), rgba(180,50,0,0.22) 55%, transparent 78%)",
+                "radial-gradient(ellipse 85% 60% at 50% 58%, rgba(255,150,40,0.62), rgba(190,55,0,0.3) 55%, transparent 80%)",
             }}
             initial={{ opacity: 0 }}
-            animate={{ opacity: [0, 1, 0.45, 0.8, 0] }}
+            animate={{ opacity: [0, 0.35, 1, 0.7, 0.85, 0] }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 1.9, ease: "easeOut", times: [0, 0.12, 0.4, 0.6, 1] }}
+            transition={{ duration: 2.6, ease: "easeInOut", times: [0, 0.18, 0.42, 0.6, 0.75, 1] }}
           />
         )}
       </AnimatePresence>
-
-      {/* Fire: faint permanent ember warmth at the bottom */}
-      {mode === "fire" && (
-        <motion.div
-          className="absolute inset-x-0 bottom-0 h-1/2"
-          style={{
-            background: "radial-gradient(ellipse 70% 100% at 50% 100%, rgba(255,120,20,0.12), transparent 70%)",
-          }}
-          animate={{ opacity: [0.6, 1, 0.6] }}
-          transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
-        />
-      )}
     </div>
   );
 }

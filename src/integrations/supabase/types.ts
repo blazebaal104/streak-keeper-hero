@@ -206,6 +206,7 @@ export type Database = {
           clan_role: string
           created_at: string
           daily_limit: number
+          equipped_title: string | null
           friend_code: string
           id: string
           notif_messages: boolean
@@ -225,6 +226,7 @@ export type Database = {
           clan_role?: string
           created_at?: string
           daily_limit?: number
+          equipped_title?: string | null
           friend_code: string
           id: string
           notif_messages?: boolean
@@ -244,6 +246,7 @@ export type Database = {
           clan_role?: string
           created_at?: string
           daily_limit?: number
+          equipped_title?: string | null
           friend_code?: string
           id?: string
           notif_messages?: boolean
