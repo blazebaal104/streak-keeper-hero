@@ -123,3 +123,22 @@
   0%, 100% { opacity: 0.4; }
   50% { opacity: 0.9; }
 }
+
+/* --- Equipped title (rarity-driven, CSS-only) --- */
+@keyframes sbo-title-flow {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+@keyframes sbo-title-glow {
+  0%, 100% { filter: drop-shadow(0 0 2px currentColor); }
+  50% { filter: drop-shadow(0 0 10px currentColor); }
+}
+@keyframes sbo-title-sheen {
+  0% { transform: translateX(-130%) skewX(-16deg); }
+  30% { transform: translateX(240%) skewX(-16deg); }
+  100% { transform: translateX(240%) skewX(-16deg); }
+}
+@keyframes sbo-title-spark {
+  0%, 100% { opacity: 0; transform: translateY(0) scale(0.5); }
+  50% { opacity: 1; transform: translateY(-6px) scale(1); }
+}
