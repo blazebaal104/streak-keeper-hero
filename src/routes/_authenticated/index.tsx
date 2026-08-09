@@ -484,6 +484,7 @@ function SboApp() {
       {/* INVENTORY */}
       {showInventory !== false && (
         <InventoryDialog
+          onEquipTitle={(id) => updateProfile.mutate({ equipped_title: id })}
           slot={showInventory.slot}
           profile={profile}
           badges={badges}
