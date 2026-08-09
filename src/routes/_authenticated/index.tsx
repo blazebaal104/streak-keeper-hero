@@ -829,6 +829,7 @@ function ProfileDialog({ open, onClose, profile, badges, onUpdate, onSignOut, on
           <div>
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">Username</Label>
             <p className="mt-1 text-lg font-semibold">{profile.username}</p>
+            {titleById(profile.equipped_title) && <TitleBadge title={titleById(profile.equipped_title)!} size="sm" />}
             <p className="text-[11px] text-muted-foreground">L'username non è modificabile dopo la creazione.</p>
           </div>
 
