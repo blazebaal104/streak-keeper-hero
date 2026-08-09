@@ -60,3 +60,17 @@ export function titleTierLabel(tier: TitleTier): string {
     legendary: "Leggendario",
   }[tier];
 }
+
+export function titleId(t: TitleDef): string {
+  return `${t.category}:${t.threshold}`;
+}
+
+export function titleById(id: string | null | undefined): TitleDef | undefined {
+  if (!id) return undefined;
+  return ALL_TITLES.find((t) => titleId(t) === id);
+}
+
+/** Every title the user has already earned, ordered by rarity. */
+export function unlockedTitles(fireTotal: number, iceTotal: number): TitleDef[] {
+  return ALL_TITLES.filter((t) => (t.category === "fire" ? fireTotal : iceTotal) >= t.threshold);
+}
