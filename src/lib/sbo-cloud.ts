@@ -19,6 +19,7 @@ export type Profile = {
   slot_1: string | null;
   slot_2: string | null;
   slot_3: string | null;
+  equipped_title: string | null;
 };
 
 
