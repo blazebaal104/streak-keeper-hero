@@ -10,27 +10,36 @@ import ice3 from "@/assets/sbo/ice-3.webp.asset.json";
 import ice4 from "@/assets/sbo/ice-4.webp.asset.json";
 import ice5 from "@/assets/sbo/ice-5.webp.asset.json";
 
-
-/** Texture evolution: each ice badge threshold unlocks a denser, purer ice. */
-const ICE_STAGES = [
-  { min: 0, url: ice1.url },
-  { min: 3, url: ice2.url },
-  { min: 7, url: ice3.url },
-  { min: 14, url: ice4.url },
-  { min: 30, url: ice5.url },
+/**
+ * Texture evolution. The five photographic plates are the anchors, but the look
+ * is interpolated DAY BY DAY: every single day the next plate bleeds a little
+ * more through and the frost gets denser, so progress is visible daily.
+ */
+const ICE_PLATES = [
+  { day: 0, url: ice1.url },
+  { day: 3, url: ice2.url },
+  { day: 7, url: ice3.url },
+  { day: 14, url: ice4.url },
+  { day: 30, url: ice5.url },
 ];
 
-function iceStage(streak: number) {
-  let s = ICE_STAGES[0];
-  for (const st of ICE_STAGES) if (streak >= st.min) s = st;
-  return s;
+function iceBlend(streak: number) {
+  const last = ICE_PLATES.length - 1;
+  if (streak >= ICE_PLATES[last].day) return { base: ICE_PLATES[last].url, next: ICE_PLATES[last].url, f: 1 };
+  let i = 0;
+  for (let k = 0; k < last; k++) if (streak >= ICE_PLATES[k].day) i = k;
+  const a = ICE_PLATES[i];
+  const b = ICE_PLATES[i + 1];
+  const f = Math.min(1, Math.max(0, (streak - a.day) / (b.day - a.day)));
+  return { base: a.url, next: b.url, f };
 }
 
 /**
  * Main SBO button.
- * - fire streak → real fireplace footage (looping, pre-bundled, screen-blended)
- *   burning inside the disc and licking out past the rim.
- * - ice streak  → real photographic ice that evolves stage by stage with the streak.
+ * - fire streak → real fireplace footage burning strictly INSIDE the disc, with
+ *   just a small plume licking above the top rim. It ignites progressively
+ *   (~2s) every time the fire starts.
+ * - ice streak  → real photographic ice whose density grows every single day.
  * - neutral     → the plain water-drop look.
  */
 export function StreakButton({
@@ -47,17 +56,14 @@ export function StreakButton({
   const fire = Math.min(fireStreak / 30, 1);
   const ice = Math.min(iceStreak / 30, 1);
   const mode: "fire" | "ice" | "neutral" = fireStreak > 0 ? "fire" : iceStreak > 0 ? "ice" : "neutral";
-  const stage = iceStage(iceStreak);
+  const blend = iceBlend(iceStreak);
 
-  // In fire mode the disc is a dark ember bed: the screen-blended real footage on
-  // top reads at full saturation and the gaps between flames glow like coals.
   const background =
     mode === "fire"
       ? "radial-gradient(circle at 50% 72%, #5a1600, #1a0400 78%)"
       : mode === "ice"
         ? "oklch(0.35 0.06 230)"
         : "var(--gradient-drop)";
-
 
   const glow =
     mode === "fire"
@@ -68,12 +74,6 @@ export function StreakButton({
 
   return (
     <div className="relative flex h-64 w-64 items-center justify-center">
-
-
-
-
-
-
       {/* Ice aura */}
       {mode === "ice" && (
         <motion.div
@@ -93,29 +93,61 @@ export function StreakButton({
         style={{ background, boxShadow: glow }}
         aria-label="Aggiungi 1 al contatore"
       >
-        {/* Fire: the disc is pitch black; the screen-blended video layer on top of
-            the button (rendered after it) sets the whole surface ablaze. */}
-
-
-
-        {/* Ice: real photographic ice, crossfaded when the streak reaches a new stage */}
+        {/* Ice: two photographic plates crossfaded day by day */}
         {mode === "ice" && (
-          <AnimatePresence mode="sync">
-            <motion.img
-              key={stage.url}
-              src={stage.url}
+          <>
+            <img
+              src={blend.base}
               alt=""
               aria-hidden
               width={512}
               height={512}
-              initial={{ opacity: 0, scale: 1.12 }}
-              animate={{ opacity: 1, scale: 1.02 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.9, ease: "easeOut" }}
               className="absolute inset-0 h-full w-full object-cover"
               style={{ filter: `saturate(${1 + ice * 0.5}) contrast(${1 + ice * 0.25}) brightness(${1.05 - ice * 0.1})` }}
             />
-          </AnimatePresence>
+            <motion.img
+              key={blend.next}
+              src={blend.next}
+              alt=""
+              aria-hidden
+              width={512}
+              height={512}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: blend.f }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="absolute inset-0 h-full w-full object-cover"
+              style={{ filter: `saturate(${1 + ice * 0.5}) contrast(${1 + ice * 0.25}) brightness(${1.05 - ice * 0.1})` }}
+            />
+            {/* Daily frost build-up: grows a notch every single day */}
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background: `radial-gradient(circle at 42% 34%, rgba(255,255,255,${0.06 + ice * 0.3}), transparent 62%)`,
+                opacity: 0.5 + ice * 0.5,
+              }}
+            />
+          </>
+        )}
+
+        {/* Fire burns INSIDE the disc (clipped by the button's rounded overflow) */}
+        {mode === "fire" && (
+          <motion.div
+            key="fire-inner"
+            className="pointer-events-none absolute inset-0"
+            style={{ mixBlendMode: "screen", transformOrigin: "50% 100%" }}
+            initial={{ opacity: 0, scaleY: 0.18, filter: "brightness(0.5)" }}
+            animate={{ opacity: 1, scaleY: 1, filter: "brightness(1)" }}
+            transition={{ duration: 2, ease: [0.22, 0.8, 0.3, 1] }}
+          >
+            <FireVideo
+              className="absolute inset-0 h-full w-full object-cover"
+              style={{
+                objectPosition: "50% 100%",
+                transform: "scale(1.15)",
+                filter: `saturate(${1.35 + fire * 0.35}) contrast(1.3) brightness(${1.12 + fire * 0.15})`,
+              }}
+            />
+          </motion.div>
         )}
 
         {/* Glass dome highlight (kept subtle over the fire so the footage stays vivid) */}
@@ -139,32 +171,34 @@ export function StreakButton({
         />
       </motion.button>
 
-      {/* Real fire, ON TOP of the black disc (single decoder): the whole button
-          burns and the flames rise above the rim. Black frames vanish with `screen`. */}
+      {/* Small plume that licks just above the top rim — nothing spills below. */}
       {mode === "fire" && (
-        <div
-          className="pointer-events-none absolute inset-x-[-16px] bottom-[6px] top-[-56px] overflow-hidden"
+        <motion.div
+          key="fire-plume"
+          className="pointer-events-none absolute"
           style={{
+            left: 46,
+            width: 164,
+            top: -6,
+            height: 60,
             mixBlendMode: "screen",
-            maskImage:
-              "radial-gradient(ellipse 58% 60% at 50% 80%, #000 62%, rgba(0,0,0,0.8) 80%, transparent 100%), linear-gradient(to top, transparent 2%, #000 34%)",
-            WebkitMaskImage:
-              "radial-gradient(ellipse 58% 60% at 50% 80%, #000 62%, rgba(0,0,0,0.8) 80%, transparent 100%), linear-gradient(to top, transparent 2%, #000 34%)",
-            maskComposite: "intersect",
-            WebkitMaskComposite: "source-in",
+            transformOrigin: "50% 100%",
+            maskImage: "radial-gradient(ellipse 46% 92% at 50% 100%, #000 30%, rgba(0,0,0,0.55) 62%, transparent 100%)",
+            WebkitMaskImage: "radial-gradient(ellipse 46% 92% at 50% 100%, #000 30%, rgba(0,0,0,0.55) 62%, transparent 100%)",
           }}
+          initial={{ opacity: 0, scaleY: 0.1 }}
+          animate={{ opacity: 0.9, scaleY: 1 }}
+          transition={{ duration: 2, delay: 0.35, ease: [0.22, 0.8, 0.3, 1] }}
         >
           <FireVideo
             className="absolute inset-0 h-full w-full object-cover"
             style={{
-              objectPosition: "50% 100%",
-              filter: `saturate(${1.3 + fire * 0.35}) contrast(1.25) brightness(${1.1 + fire * 0.15})`,
+              objectPosition: "50% 20%",
+              filter: `saturate(${1.35 + fire * 0.35}) contrast(1.3) brightness(${1.1 + fire * 0.15})`,
             }}
           />
-        </div>
+        </motion.div>
       )}
-
-
 
       {/* Ice shatter: real shard fragments blasted out, then pulled down by gravity */}
       <AnimatePresence>{melting && <IceShatter key="shatter" />}</AnimatePresence>
@@ -193,7 +227,6 @@ function FireVideo({ className, style }: { className?: string; style?: React.CSS
 
 const SHARD_COLS = 6;
 const SHARD_ROWS = 2;
-
 
 /** Explosive shatter: shards fly outwards fast, then fall under gravity and spin. */
 function IceShatter() {
@@ -232,7 +265,6 @@ function IceShatter() {
       };
     });
   }, []);
-
 
   return (
     <motion.div className="pointer-events-none absolute inset-0" exit={{ opacity: 0 }}>
@@ -273,9 +305,7 @@ function IceShatter() {
             rotate: { duration: 1.05, delay: s.delay, ease: "linear" },
           }}
         />
-
       ))}
     </motion.div>
   );
 }
-
