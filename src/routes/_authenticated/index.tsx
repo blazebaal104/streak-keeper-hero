@@ -953,7 +953,12 @@ function InventoryDialog({ slot, profile, badges, totalEvents, totalCleanDays, o
 }
 
 /** Titoli onorifici basati sul totale complessivo di eventi / giorni puliti. */
-function TitlesSection({ totalEvents, totalCleanDays }: { totalEvents: number; totalCleanDays: number }) {
+function TitlesSection({ totalEvents, totalCleanDays, equippedTitle, onEquipTitle }: {
+  totalEvents: number; totalCleanDays: number;
+  equippedTitle: string | null; onEquipTitle: (id: string | null) => void;
+}) {
+  const equippedDef = titleById(equippedTitle);
+
   const Group = ({ title, list, total, unit }: { title: string; list: TitleDef[]; total: number; unit: string }) => {
     const cur = currentTitle(list[0].category, total);
     const next = nextTitle(list[0].category, total);
@@ -978,25 +983,51 @@ function TitlesSection({ totalEvents, totalCleanDays }: { totalEvents: number; t
         <div className="mt-2 space-y-1">
           {list.map((t) => {
             const owned = total >= t.threshold;
+            const isOn = equippedTitle === titleId(t);
             return (
-              <div key={t.name} className={`flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 ${owned ? "" : "opacity-50"}`}>
+              <button
+                key={t.name}
+                type="button"
+                disabled={!owned}
+                onClick={() => onEquipTitle(isOn ? null : titleId(t))}
+                className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${
+                  isOn ? "border-primary bg-primary/10" : "border-border"
+                } ${owned ? "hover:bg-card/70" : "opacity-50"}`}
+              >
                 <span className="text-base" style={owned ? undefined : { filter: "grayscale(1)" }}>{t.emoji}</span>
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12px] font-semibold">{t.name}</p>
+                  {owned ? <TitleBadge title={t} size="sm" /> : <p className="truncate text-[12px] font-semibold">{t.name}</p>}
                   <p className="text-[10px] text-muted-foreground">{titleTierLabel(t.tier)} · {t.threshold} {unit}</p>
                 </div>
                 {!owned && <Lock className="h-3 w-3 text-muted-foreground" />}
-              </div>
+                {isOn && <span className="rounded bg-primary px-1 py-0.5 text-[9px] font-bold text-primary-foreground">Equipaggiato</span>}
+              </button>
             );
           })}
         </div>
       </div>
     );
   };
+
   return (
     <div className="mt-6 border-t border-border pt-2">
       <p className="text-sm font-bold">🏅 Titoli</p>
       <p className="text-[11px] text-muted-foreground">Si sbloccano con il totale complessivo, non con le streak.</p>
+
+      {/* Slot titolo */}
+      <div className="mt-3 rounded-xl border-2 border-dashed border-border p-3">
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Slot titolo</p>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          {equippedDef ? <TitleBadge title={equippedDef} size="md" /> : <span className="text-xs text-muted-foreground">Nessun titolo equipaggiato</span>}
+          {equippedDef && (
+            <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => onEquipTitle(null)}>
+              <X className="mr-1 h-3 w-3" /> Rimuovi
+            </Button>
+          )}
+        </div>
+        <p className="mt-1 text-[10px] text-muted-foreground">Appare sotto il tuo nome. Tocca un titolo sbloccato qui sotto per equipaggiarlo.</p>
+      </div>
+
       <Group title="🔥 Titoli di fuoco" list={FIRE_TITLES} total={totalEvents} unit="eventi" />
       <Group title="❄️ Titoli di ghiaccio" list={ICE_TITLES} total={totalCleanDays} unit="giorni puliti" />
     </div>
