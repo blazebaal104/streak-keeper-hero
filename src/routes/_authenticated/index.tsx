@@ -253,6 +253,7 @@ function SboApp() {
             ) : (
               <p className="text-[11px] text-muted-foreground font-mono">{profile.friend_code}</p>
             )}
+          </div>
         </button>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-2 backdrop-blur" title="Streak di fuoco (giorni consecutivi con almeno un evento)">
