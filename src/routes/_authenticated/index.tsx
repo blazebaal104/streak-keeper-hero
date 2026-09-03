@@ -620,6 +620,54 @@ function SboApp() {
 
       {/* FRIEND PROFILE */}
       {viewFriend && <FriendProfileDialog friend={viewFriend} onClose={() => setViewFriend(null)} onChat={() => { setChatWith(viewFriend); setViewFriend(null); }} />}
+
+      {/* RETRO-LOG: add/remove events on a past day */}
+      <Dialog open={!!dayEdit} onOpenChange={(v) => !v && setDayEdit(null)}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>
+              {dayEdit?.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })}
+            </DialogTitle>
+            <DialogDescription>Correggi il registro se ti sei dimenticato (o hai premuto per sbaglio).</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center gap-5 py-2">
+            <Button
+              size="icon"
+              variant="secondary"
+              className="h-11 w-11 rounded-full"
+              disabled={!dayEdit || (byDay.get(localDayKey(dayEdit)) ?? 0) === 0 || removeOnDay.isPending}
+              onClick={() => dayEdit && removeOnDay.mutate(dayEdit)}
+              aria-label="Togli un evento"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+            <div className="text-center">
+              <p className="font-display text-4xl font-bold">{dayEdit ? (byDay.get(localDayKey(dayEdit)) ?? 0) : 0}</p>
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">eventi</p>
+            </div>
+            <Button
+              size="icon"
+              className="h-11 w-11 rounded-full"
+              disabled={!dayEdit || addEvent.isPending}
+              onClick={() => {
+                if (!dayEdit) return;
+                const at = new Date(dayEdit);
+                const now = new Date();
+                const isToday = localDayKey(at) === localDayKey(now);
+                if (isToday) at.setTime(now.getTime());
+                else at.setHours(21, 0, 0, 0);
+                addEvent.mutate(at);
+              }}
+              aria-label="Aggiungi un evento"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" className="w-full" onClick={() => setDayEdit(null)}>Chiudi</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
