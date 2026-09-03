@@ -21,7 +21,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer
 import logo from "@/assets/sbo-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  useAuthUser, useMyProfile, useUpdateProfile, useEvents, useAddEvent, useUndoLastEvent,
+  useAuthUser, useMyProfile, useUpdateProfile, useEvents, useAddEvent, useUndoLastEvent, useRemoveEventOnDay,
   useBadges, checkStreakBadges, useFriends, useAddFriendByCode, useRemoveFriend,
   useClan, useClanMembers, useCreateClan, useJoinClanByTag, useLeaveClan,
   useDirectMessages, useSendDirectMessage, useClanMessages, useSendClanMessage,
@@ -40,7 +40,6 @@ import { ensureServiceWorker, subscribeToPush, schedulePush, isPushSupported } f
 import { BadgeArt } from "@/components/sbo/badge-art";
 import { StreakButton } from "@/components/sbo/streak-button";
 import { AmbientMood } from "@/components/sbo/ambient-mood";
-import fireMp4 from "@/assets/sbo/fire-blaze.mp4.asset.json";
 
 
 const AVATAR_CHOICES = ["💧","🌊","⚡","🌟","🔥","🌙","⚔️","👑","🐉","🦁","🐺","🦅","🌸","🍀","🎯","🧊","☄️","🌈"];
@@ -50,7 +49,7 @@ export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     links: [
       // Preload the fire loop so the button is already ablaze on first paint.
-      { rel: "preload", as: "video", href: fireMp4.url, type: "video/mp4" },
+      { rel: "preload", as: "video", href: "/fire-loop.mp4", type: "video/mp4" },
     ],
   }),
 });
@@ -68,6 +67,7 @@ function SboApp() {
 
   const addEvent = useAddEvent(userId);
   const undoLast = useUndoLastEvent(userId);
+  const removeOnDay = useRemoveEventOnDay(userId);
   const updateProfile = useUpdateProfile(userId);
   const addFriend = useAddFriendByCode(userId);
   const removeFriend = useRemoveFriend(userId);
@@ -87,6 +87,7 @@ function SboApp() {
   const [showInvites, setShowInvites] = useState(false);
   const [bursts, setBursts] = useState<number[]>([]);
   const [melting, setMelting] = useState(false);
+  const [dayEdit, setDayEdit] = useState<Date | null>(null);
   const unreadQ = useUnreadDmCounts(userId);
   const unread = unreadQ.data ?? {};
 
@@ -175,7 +176,7 @@ function SboApp() {
   const handleAdd = async () => {
     const wasOver = today >= limit;
     const brokeIce = iceStreak > 0;
-    await addEvent.mutateAsync();
+    await addEvent.mutateAsync(undefined);
     const id = Date.now();
     setBursts((b) => [...b, id]);
     setTimeout(() => setBursts((b) => b.filter((x) => x !== id)), 2400);
@@ -334,6 +335,13 @@ function SboApp() {
             <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
               <p className="mb-3 px-2 text-sm text-muted-foreground">Registro personale — solo per uso medico e di monitoraggio.</p>
               <Calendar mode="single" className="pointer-events-auto mx-auto"
+                selected={dayEdit ?? undefined}
+                onSelect={(d) => { if (d) setDayEdit(d); }}
+                disabled={(d) => {
+                  const t = new Date(); t.setHours(0, 0, 0, 0);
+                  const day = new Date(d); day.setHours(0, 0, 0, 0);
+                  return day.getTime() > t.getTime() || day.getTime() < t.getTime() - 7 * 86400000;
+                }}
                 modifiers={{
                   logged: (d) => (byDay.get(localDayKey(d)) ?? 0) > 0,
                   heavy: (d) => (byDay.get(localDayKey(d)) ?? 0) >= limit,
@@ -346,6 +354,9 @@ function SboApp() {
                 <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-accent" /> attività</span>
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-destructive" /> sopra il limite</span>
               </div>
+              <p className="mt-3 text-center text-[11px] text-muted-foreground">
+                Tocca un giorno degli ultimi 7 per aggiungere o togliere eventi dimenticati.
+              </p>
             </Card>
           </TabsContent>
 
@@ -609,6 +620,54 @@ function SboApp() {
 
       {/* FRIEND PROFILE */}
       {viewFriend && <FriendProfileDialog friend={viewFriend} onClose={() => setViewFriend(null)} onChat={() => { setChatWith(viewFriend); setViewFriend(null); }} />}
+
+      {/* RETRO-LOG: add/remove events on a past day */}
+      <Dialog open={!!dayEdit} onOpenChange={(v) => !v && setDayEdit(null)}>
+        <DialogContent className="max-w-xs">
+          <DialogHeader>
+            <DialogTitle>
+              {dayEdit?.toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long" })}
+            </DialogTitle>
+            <DialogDescription>Correggi il registro se ti sei dimenticato (o hai premuto per sbaglio).</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center justify-center gap-5 py-2">
+            <Button
+              size="icon"
+              variant="secondary"
+              className="h-11 w-11 rounded-full"
+              disabled={!dayEdit || (byDay.get(localDayKey(dayEdit)) ?? 0) === 0 || removeOnDay.isPending}
+              onClick={() => dayEdit && removeOnDay.mutate(dayEdit)}
+              aria-label="Togli un evento"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+            <div className="text-center">
+              <p className="font-display text-4xl font-bold">{dayEdit ? (byDay.get(localDayKey(dayEdit)) ?? 0) : 0}</p>
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">eventi</p>
+            </div>
+            <Button
+              size="icon"
+              className="h-11 w-11 rounded-full"
+              disabled={!dayEdit || addEvent.isPending}
+              onClick={() => {
+                if (!dayEdit) return;
+                const at = new Date(dayEdit);
+                const now = new Date();
+                const isToday = localDayKey(at) === localDayKey(now);
+                if (isToday) at.setTime(now.getTime());
+                else at.setHours(21, 0, 0, 0);
+                addEvent.mutate(at);
+              }}
+              aria-label="Aggiungi un evento"
+            >
+              <Plus className="h-5 w-5" />
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" className="w-full" onClick={() => setDayEdit(null)}>Chiudi</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
