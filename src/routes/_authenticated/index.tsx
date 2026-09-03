@@ -40,7 +40,6 @@ import { ensureServiceWorker, subscribeToPush, schedulePush, isPushSupported } f
 import { BadgeArt } from "@/components/sbo/badge-art";
 import { StreakButton } from "@/components/sbo/streak-button";
 import { AmbientMood } from "@/components/sbo/ambient-mood";
-import fireMp4 from "@/assets/sbo/fire-blaze.mp4.asset.json";
 
 
 const AVATAR_CHOICES = ["💧","🌊","⚡","🌟","🔥","🌙","⚔️","👑","🐉","🦁","🐺","🦅","🌸","🍀","🎯","🧊","☄️","🌈"];
@@ -50,7 +49,7 @@ export const Route = createFileRoute("/_authenticated/")({
   head: () => ({
     links: [
       // Preload the fire loop so the button is already ablaze on first paint.
-      { rel: "preload", as: "video", href: fireMp4.url, type: "video/mp4" },
+      { rel: "preload", as: "video", href: "/fire-loop.mp4", type: "video/mp4" },
     ],
   }),
 });
