@@ -21,7 +21,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer
 import logo from "@/assets/sbo-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  useAuthUser, useMyProfile, useUpdateProfile, useEvents, useAddEvent, useUndoLastEvent,
+  useAuthUser, useMyProfile, useUpdateProfile, useEvents, useAddEvent, useUndoLastEvent, useRemoveEventOnDay,
   useBadges, checkStreakBadges, useFriends, useAddFriendByCode, useRemoveFriend,
   useClan, useClanMembers, useCreateClan, useJoinClanByTag, useLeaveClan,
   useDirectMessages, useSendDirectMessage, useClanMessages, useSendClanMessage,
@@ -67,6 +67,7 @@ function SboApp() {
 
   const addEvent = useAddEvent(userId);
   const undoLast = useUndoLastEvent(userId);
+  const removeOnDay = useRemoveEventOnDay(userId);
   const updateProfile = useUpdateProfile(userId);
   const addFriend = useAddFriendByCode(userId);
   const removeFriend = useRemoveFriend(userId);
@@ -86,6 +87,7 @@ function SboApp() {
   const [showInvites, setShowInvites] = useState(false);
   const [bursts, setBursts] = useState<number[]>([]);
   const [melting, setMelting] = useState(false);
+  const [dayEdit, setDayEdit] = useState<Date | null>(null);
   const unreadQ = useUnreadDmCounts(userId);
   const unread = unreadQ.data ?? {};
 
@@ -333,6 +335,13 @@ function SboApp() {
             <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
               <p className="mb-3 px-2 text-sm text-muted-foreground">Registro personale — solo per uso medico e di monitoraggio.</p>
               <Calendar mode="single" className="pointer-events-auto mx-auto"
+                selected={dayEdit ?? undefined}
+                onSelect={(d) => { if (d) setDayEdit(d); }}
+                disabled={(d) => {
+                  const t = new Date(); t.setHours(0, 0, 0, 0);
+                  const day = new Date(d); day.setHours(0, 0, 0, 0);
+                  return day.getTime() > t.getTime() || day.getTime() < t.getTime() - 7 * 86400000;
+                }}
                 modifiers={{
                   logged: (d) => (byDay.get(localDayKey(d)) ?? 0) > 0,
                   heavy: (d) => (byDay.get(localDayKey(d)) ?? 0) >= limit,
@@ -345,6 +354,9 @@ function SboApp() {
                 <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-accent" /> attività</span>
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-destructive" /> sopra il limite</span>
               </div>
+              <p className="mt-3 text-center text-[11px] text-muted-foreground">
+                Tocca un giorno degli ultimi 7 per aggiungere o togliere eventi dimenticati.
+              </p>
             </Card>
           </TabsContent>
 
