@@ -125,9 +125,35 @@ export function useBadgesOf(otherId: string | null) {
 export function useAddEvent(userId: string | null) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.from("events").insert({ user_id: userId! });
+    // Optional `at`: log the event on a past day (retro-logging).
+    mutationFn: async (at?: Date) => {
+      const row: { user_id: string; ts?: string } = { user_id: userId! };
+      if (at) row.ts = at.toISOString();
+      const { error } = await supabase.from("events").insert(row);
       if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["events", userId] }),
+  });
+}
+
+/** Remove the most recent event logged on a given local day (retro-correction). */
+export function useRemoveEventOnDay(userId: string | null) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (day: Date) => {
+      const start = new Date(day); start.setHours(0, 0, 0, 0);
+      const end = new Date(start.getTime() + 86400000);
+      const { data } = await supabase
+        .from("events")
+        .select("id")
+        .eq("user_id", userId!)
+        .gte("ts", start.toISOString())
+        .lt("ts", end.toISOString())
+        .order("ts", { ascending: false })
+        .limit(1);
+      const id = data?.[0]?.id;
+      if (!id) return;
+      await supabase.from("events").delete().eq("id", id);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["events", userId] }),
   });
