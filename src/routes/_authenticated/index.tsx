@@ -176,7 +176,7 @@ function SboApp() {
   const handleAdd = async () => {
     const wasOver = today >= limit;
     const brokeIce = iceStreak > 0;
-    await addEvent.mutateAsync();
+    await addEvent.mutateAsync(undefined);
     const id = Date.now();
     setBursts((b) => [...b, id]);
     setTimeout(() => setBursts((b) => b.filter((x) => x !== id)), 2400);
