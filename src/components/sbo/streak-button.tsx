@@ -1,7 +1,8 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
-// Seamless-looped fire (tail cross-faded into the head, so no visible cut).
+// One fire source drives the whole effect. The disc and the flame above it are
+// two visible areas of the same video surface, so they can never drift apart.
 const fireMp4 = { url: "/fire-loop.mp4" };
 const fireWebm = { url: "/fire-loop.webm" };
 import shardsSheet from "@/assets/sbo/ice-shards.png.asset.json";
@@ -61,7 +62,7 @@ export function StreakButton({
 
   const background =
     mode === "fire"
-      ? "radial-gradient(circle at 50% 72%, #5a1600, #1a0400 78%)"
+      ? "radial-gradient(circle at 50% 72%, rgba(90,22,0,0.32), rgba(26,4,0,0.48) 78%)"
       : mode === "ice"
         ? "oklch(0.35 0.06 230)"
         : "var(--gradient-drop)";
@@ -85,12 +86,40 @@ export function StreakButton({
         />
       )}
 
+      {/* A single continuous fire surface spans both the disc and its upper
+          plume. The clip path only reveals those areas; there is no second
+          player, duplicated loop, or independently advancing timestamp. */}
+      {mode === "fire" && (
+        <motion.div
+          key="fire-surface"
+          className="pointer-events-none absolute inset-0 z-10 overflow-hidden will-change-transform"
+          style={{
+            clipPath:
+              "path('M 128 0 C 111 10 99 20 95 37 C 58 51 32 86 32 128 A 96 96 0 1 0 224 128 C 224 86 198 51 161 37 C 157 20 145 10 128 0 Z')",
+            mixBlendMode: "screen",
+            transformOrigin: "50% 87.5%",
+          }}
+          initial={{ opacity: 0, scaleY: 0.18, filter: "brightness(0.5)" }}
+          animate={{ opacity: 1, scaleY: 1, filter: "brightness(1)" }}
+          transition={{ duration: 2, ease: [0.22, 0.8, 0.3, 1] }}
+        >
+          <FireVideo
+            className="absolute inset-0 h-full w-full object-cover"
+            style={{
+              objectPosition: "50% 100%",
+              transform: "scale(1.08)",
+              filter: `saturate(${1.35 + fire * 0.35}) contrast(1.3) brightness(${1.12 + fire * 0.15})`,
+            }}
+          />
+        </motion.div>
+      )}
+
       <motion.button
         onClick={onPress}
         whileTap={{ scale: 0.9 }}
         whileHover={{ scale: 1.04 }}
         transition={{ type: "spring", stiffness: 400, damping: 15 }}
-        className="group relative flex h-48 w-48 items-center justify-center overflow-hidden rounded-full will-change-transform"
+        className="group relative z-20 flex h-48 w-48 items-center justify-center overflow-hidden rounded-full will-change-transform"
         style={{ background, boxShadow: glow }}
         aria-label="Aggiungi 1 al contatore"
       >
@@ -130,27 +159,6 @@ export function StreakButton({
           </>
         )}
 
-        {/* Fire burns INSIDE the disc (clipped by the button's rounded overflow) */}
-        {mode === "fire" && (
-          <motion.div
-            key="fire-inner"
-            className="pointer-events-none absolute inset-0"
-            style={{ mixBlendMode: "screen", transformOrigin: "50% 100%" }}
-            initial={{ opacity: 0, scaleY: 0.18, filter: "brightness(0.5)" }}
-            animate={{ opacity: 1, scaleY: 1, filter: "brightness(1)" }}
-            transition={{ duration: 2, ease: [0.22, 0.8, 0.3, 1] }}
-          >
-            <FireVideo
-              className="absolute inset-0 h-full w-full object-cover"
-              style={{
-                objectPosition: "50% 100%",
-                transform: "scale(1.15)",
-                filter: `saturate(${1.35 + fire * 0.35}) contrast(1.3) brightness(${1.12 + fire * 0.15})`,
-              }}
-            />
-          </motion.div>
-        )}
-
         {/* Glass dome highlight (kept subtle over the fire so the footage stays vivid) */}
         <div
           className={`pointer-events-none absolute inset-0 rounded-full bg-gradient-to-br ${
@@ -171,35 +179,6 @@ export function StreakButton({
           strokeWidth={2.5}
         />
       </motion.button>
-
-      {/* Small plume that licks just above the top rim — nothing spills below. */}
-      {mode === "fire" && (
-        <motion.div
-          key="fire-plume"
-          className="pointer-events-none absolute"
-          style={{
-            left: 46,
-            width: 164,
-            top: -6,
-            height: 60,
-            mixBlendMode: "screen",
-            transformOrigin: "50% 100%",
-            maskImage: "radial-gradient(ellipse 46% 92% at 50% 100%, #000 30%, rgba(0,0,0,0.55) 62%, transparent 100%)",
-            WebkitMaskImage: "radial-gradient(ellipse 46% 92% at 50% 100%, #000 30%, rgba(0,0,0,0.55) 62%, transparent 100%)",
-          }}
-          initial={{ opacity: 0, scaleY: 0.1 }}
-          animate={{ opacity: 0.9, scaleY: 1 }}
-          transition={{ duration: 2, delay: 0.35, ease: [0.22, 0.8, 0.3, 1] }}
-        >
-          <FireVideo
-            className="absolute inset-0 h-full w-full object-cover"
-            style={{
-              objectPosition: "50% 20%",
-              filter: `saturate(${1.35 + fire * 0.35}) contrast(1.3) brightness(${1.1 + fire * 0.15})`,
-            }}
-          />
-        </motion.div>
-      )}
 
       {/* Ice shatter: real shard fragments blasted out, then pulled down by gravity */}
       <AnimatePresence>{melting && <IceShatter key="shatter" />}</AnimatePresence>
