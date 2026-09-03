@@ -1,8 +1,9 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
-import fireMp4 from "@/assets/sbo/fire-blaze.mp4.asset.json";
-import fireWebm from "@/assets/sbo/fire-blaze.webm.asset.json";
+// Seamless-looped fire (tail cross-faded into the head, so no visible cut).
+const fireMp4 = { url: "/fire-loop.mp4" };
+const fireWebm = { url: "/fire-loop.webm" };
 import shardsSheet from "@/assets/sbo/ice-shards.png.asset.json";
 import ice1 from "@/assets/sbo/ice-1.webp.asset.json";
 import ice2 from "@/assets/sbo/ice-2.webp.asset.json";
