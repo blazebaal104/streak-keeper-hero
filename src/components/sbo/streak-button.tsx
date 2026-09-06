@@ -1,8 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
-// One fire source drives the whole effect. The disc and the flame above it are
-// two visible areas of the same video surface, so they can never drift apart.
+// The fire has one source and is rendered only inside the central disc.
 const fireMp4 = { url: "/fire-loop.mp4" };
 const fireWebm = { url: "/fire-loop.webm" };
 import shardsSheet from "@/assets/sbo/ice-shards.png.asset.json";
@@ -38,9 +37,8 @@ function iceBlend(streak: number) {
 
 /**
  * Main SBO button.
- * - fire streak → real fireplace footage burning strictly INSIDE the disc, with
- *   just a small plume licking above the top rim. It ignites progressively
- *   (~2s) every time the fire starts.
+ * - fire streak → real fireplace footage burning strictly INSIDE the disc. It
+ *   ignites progressively (~2s) and becomes larger, denser and redder over time.
  * - ice streak  → real photographic ice whose density grows every single day.
  * - neutral     → the plain water-drop look.
  */
@@ -86,34 +84,6 @@ export function StreakButton({
         />
       )}
 
-      {/* A single continuous fire surface spans both the disc and its upper
-          plume. The clip path only reveals those areas; there is no second
-          player, duplicated loop, or independently advancing timestamp. */}
-      {mode === "fire" && (
-        <motion.div
-          key="fire-surface"
-          className="pointer-events-none absolute inset-0 z-10 overflow-hidden will-change-transform"
-          style={{
-            clipPath:
-              "path('M 128 0 C 111 10 99 20 95 37 C 58 51 32 86 32 128 A 96 96 0 1 0 224 128 C 224 86 198 51 161 37 C 157 20 145 10 128 0 Z')",
-            mixBlendMode: "screen",
-            transformOrigin: "50% 87.5%",
-          }}
-          initial={{ opacity: 0, scaleY: 0.18, filter: "brightness(0.5)" }}
-          animate={{ opacity: 1, scaleY: 1, filter: "brightness(1)" }}
-          transition={{ duration: 2, ease: [0.22, 0.8, 0.3, 1] }}
-        >
-          <FireVideo
-            className="absolute inset-0 h-full w-full object-cover"
-            style={{
-              objectPosition: "50% 100%",
-              transform: "scale(1.08)",
-              filter: `saturate(${1.35 + fire * 0.35}) contrast(1.3) brightness(${1.12 + fire * 0.15})`,
-            }}
-          />
-        </motion.div>
-      )}
-
       <motion.button
         onClick={onPress}
         whileTap={{ scale: 0.9 }}
@@ -123,6 +93,31 @@ export function StreakButton({
         style={{ background, boxShadow: glow }}
         aria-label="Aggiungi 1 al contatore"
       >
+        {/* The disc itself is the hard crop: no moving flame can escape it. */}
+        {mode === "fire" && (
+          <motion.div
+            key="fire-surface"
+            className="pointer-events-none absolute inset-0 overflow-hidden rounded-full"
+            initial={{ opacity: 0, scaleY: 0.18 }}
+            animate={{ opacity: 1, scaleY: 1 }}
+            transition={{ duration: 2, ease: [0.22, 0.8, 0.3, 1] }}
+            style={{ transformOrigin: "50% 100%" }}
+          >
+            <FireVideo
+              className="absolute inset-0 h-full w-full object-cover"
+              style={{
+                objectPosition: "50% 100%",
+                transform: `scale(${1.02 + fire * 0.2})`,
+                filter: `hue-rotate(${-fire * 18}deg) saturate(${1.3 + fire * 0.9}) contrast(${1.22 + fire * 0.28}) brightness(${1.02 + fire * 0.12})`,
+              }}
+            />
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{ background: `radial-gradient(circle at 50% 72%, transparent 30%, rgba(125,10,0,${0.08 + fire * 0.24}) 100%)` }}
+            />
+          </motion.div>
+        )}
+
         {/* Ice: two photographic plates crossfaded day by day */}
         {mode === "ice" && (
           <>

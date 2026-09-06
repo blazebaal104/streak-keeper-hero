@@ -21,7 +21,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer
 import logo from "@/assets/sbo-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  useAuthUser, useMyProfile, useUpdateProfile, useEvents, useAddEvent, useUndoLastEvent, useRemoveEventOnDay,
+  useAuthUser, useMyProfile, useProfileById, useUpdateProfile, useEvents, useAddEvent, useUndoLastEvent, useRemoveEventOnDay,
   useBadges, checkStreakBadges, useFriends, useAddFriendByCode, useRemoveFriend,
   useClan, useClanMembers, useCreateClan, useJoinClanByTag, useLeaveClan,
   useDirectMessages, useSendDirectMessage, useClanMessages, useSendClanMessage,
@@ -1262,6 +1262,8 @@ function InviteRow({ inviteId: _inviteId, clanId, fromId, onAccept, onDecline }:
 }
 
 function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onClose: () => void; onChat: () => void }) {
+  const profileQ = useProfileById(friend.id);
+  const visibleProfile = profileQ.data ?? friend;
   const eventsQ = useEventsOf(friend.id);
   const badgesQ = useBadgesOf(friend.id);
   const events = eventsQ.data ?? [];
@@ -1275,10 +1277,14 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
       <DialogContent className="border-border bg-card max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <AvatarView profile={friend} size={56} className="border-2 border-primary/40" />
+            <AvatarView profile={visibleProfile} size={56} className="border-2 border-primary/40" />
             <div>
-              <DialogTitle>{friend.username}</DialogTitle>
-              <p className="font-mono text-[11px] text-muted-foreground">{friend.friend_code}</p>
+              <DialogTitle>{visibleProfile.username}</DialogTitle>
+              {titleById(visibleProfile.equipped_title) ? (
+                <TitleBadge title={titleById(visibleProfile.equipped_title) as TitleDef} size="sm" />
+              ) : (
+                <p className="font-mono text-[11px] text-muted-foreground">{visibleProfile.friend_code}</p>
+              )}
             </div>
           </div>
         </DialogHeader>
