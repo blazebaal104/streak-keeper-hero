@@ -1434,9 +1434,9 @@ function DirectChatDialog({ userId, other, myName, onClose }: { userId: string; 
                     </div>
                   )}
                   <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                    <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
+                    <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-secondary text-secondary-foreground" : "bg-primary text-primary-foreground"}`}>
                       <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                      <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
+                      <div className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] ${mine ? "text-secondary-foreground/70" : "text-primary-foreground/70"}`}>
                         <span>{fmtTime(m.created_at)}</span>
                         {mine && (m.read_at
                           ? <CheckCheck className="h-3 w-3 text-sky-300" />
@@ -1501,8 +1501,8 @@ function ClanChatDialog({ clanId, userId, clanName, members, onClose }: { clanId
               const sender = m.sender_id ? memberMap.get(m.sender_id) : null;
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
-                    {!mine && sender && <p className="text-[10px] font-semibold opacity-70 mb-0.5">{sender.username}</p>}
+                  <div className={`max-w-[75%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-secondary text-secondary-foreground" : "bg-primary text-primary-foreground"}`}>
+                    {!mine && sender && <p className="text-[10px] font-semibold opacity-80 mb-0.5">{sender.username}</p>}
                     {m.content}
                   </div>
                 </div>
