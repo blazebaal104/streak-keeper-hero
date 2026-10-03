@@ -14,6 +14,75 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          kind: string
+          read_at: string | null
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          kind?: string
+          read_at?: string | null
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          read_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      agent_state: {
+        Row: {
+          flags: Json
+          updated_at: string
+          used_keys: string[]
+          user_id: string
+        }
+        Insert: {
+          flags?: Json
+          updated_at?: string
+          used_keys?: string[]
+          user_id: string
+        }
+        Update: {
+          flags?: Json
+          updated_at?: string
+          used_keys?: string[]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_budget: {
+        Row: {
+          calls: number
+          day: string
+          id: number
+          paused_until: string | null
+        }
+        Insert: {
+          calls?: number
+          day?: string
+          id?: number
+          paused_until?: string | null
+        }
+        Update: {
+          calls?: number
+          day?: string
+          id?: number
+          paused_until?: string | null
+        }
+        Relationships: []
+      }
       badges: {
         Row: {
           awarded_at: string
@@ -269,6 +338,45 @@ export type Database = {
           },
         ]
       }
+      project_zero: {
+        Row: {
+          active: boolean
+          answers: Json
+          created_at: string
+          last_assessment_at: string | null
+          league: string
+          start_limit: number
+          started_at: string | null
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          answers?: Json
+          created_at?: string
+          last_assessment_at?: string | null
+          league?: string
+          start_limit?: number
+          started_at?: string | null
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          answers?: Json
+          created_at?: string
+          last_assessment_at?: string | null
+          league?: string
+          start_limit?: number
+          started_at?: string | null
+          theme?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth: string
@@ -331,6 +439,39 @@ export type Database = {
           tag?: string | null
           title?: string
           url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      workout_days: {
+        Row: {
+          completed: boolean
+          created_at: string
+          custom: Json
+          day: string
+          done_ids: string[]
+          plan_size: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed?: boolean
+          created_at?: string
+          custom?: Json
+          day: string
+          done_ids?: string[]
+          plan_size?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed?: boolean
+          created_at?: string
+          custom?: Json
+          day?: string
+          done_ids?: string[]
+          plan_size?: number
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
