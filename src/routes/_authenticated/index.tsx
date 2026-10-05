@@ -286,6 +286,33 @@ function SboApp() {
 
           {/* HOME */}
           <TabsContent value="home" className="mt-8 space-y-8">
+            {pzActive && pz && todayPlan ? (
+              <>
+                <ZeroBanner day={pzDay} league={pz.league} weekCount={weekCount} limit={weeklyLimit} workoutsWeek={workoutsWeek} />
+                {reassessDue && (
+                  <button onClick={() => setShowQuiz("reassess")} className="w-full rounded-2xl border border-dashed border-primary/60 bg-primary/10 p-3 text-left text-sm">
+                    <b className="text-primary">È passato un mese.</b> Rifai il questionario e scopri se sali di lega →
+                  </button>
+                )}
+                <ZeroButtons weekCount={weekCount} limit={weeklyLimit} workoutDone={!!todayWD?.completed} rest={todayPlan.rest}
+                  onSbo={handleAdd}
+                  onWorkout={() => (todayPlan.rest || todayWD?.completed ? setShowCustom(true) : setShowPlanOverlay(true))} />
+                {events.length > 0 && (
+                  <div className="-mt-4 flex justify-center">
+                    <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={() => undoLast.mutate()}>
+                      <Undo2 className="mr-1.5 h-3.5 w-3.5" /> Annulla ultimo evento
+                    </Button>
+                  </div>
+                )}
+                <TodayPlanCard plan={todayPlan} wd={todayWD} onToggle={toggleExercise} onCustom={() => setShowCustom(true)} onExpand={() => setShowPlanOverlay(true)} />
+                <div className="flex items-center justify-center gap-4">
+                  {equipped.map((b, i) => (
+                    <BadgeSlot key={i} def={b} onClick={() => setShowInventory({ slot: i as 0 | 1 | 2 })} />
+                  ))}
+                </div>
+              </>
+            ) : (<></>)}
+            {!(pzActive && pz && todayPlan) && (<></>)}
             <div className="grid grid-cols-3 gap-3">
               <Stat label="Oggi" value={today} accent={today >= limit} />
               <Stat label="Questo mese" value={month} />
@@ -345,14 +372,20 @@ function SboApp() {
                 modifiers={{
                   logged: (d) => (byDay.get(localDayKey(d)) ?? 0) > 0,
                   heavy: (d) => (byDay.get(localDayKey(d)) ?? 0) >= limit,
+                  wDone: (d) => pzActive && workoutStatus(d) === "done",
+                  wMissed: (d) => pzActive && workoutStatus(d) === "missed",
                 }}
                 modifiersClassNames={{
                   logged: "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1 after:w-1 after:rounded-full after:bg-accent",
                   heavy: "relative after:absolute after:bottom-1 after:left-1/2 after:-translate-x-1/2 after:h-1.5 after:w-1.5 after:rounded-full after:bg-destructive",
+                  wDone: "relative before:absolute before:top-0.5 before:right-0.5 before:content-['✓'] before:text-[9px] before:font-bold before:text-[var(--zero-ok)]",
+                  wMissed: "relative before:absolute before:top-0.5 before:right-0.5 before:content-['✕'] before:text-[9px] before:font-bold before:text-[var(--zero-over)]",
                 }} />
-              <div className="mt-4 flex justify-center gap-4 text-xs text-muted-foreground">
+              <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-accent" /> attività</span>
                 <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-destructive" /> sopra il limite</span>
+                {pzActive && <span className="flex items-center gap-1.5"><span className="font-bold text-[var(--zero-ok)]">✓</span> allenamento fatto</span>}
+                {pzActive && <span className="flex items-center gap-1.5"><span className="font-bold text-[var(--zero-over)]">✕</span> allenamento saltato</span>}
               </div>
               <p className="mt-3 text-center text-[11px] text-muted-foreground">
                 Tocca un giorno degli ultimi 7 per aggiungere o togliere eventi dimenticati.
@@ -367,52 +400,70 @@ function SboApp() {
                 <p className="text-sm font-semibold">Andamento — ultimi 30 giorni</p>
                 <span className="text-[10px] text-muted-foreground">📈 media mobile 7gg</span>
               </div>
-              {series30.every((d) => d.count === 0) ? (
+              {chart30.every((d) => d.count === 0 && d.workouts === 0) ? (
                 <p className="py-10 text-center text-xs text-muted-foreground">Nessun dato ancora. Il grafico si popolerà con l'uso.</p>
               ) : (
                 <div className="h-56 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={series30} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
+                    <ComposedChart data={chart30} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
                       <defs>
                         <linearGradient id="gCount" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#f97316" stopOpacity={0.55} />
                           <stop offset="100%" stopColor="#f97316" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="gWork" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#ef4444" stopOpacity={0.45} />
+                          <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#ffffff" opacity={0.15} />
                       <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
                       <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
+                      {pzActive && <Area type="monotone" dataKey="workouts" stroke="#ef4444" fill="url(#gWork)" strokeWidth={2} name="Allenamenti" />}
                       <Area type="monotone" dataKey="count" stroke="#fb923c" fill="url(#gCount)" strokeWidth={2} name="Al giorno" />
                       <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media 7gg" />
-                    </AreaChart>
+                      {pzActive && <Line type="stepAfter" dataKey="week" stroke="#facc15" strokeWidth={1.5} dot={false} name="Totale settimana" />}
+                      {pzActive && <ReferenceLine y={weeklyLimit} stroke="#facc15" strokeDasharray="6 4" label={{ value: `limite ${weeklyLimit}/sett.`, fill: "#facc15", fontSize: 10, position: "insideTopRight" }} />}
+                    </ComposedChart>
                   </ResponsiveContainer>
+                </div>
+              )}
+              {pzActive && (
+                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 px-1 text-[10px] text-muted-foreground">
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#fb923c]" /> eventi</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#ef4444]" /> allenamenti</span>
+                  <span className="flex items-center gap-1"><span className="h-0.5 w-3 bg-[#facc15]" /> totale settimana vs limite</span>
                 </div>
               )}
             </Card>
             <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
               <p className="mb-3 text-sm font-semibold px-1">Trend a 90 giorni</p>
-              {series90.every((d) => d.count === 0) ? (
+              {chart90.every((d) => d.count === 0 && d.workouts === 0) ? (
                 <p className="py-8 text-center text-xs text-muted-foreground">Nessun dato ancora.</p>
               ) : (
                 <div className="h-48 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={series90} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
+                    <LineChart data={chart90} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#ffffff" opacity={0.15} />
                       <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
-                      <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
+                      <YAxis fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
                       <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media 7gg" />
+                      {pzActive && <Line type="monotone" dataKey="wma7" stroke="#ef4444" strokeWidth={2} dot={false} name="Allenamenti (media 7gg)" />}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               )}
-              <p className="mt-2 px-1 text-[11px] text-muted-foreground">La curva mostra se stai salendo o scendendo. Obiettivo: portarla giù nel tempo.</p>
+              <p className="mt-2 px-1 text-[11px] text-muted-foreground">{pzActive ? "Obiettivo: la linea rossa (allenamenti) sempre sopra quella blu." : "La curva mostra se stai salendo o scendendo. Obiettivo: portarla giù nel tempo."}</p>
             </Card>
           </TabsContent>
 
           {/* SOCIAL */}
           <TabsContent value="friends" className="mt-8 space-y-6">
+            {(pzActive || agentMsgs.length > 0) && (
+              <AgentRow messages={agentMsgs} onOpen={() => { setShowAgent(true); markAgentRead.mutate(); }} />
+            )}
             <Card className="border-border/50 bg-card/60 p-5 backdrop-blur">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Il tuo codice amico</p>
               <div className="mt-2 flex items-center gap-2">
@@ -520,7 +571,31 @@ function SboApp() {
             <DialogTitle>Impostazioni</DialogTitle>
             <DialogDescription>Personalizza SBO come vuoi tu.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-5 py-2">
+          <div className="max-h-[65vh] space-y-5 overflow-y-auto py-2 pr-1">
+            {/* PROGETTO ZERO */}
+            <div className="relative overflow-hidden rounded-2xl border border-primary/40 bg-primary/10 p-4">
+              <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-primary/30 blur-2xl" />
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <Label className="flex items-center gap-1.5 text-base"><Target className="h-4 w-4 text-primary" /> Progetto Zero</Label>
+                  <p className="text-xs text-muted-foreground">{pzActive ? `Attivo da ${pzDay} giorni · ${LEAGUE_LABEL[pz!.league]}` : "Trasforma SBO nel tuo personal trainer. Minimo 7 giorni."}</p>
+                </div>
+                <Switch checked={pzActive} onCheckedChange={async (v) => {
+                  if (v) { setShowQuiz("start"); return; }
+                  if (pzDay <= 7) { toast.error(`Il Progetto Zero dura almeno 7 giorni. Potrai disattivarlo tra ${8 - pzDay} giorni.`); return; }
+                  if (!confirm("Vuoi davvero mollare il Progetto Zero? Il coach non la prenderà bene.")) return;
+                  try { await runTick("quit"); await savePz.mutateAsync({ active: false }); toast("Progetto Zero disattivato"); }
+                  catch (e) { toast.error((e as Error).message); }
+                }} />
+              </div>
+              {pzActive && (
+                <div className="mt-4 space-y-3">
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Tema</p>
+                  <ThemePicker value={pz!.theme} onChange={(t) => savePz.mutate({ theme: t })} />
+                  <Button variant="secondary" size="sm" className="w-full" onClick={() => setShowQuiz("reassess")}>Rifai il questionario</Button>
+                </div>
+              )}
+            </div>
             <div className="flex items-center justify-between">
               <div>
                 <Label>Limite adattivo</Label>
@@ -612,6 +687,37 @@ function SboApp() {
       {chatWith && userId && (
         <DirectChatDialog userId={userId} other={chatWith} myName={profile.username} onClose={() => setChatWith(null)} />
       )}
+
+      {/* PROGETTO ZERO */}
+      <ZeroQuestionnaire
+        open={showQuiz !== false}
+        reassess={showQuiz === "reassess"}
+        initial={pz?.answers}
+        initialTheme={pz?.theme}
+        onClose={() => setShowQuiz(false)}
+        onSubmit={async (answers, theme, league, startLimit) => {
+          const nowIso = new Date().toISOString();
+          try {
+            if (showQuiz === "reassess" && pz) {
+              await savePz.mutateAsync({ answers, league, theme, last_assessment_at: nowIso });
+              toast.success(`Piano aggiornato: ${LEAGUE_LABEL[league]}`);
+            } else {
+              await savePz.mutateAsync({ active: true, started_at: nowIso, answers, league, theme, start_limit: startLimit, last_assessment_at: nowIso });
+              toast.success("🎯 Progetto Zero attivato. Il coach ti ha scritto.");
+              setTimeout(() => runTick("open"), 400);
+            }
+            setShowQuiz(false);
+            setShowSettings(false);
+          } catch (e) { toast.error((e as Error).message); }
+        }}
+      />
+      {pzActive && todayPlan && (
+        <PlanOverlay open={showPlanOverlay} plan={todayPlan} wd={todayWD} name={profile.username} day={pzDay}
+          onToggle={toggleExercise} onCustom={() => setShowCustom(true)}
+          onClose={() => setShowPlanOverlay(false)} />
+      )}
+      <CustomWorkoutDialog open={showCustom} onClose={() => setShowCustom(false)} onSave={addCustomWorkout} />
+      {showAgent && <AgentChatDialog messages={agentMsgs} onClose={() => setShowAgent(false)} />}
 
       {/* CLAN CHAT */}
       {showClanChat && profile.clan_id && userId && (
