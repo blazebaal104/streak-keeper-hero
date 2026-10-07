@@ -562,7 +562,7 @@ function SboApp() {
                       <Area type="monotone" dataKey="count" stroke="#fb923c" fill="url(#gCount)" strokeWidth={2} name="Al giorno" />
                       <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media 7gg" />
                       {pzActive && <Line type="stepAfter" dataKey="week" stroke="#facc15" strokeWidth={1.5} dot={false} name="Totale settimana" />}
-                      {pzActive && <ReferenceLine y={weeklyLimit} stroke="#facc15" strokeDasharray="6 4" label={{ value: `limite ${weeklyLimit}/sett.`, fill: "#facc15", fontSize: 10, position: "insideTopRight" }} />}
+                      {pzActive && <ReferenceLine y={weeklyLimit} ifOverflow="extendDomain" stroke="#facc15" strokeDasharray="6 4" label={{ value: `limite ${weeklyLimit}/sett.`, fill: "#facc15", fontSize: 10, position: "insideTopRight" }} />}
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
