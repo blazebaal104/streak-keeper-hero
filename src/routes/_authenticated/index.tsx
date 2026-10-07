@@ -17,7 +17,17 @@ import {
   Plus, Droplets, Flame, CalendarDays, Users, Undo2, Sparkles, TrendingUp, Settings, Copy, UserPlus, Shield, X, LogOut,
   MessageCircle, Send, Trash2, Camera, Lock, Crown, Star, UserMinus, Check, CheckCheck, Bell, Snowflake, LineChart as LineChartIcon,
 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart, ComposedChart, ReferenceLine } from "recharts";
+import { useServerFn } from "@tanstack/react-start";
+import { Target } from "lucide-react";
+import { agentTick } from "@/lib/zero-agent.functions";
+import { planForDay, weeklyLimitFor, weekStart as zeroWeekStart, isTrainingDay, LEAGUE_LABEL } from "@/lib/sbo-zero";
+import {
+  useProjectZero, useSaveProjectZero, useWorkoutDays, useSaveWorkoutDay, useAgentMessages, useMarkAgentRead, type CustomWorkout,
+} from "@/lib/sbo-zero-cloud";
+import {
+  useZeroTheme, ZeroQuestionnaire, ThemePicker, ZeroBanner, ZeroButtons, TodayPlanCard, PlanOverlay, CustomWorkoutDialog, AgentRow, AgentChatDialog,
+} from "@/components/sbo/project-zero";
 import logo from "@/assets/sbo-logo.png";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -122,6 +132,121 @@ function SboApp() {
   }, [events, byDay]);
   const prevOverLimit = useRef(false);
 
+  // ================= PROGETTO ZERO =================
+  const pzQ = useProjectZero(userId);
+  const workoutsQ = useWorkoutDays(userId);
+  const agentQ = useAgentMessages(userId);
+  const savePz = useSaveProjectZero(userId);
+  const saveWD = useSaveWorkoutDay(userId);
+  const markAgentRead = useMarkAgentRead(userId);
+  const tickFn = useServerFn(agentTick);
+  const [showQuiz, setShowQuiz] = useState<false | "start" | "reassess">(false);
+  const [showPlanOverlay, setShowPlanOverlay] = useState(false);
+  const [showCustom, setShowCustom] = useState(false);
+  const [showAgent, setShowAgent] = useState(false);
+  const pz = pzQ.data ?? null;
+  const pzActive = !!pz?.active && !!pz.started_at;
+  const agentMsgs = agentQ.data ?? [];
+  const workouts = workoutsQ.data ?? [];
+  const wdByDay = useMemo(() => new Map(workouts.map((w) => [w.day, w])), [workouts]);
+  const pzStart = pz?.started_at ? new Date(pz.started_at) : null;
+  const pzDay = pzStart ? Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(pzStart).setHours(0, 0, 0, 0)) / 86400000) + 1 : 0;
+  const weeklyLimit = pz ? weeklyLimitFor(pz.start_limit, pzStart) : 3;
+  const weekStartKey = localDayKey(zeroWeekStart(new Date()));
+  const weekCount = useMemo(() => events.filter((e) => localDayKey(e.ts) >= weekStartKey).length, [events, weekStartKey]);
+  const workoutsWeek = useMemo(() => workouts.filter((w) => w.day >= weekStartKey && (w.completed || w.custom.length > 0)).length, [workouts, weekStartKey]);
+  const todayPlan = useMemo(() => (pz && userId ? planForDay(new Date(), pz.league, pz.answers, pz.last_assessment_at ? new Date(pz.last_assessment_at) : pzStart, userId) : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [pz, userId]);
+  const todayWD = todayPlan ? wdByDay.get(todayPlan.key) : undefined;
+  const reassessDue = !!pz?.last_assessment_at && Date.now() - new Date(pz.last_assessment_at).getTime() > 30 * 86400000;
+  useZeroTheme(pzActive ? pz!.theme : null);
+
+  const runTick = async (reason: "open" | "event" | "quit") => {
+    try { await tickFn({ data: { tzOffset: new Date().getTimezoneOffset(), reason } }); }
+    catch (e) { console.warn("coach tick failed", e); }
+  };
+  // Coach checks in when the app opens
+  useEffect(() => {
+    if (!pzActive || !userId) return;
+    runTick("open");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pzActive, userId]);
+  // Big daily plan on first open of the day
+  useEffect(() => {
+    if (!pzActive || !todayPlan) return;
+    const k = `sbo:pzPlanSeen:${todayPlan.key}`;
+    if (localStorage.getItem(k)) return;
+    localStorage.setItem(k, "1");
+    setShowPlanOverlay(true);
+  }, [pzActive, todayPlan]);
+  // Toast when the coach writes
+  const seenAgent = useRef<number | null>(null);
+  useEffect(() => {
+    if (!agentQ.data) return;
+    const n = agentQ.data.length;
+    if (seenAgent.current !== null && n > seenAgent.current && !showAgent) {
+      const last = agentQ.data[n - 1];
+      toast(`🏋️ Coach Zero`, { description: last.content.slice(0, 140), action: { label: "Apri", onClick: () => { setShowAgent(true); markAgentRead.mutate(); } } });
+      notify("🏋️ Coach Zero", last.content.slice(0, 140), "coach-zero");
+    }
+    seenAgent.current = n;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentQ.data]);
+
+  const saveToday = (patch: Partial<{ done_ids: string[]; custom: CustomWorkout[] }>) => {
+    if (!todayPlan) return;
+    const done_ids = patch.done_ids ?? todayWD?.done_ids ?? [];
+    const custom = patch.custom ?? todayWD?.custom ?? [];
+    const planDone = !todayPlan.rest && todayPlan.exercises.every((e) => done_ids.includes(e.id));
+    const completed = planDone || custom.length > 0;
+    const was = !!todayWD?.completed;
+    saveWD.mutate({ day: todayPlan.key, done_ids, custom, plan_size: todayPlan.exercises.length, completed });
+    if (completed && !was) {
+      toast.success("💪 Allenamento completato!", { description: "Spunta verde sul calendario. Il coach approva." });
+      const id = Date.now();
+      setBursts((b) => [...b, id]);
+      setTimeout(() => setBursts((b) => b.filter((x) => x !== id)), 2400);
+    }
+  };
+  const toggleExercise = (id: string) => {
+    const cur = new Set(todayWD?.done_ids ?? []);
+    if (cur.has(id)) cur.delete(id); else cur.add(id);
+    saveToday({ done_ids: Array.from(cur) });
+  };
+  const addCustomWorkout = (name: string, note: string) => {
+    saveToday({ custom: [...(todayWD?.custom ?? []), { name, note, at: new Date().toISOString() }] });
+    setShowCustom(false);
+  };
+  const workoutStatus = (d: Date): "done" | "missed" | null => {
+    if (!pz || !pzStart) return null;
+    const day = new Date(d); day.setHours(0, 0, 0, 0);
+    const start = new Date(pzStart); start.setHours(0, 0, 0, 0);
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    if (day < start || day > t) return null;
+    const w = wdByDay.get(localDayKey(day));
+    if (w && (w.completed || w.custom.length > 0)) return "done";
+    if (day.getTime() === t.getTime()) return null;
+    return isTrainingDay(pz.league, day) ? "missed" : null;
+  };
+  const chart30 = useMemo(() => {
+    let wk = "", cum = 0;
+    return series30.map((d) => {
+      const w = wdByDay.get(d.date);
+      const ws = localDayKey(zeroWeekStart(new Date(d.date + "T12:00:00")));
+      if (ws !== wk) { wk = ws; cum = 0; }
+      cum += d.count;
+      return { ...d, workouts: w ? (w.completed ? 1 : 0) + w.custom.length : 0, week: cum };
+    });
+  }, [series30, wdByDay]);
+  const chart90 = useMemo(() => {
+    const raw = series90.map((d) => { const w = wdByDay.get(d.date); return w ? (w.completed ? 1 : 0) + w.custom.length : 0; });
+    return series90.map((d, i) => {
+      const win = raw.slice(Math.max(0, i - 6), i + 1);
+      return { ...d, workouts: raw[i], wma7: Math.round((win.reduce((a, b) => a + b, 0) / win.length) * 100) / 100 };
+    });
+  }, [series90, wdByDay]);
+
   // Streak-badge check (belt & suspenders: DB trigger also runs it)
   useEffect(() => {
     if (!userId) return;
@@ -177,6 +302,17 @@ function SboApp() {
     const wasOver = today >= limit;
     const brokeIce = iceStreak > 0;
     await addEvent.mutateAsync(undefined);
+    if (pzActive) {
+      runTick("event");
+      const id = Date.now();
+      setBursts((b) => [...b, id]);
+      setTimeout(() => setBursts((b) => b.filter((x) => x !== id)), 2400);
+      const n = weekCount + 1;
+      if (n > weeklyLimit) toast.error(`🚨 ${n}/${weeklyLimit} — OLTRE IL LIMITE`, { description: "Il coach ti sta scrivendo. Non sarà gentile." });
+      else if (n === weeklyLimit) toast.warning(`${n}/${weeklyLimit} — limite raggiunto`, { description: "Da qui a lunedì: zero." });
+      else toast(`${n}/${weeklyLimit} questa settimana`, { description: "Più stai lontano dal limite, meglio è." });
+      return;
+    }
     const id = Date.now();
     setBursts((b) => [...b, id]);
     setTimeout(() => setBursts((b) => b.filter((x) => x !== id)), 2400);
@@ -234,7 +370,7 @@ function SboApp() {
       <Toaster position="top-center" theme="dark" />
 
       {/* Page-wide mood: ignition flash on fire, permanent frost haze on ice */}
-      <AmbientMood mode={fireStreak > 0 ? "fire" : iceStreak > 0 ? "ice" : "neutral"} />
+      <AmbientMood mode={pzActive ? "neutral" : fireStreak > 0 ? "fire" : iceStreak > 0 ? "ice" : "neutral"} />
 
       {/* Falling drops overlay */}
       <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
@@ -311,8 +447,8 @@ function SboApp() {
                   ))}
                 </div>
               </>
-            ) : (<></>)}
-            {!(pzActive && pz && todayPlan) && (<></>)}
+            ) : (
+              <>
             <div className="grid grid-cols-3 gap-3">
               <Stat label="Oggi" value={today} accent={today >= limit} />
               <Stat label="Questo mese" value={month} />
@@ -355,6 +491,8 @@ function SboApp() {
                 </div>
               </div>
             </Card>
+              </>
+            )}
           </TabsContent>
 
           {/* CALENDAR */}
@@ -424,7 +562,7 @@ function SboApp() {
                       <Area type="monotone" dataKey="count" stroke="#fb923c" fill="url(#gCount)" strokeWidth={2} name="Al giorno" />
                       <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media 7gg" />
                       {pzActive && <Line type="stepAfter" dataKey="week" stroke="#facc15" strokeWidth={1.5} dot={false} name="Totale settimana" />}
-                      {pzActive && <ReferenceLine y={weeklyLimit} stroke="#facc15" strokeDasharray="6 4" label={{ value: `limite ${weeklyLimit}/sett.`, fill: "#facc15", fontSize: 10, position: "insideTopRight" }} />}
+                      {pzActive && <ReferenceLine y={weeklyLimit} ifOverflow="extendDomain" stroke="#facc15" strokeDasharray="6 4" label={{ value: `limite ${weeklyLimit}/sett.`, fill: "#facc15", fontSize: 10, position: "insideTopRight" }} />}
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>

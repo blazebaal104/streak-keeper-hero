@@ -2,7 +2,7 @@
 // Phrases are COMPOSED from parts, and every composition key a user has seen is
 // stored, so a user never receives the same message twice (thousands of combos).
 
-type Vars = Record<string, string | number>;
+type Vars = Record<string, string | number | boolean>;
 const fill = (s: string, v: Vars) => s.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ""));
 
 // ---------------- DAILY ----------------
