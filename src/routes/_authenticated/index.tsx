@@ -370,7 +370,7 @@ function SboApp() {
       <Toaster position="top-center" theme="dark" />
 
       {/* Page-wide mood: ignition flash on fire, permanent frost haze on ice */}
-      <AmbientMood mode={fireStreak > 0 ? "fire" : iceStreak > 0 ? "ice" : "neutral"} />
+      <AmbientMood mode={pzActive ? "neutral" : fireStreak > 0 ? "fire" : iceStreak > 0 ? "ice" : "neutral"} />
 
       {/* Falling drops overlay */}
       <div className="pointer-events-none fixed inset-0 z-40 overflow-hidden">
