@@ -311,8 +311,8 @@ function SboApp() {
                   ))}
                 </div>
               </>
-            ) : (<></>)}
-            {!(pzActive && pz && todayPlan) && (<></>)}
+            ) : (
+              <>
             <div className="grid grid-cols-3 gap-3">
               <Stat label="Oggi" value={today} accent={today >= limit} />
               <Stat label="Questo mese" value={month} />
@@ -355,6 +355,8 @@ function SboApp() {
                 </div>
               </div>
             </Card>
+              </>
+            )}
           </TabsContent>
 
           {/* CALENDAR */}
