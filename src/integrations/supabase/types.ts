@@ -484,6 +484,7 @@ export type Database = {
       accept_clan_invite: { Args: { _invite_id: string }; Returns: undefined }
       are_friends: { Args: { _a: string; _b: string }; Returns: boolean }
       check_streak_badges: { Args: { _user_id: string }; Returns: undefined }
+      check_workout_badges: { Args: { _user_id: string }; Returns: undefined }
       decline_clan_invite: { Args: { _invite_id: string }; Returns: undefined }
       generate_friend_code: { Args: never; Returns: string }
       is_clan_member: {
