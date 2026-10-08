@@ -9,6 +9,11 @@ export type ZeroAnswers = {
   squats: number; // max consecutive
   weeklyNow: number; // how many times per week right now
   goal?: string;
+  realName?: string; // how the coach calls you
+  dumbbellKg?: number; // 0 = no dumbbell
+  hasBar?: boolean; // pull-up bar at home
+  gymDays?: number[]; // JS weekdays (0=Sun) when you go to gym/park
+  _redo?: boolean;
 };
 
 export const LEAGUE_LABEL: Record<League, string> = { low: "Lega Bassa", mid: "Lega Media", high: "Lega Alta" };
@@ -20,9 +25,12 @@ export const LEAGUE_LABEL: Record<League, string> = { low: "Lega Bassa", mid: "L
  */
 export function computeLeague(a: ZeroAnswers): League {
   const band = (v: number, lo: number, hi: number) => (v >= hi ? 2 : v >= lo ? 1 : 0);
-  const score = band(a.pushups, 15, 35) + band(a.plank, 45, 120) + band(a.pullups, 3, 10) + band(a.squats, 30, 60);
-  if (score <= 2) return "low";
-  if (score <= 5) return "mid";
+  const canPull = a.hasBar || (a.gymDays?.length ?? 0) > 0;
+  const parts = [band(a.pushups, 15, 35), band(a.plank, 45, 120), band(a.squats, 30, 60)];
+  if (canPull) parts.push(band(a.pullups, 3, 10));
+  const score = (parts.reduce((x, y) => x + y, 0) / parts.length) * 4;
+  if (score <= 2.5) return "low";
+  if (score <= 5.5) return "mid";
   return "high";
 }
 
@@ -59,29 +67,18 @@ export function weeklyLimitFor(startLimit: number, startedAt: Date | null, now =
 }
 
 // ---------- workout plan ----------
-export type Exercise = { id: string; name: string; sets: number; amount: number; unit: "rip" | "sec"; tip: string };
-export type DayPlan = { key: string; rest: boolean; focus: string; title: string; exercises: Exercise[]; restTip?: string };
+// Simple, teen-friendly exercises only: push-ups, abs, plank, dumbbell basics, a few squats.
+// Pull-ups / dips / running only when the user has a bar at home or on their gym/park days.
+export type Exercise = { id: string; name: string; sets: number; amount: number; unit: "rip" | "sec" | "min" | "km"; tip: string };
+export type DayPlan = { key: string; rest: boolean; focus: string; title: string; exercises: Exercise[]; restTip?: string; intensity?: "leggero" | "normale" | "tosto"; gym?: boolean; autoRest?: string };
 
-const TRAIN_DAYS: Record<League, number[]> = {
-  low: [1, 2, 4, 6],
-  mid: [1, 2, 4, 5, 6],
-  high: [1, 2, 3, 5, 6],
-};
-const FOCUS = ["push", "legs", "core", "pull", "full"] as const;
-type Focus = (typeof FOCUS)[number];
-const FOCUS_TITLE: Record<Focus, string> = {
-  push: "Petto & spinta",
-  legs: "Gambe di ferro",
-  core: "Core d'acciaio",
-  pull: "Schiena & trazione",
-  full: "Total body",
-};
+const BASE_DAYS: Record<League, number[]> = { low: [1, 3, 5], mid: [1, 3, 5], high: [1, 2, 4, 6] };
 const REST_TIPS = [
-  "Giorno di riposo: i muscoli crescono adesso, non durante l'allenamento. Cammina 20 minuti e bevi tanta acqua.",
-  "Riposo. Stretching leggero 10 minuti prima di dormire e niente schermo nell'ultima mezz'ora.",
-  "Oggi si recupera. Vai a scuola, lavora, cammina — ma niente sforzi. Domani si spinge.",
-  "Riposo attivo: una passeggiata all'aria aperta e 8 ore di sonno. È parte del piano, non una pausa dal piano.",
-  "Giornata off. Mangia proteine, dormi bene. Il recupero è allenamento invisibile.",
+  "Oggi riposo. I muscoli crescono adesso, non mentre ti alleni. Bevi tanto e dormi presto.",
+  "Giorno off. Una passeggiata va benissimo, il resto lo fa il recupero.",
+  "Riposo. Vai a scuola, esci con gli amici, vivi. Domani si torna a spingere.",
+  "Oggi niente scheda. Se proprio vuoi muoverti, 10 minuti di stretching e basta.",
+  "Recupero. Mangia bene, proteine a pranzo e cena, e stanotte niente telefono a letto.",
 ];
 
 function rng(seed: string) {
@@ -96,82 +93,119 @@ function rng(seed: string) {
   };
 }
 
-type Tpl = { name: string; unit: "rip" | "sec"; base: (a: ZeroAnswers, L: League) => number; tip: string; min?: League };
-const LV = (L: League, lo: number, mid: number, hi: number) => (L === "low" ? lo : L === "mid" ? mid : hi);
-const POOL: Record<Focus, Tpl[]> = {
-  push: [
-    { name: "Flessioni", unit: "rip", base: (a, L) => Math.max(LV(L, 5, 12, 20), a.pushups * 0.6), tip: "Corpo dritto come una tavola, petto quasi a terra." },
-    { name: "Flessioni sulle ginocchia", unit: "rip", base: (a) => Math.max(8, a.pushups * 0.9), tip: "Perfette per finire il muscolo senza perdere la forma." },
-    { name: "Dip su sedia", unit: "rip", base: (a, L) => Math.max(LV(L, 6, 10, 15), a.pushups * 0.5), tip: "Gomiti indietro, scendi fino a 90°." },
-    { name: "Flessioni diamante", unit: "rip", base: (a) => Math.max(6, a.pushups * 0.4), tip: "Mani a diamante sotto il petto: tricipiti in fiamme.", min: "mid" },
-    { name: "Pike push-up", unit: "rip", base: (a) => Math.max(6, a.pushups * 0.3), tip: "Sedere in alto, testa verso terra: spalle.", min: "high" },
-    { name: "Flessioni esplosive", unit: "rip", base: (a) => Math.max(5, a.pushups * 0.3), tip: "Spingi così forte che le mani si staccano.", min: "high" },
-  ],
-  legs: [
-    { name: "Squat", unit: "rip", base: (a, L) => Math.max(LV(L, 12, 20, 30), a.squats * 0.6), tip: "Talloni a terra, sedere indietro, petto alto." },
-    { name: "Affondi alternati", unit: "rip", base: (a, L) => Math.max(LV(L, 8, 12, 16), a.squats * 0.35), tip: "Ginocchio posteriore che sfiora il pavimento." },
-    { name: "Ponte glutei", unit: "rip", base: (_a, L) => LV(L, 15, 20, 25), tip: "Stringi i glutei in alto per un secondo." },
-    { name: "Wall sit", unit: "sec", base: (_a, L) => LV(L, 30, 45, 75), tip: "Schiena al muro, cosce parallele al pavimento." },
-    { name: "Jump squat", unit: "rip", base: (a) => Math.max(10, a.squats * 0.3), tip: "Atterra morbido e riparti subito.", min: "mid" },
-    { name: "Squat bulgaro", unit: "rip", base: (a) => Math.max(8, a.squats * 0.2), tip: "Piede dietro su una sedia. Per gamba.", min: "high" },
-  ],
-  core: [
-    { name: "Plank", unit: "sec", base: (a, L) => Math.max(LV(L, 20, 40, 60), a.plank * 0.7), tip: "Addome contratto, sedere in linea." },
-    { name: "Crunch", unit: "rip", base: (_a, L) => LV(L, 15, 25, 35), tip: "Sali con l'addome, non tirare il collo." },
-    { name: "Mountain climber", unit: "sec", base: (_a, L) => LV(L, 20, 30, 45), tip: "Ginocchia al petto veloci, bacino basso." },
-    { name: "Plank laterale", unit: "sec", base: (a, L) => Math.max(LV(L, 15, 25, 40), a.plank * 0.4), tip: "Per lato. Fianco alto, non cedere." },
-    { name: "Leg raise", unit: "rip", base: (_a, L) => LV(L, 10, 15, 20), tip: "Gambe tese, scendi lento.", min: "mid" },
-    { name: "Hollow hold", unit: "sec", base: (_a) => 40, tip: "Schiena incollata a terra, braccia e gambe sollevate.", min: "high" },
-  ],
-  pull: [
-    { name: "Trazioni", unit: "rip", base: (a) => Math.max(2, a.pullups * 0.6), tip: "Mento sopra la sbarra, scendi controllato." },
-    { name: "Trazioni negative", unit: "rip", base: (_a, L) => LV(L, 4, 6, 8), tip: "Salta su e scendi in 4-5 secondi." },
-    { name: "Rematore con zaino", unit: "rip", base: (_a, L) => LV(L, 12, 15, 20), tip: "Zaino pieno di libri, gomiti vicino al corpo." },
-    { name: "Superman", unit: "rip", base: (_a, L) => LV(L, 12, 15, 20), tip: "A pancia in giù, solleva braccia e gambe." },
-    { name: "Dead hang", unit: "sec", base: (_a, L) => LV(L, 20, 35, 60), tip: "Appeso alla sbarra, spalle attive." },
-  ],
-  full: [
-    { name: "Burpees", unit: "rip", base: (_a, L) => LV(L, 6, 10, 15), tip: "Giù, flessione, su, salto. Senza pause." },
-    { name: "Jumping jack", unit: "sec", base: (_a, L) => LV(L, 30, 45, 60), tip: "Ritmo costante, respira." },
-    { name: "Squat + flessione", unit: "rip", base: (_a, L) => LV(L, 6, 10, 14), tip: "Uno squat, giù, una flessione. È una ripetizione." },
-    { name: "Plank", unit: "sec", base: (a, L) => Math.max(LV(L, 20, 40, 60), a.plank * 0.6), tip: "Chiudi con il core." },
-    { name: "Corsa sul posto", unit: "sec", base: (_a, L) => LV(L, 45, 60, 90), tip: "Ginocchia alte." },
-  ],
-};
-const RANK: Record<League, number> = { low: 0, mid: 1, high: 2 };
-
-export function isTrainingDay(league: League, d: Date) {
-  return TRAIN_DAYS[league].includes(d.getDay());
-}
-
-/** Deterministic daily plan: same day → same plan, changes every day, adapts to league + progress. */
-export function planForDay(d: Date, league: League, a: ZeroAnswers, assessedAt: Date | null, seed: string): DayPlan {
-  const key = localKey(d);
-  if (!isTrainingDay(league, d)) {
-    const r = rng(`${seed}:${key}:rest`);
-    return { key, rest: true, focus: "rest", title: "Riposo", exercises: [], restTip: REST_TIPS[Math.floor(r() * REST_TIPS.length)] };
+/** Training weekdays (JS getDay): base days + gym days, never 3 in a row, max 5. */
+export function trainingDays(league: League, a: Partial<ZeroAnswers>): number[] {
+  const gym = (a.gymDays ?? []).filter((d) => d >= 0 && d <= 6);
+  const set = new Set<number>([...BASE_DAYS[league], ...gym]);
+  const isOn = (d: number) => set.has(((d % 7) + 7) % 7);
+  for (let pass = 0; pass < 3; pass++) {
+    for (let d = 0; d < 7; d++) {
+      if (isOn(d) && isOn(d + 1) && isOn(d + 2)) {
+        const cand = [d + 1, d, d + 2].map((x) => x % 7).find((x) => !gym.includes(x));
+        if (cand !== undefined) set.delete(cand);
+      }
+    }
   }
-  const ws = weekStart(d);
-  const wr = rng(`${seed}:${localKey(ws)}`);
-  const order = [...FOCUS].sort(() => wr() - 0.5);
-  const idx = TRAIN_DAYS[league].indexOf(d.getDay());
-  const focus = order[idx % order.length];
+  const max = league === "high" ? 5 : 4;
+  for (const d of [0, 6, 3, 2, 4, 5, 1]) { if (set.size <= max) break; if (!gym.includes(d)) set.delete(d); }
+  return Array.from(set).sort();
+}
+export function isTrainingDay(league: League, d: Date, a: Partial<ZeroAnswers> = {}) {
+  return trainingDays(league, a).includes(d.getDay());
+}
+export function isGymDay(a: Partial<ZeroAnswers>, d: Date) { return (a.gymDays ?? []).includes(d.getDay()); }
+
+type Tpl = { name: string; unit: Exercise["unit"]; amt: (a: ZeroAnswers, L: League) => number; tip: string };
+const LV = (L: League, lo: number, mid: number, hi: number) => (L === "low" ? lo : L === "mid" ? mid : hi);
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+const PUSH: Tpl[] = [
+  { name: "Flessioni", unit: "rip", amt: (a, L) => clamp(a.pushups * 0.5, LV(L, 5, 8, 12), LV(L, 12, 18, 25)), tip: "Corpo dritto, petto quasi a terra." },
+  { name: "Flessioni larghe", unit: "rip", amt: (a, L) => clamp(a.pushups * 0.4, LV(L, 4, 6, 10), LV(L, 10, 15, 20)), tip: "Mani più larghe delle spalle: più petto." },
+  { name: "Flessioni strette", unit: "rip", amt: (a, L) => clamp(a.pushups * 0.3, LV(L, 3, 5, 8), LV(L, 8, 12, 16)), tip: "Mani sotto il petto: lavorano i tricipiti." },
+];
+const ABS: Tpl[] = [
+  { name: "Plank", unit: "sec", amt: (a, L) => clamp(a.plank * 0.5, LV(L, 20, 30, 40), LV(L, 40, 50, 70)), tip: "Addome duro, sedere in linea con la schiena." },
+  { name: "Crunch", unit: "rip", amt: (_a, L) => LV(L, 12, 15, 20), tip: "Sali con la pancia, non tirare il collo." },
+  { name: "Sit-up", unit: "rip", amt: (_a, L) => LV(L, 8, 12, 15), tip: "Piedi a terra, sali fino a sederti." },
+  { name: "Leg raise", unit: "rip", amt: (_a, L) => LV(L, 8, 10, 14), tip: "Sdraiato, gambe tese su e giù piano." },
+  { name: "Plank laterale", unit: "sec", amt: (a, L) => clamp(a.plank * 0.3, LV(L, 15, 20, 25), LV(L, 25, 35, 45)), tip: "Per lato. Fianco alto." },
+];
+const LEGS: Tpl[] = [
+  { name: "Squat", unit: "rip", amt: (a, L) => clamp(a.squats * 0.4, LV(L, 10, 12, 15), LV(L, 15, 20, 25)), tip: "Talloni a terra, sedere indietro." },
+  { name: "Affondi", unit: "rip", amt: (_a, L) => LV(L, 8, 10, 12), tip: "Per gamba. Ginocchio dietro che sfiora terra." },
+];
+/** Reps for a dumbbell exercise given the weight (kg), from common beginner tables. */
+function dbReps(kg: number, light: number) {
+  const r = kg <= light ? 15 : kg <= light * 1.6 ? 12 : kg <= light * 2.4 ? 10 : kg <= light * 3.2 ? 8 : 6;
+  return r;
+}
+const DUMB: Tpl[] = [
+  { name: "Curl bicipiti con manubrio", unit: "rip", amt: (a) => dbReps(a.dumbbellKg ?? 0, 5), tip: "Per braccio. Gomito fermo vicino al fianco." },
+  { name: "Lento avanti con manubrio", unit: "rip", amt: (a) => dbReps(a.dumbbellKg ?? 0, 4), tip: "Per braccio. Spingi sopra la testa, schiena dritta." },
+  { name: "Rematore con manubrio", unit: "rip", amt: (a) => dbReps(a.dumbbellKg ?? 0, 7), tip: "Per braccio. Mano e ginocchio sulla sedia, tira al fianco." },
+  { name: "Squat con manubrio", unit: "rip", amt: (a) => dbReps(a.dumbbellKg ?? 0, 8), tip: "Manubrio al petto, scendi lento." },
+];
+const PULL: Tpl[] = [
+  { name: "Trazioni", unit: "rip", amt: (a) => clamp(Math.round(a.pullups * 0.6), 1, 12), tip: "Mento sopra la sbarra, scendi controllato. Se non sali, salta su e scendi piano." },
+];
+const OUTDOOR: Tpl[] = [
+  { name: "Corsa", unit: "min", amt: (_a, L) => LV(L, 12, 18, 25), tip: "Ritmo che ti permette di parlare. Niente sprint." },
+  { name: "Corsa", unit: "km", amt: (_a, L) => LV(L, 2, 3, 4), tip: "Distanza, non velocità. Cammina se serve, ma finisci." },
+  { name: "Dip alle parallele", unit: "rip", amt: (a, L) => clamp(a.pushups * 0.25, LV(L, 3, 5, 8), LV(L, 6, 10, 12)), tip: "Scendi fino a 90° coi gomiti." },
+];
+
+const INTENSITY = { leggero: 0.8, normale: 1, tosto: 1.2 } as const;
+
+/** Deterministic daily plan + auto-rest when the user already trained a lot. */
+export function planForDay(d: Date, league: League, a: ZeroAnswers, assessedAt: Date | null, seed: string, doneKeys?: Set<string>): DayPlan {
+  const key = localKey(d);
+  const r0 = rng(`${seed}:${key}:rest`);
+  const restPlan = (autoRest?: string): DayPlan => ({ key, rest: true, focus: "rest", title: "Riposo", exercises: [], restTip: autoRest ?? REST_TIPS[Math.floor(r0() * REST_TIPS.length)], autoRest });
+  if (doneKeys) {
+    const back = (n: number) => localKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() - n));
+    if (doneKeys.has(back(1)) && doneKeys.has(back(2))) return restPlan("Ti sei allenato due giorni di fila: oggi riposo obbligato. Il recupero è metà dell'allenamento.");
+    let w = 0; for (let i = 1; i <= 6; i++) if (doneKeys.has(back(i))) w++;
+    if (w >= 5) return restPlan("Cinque allenamenti negli ultimi giorni. Oggi stop, senza discutere.");
+  }
+  if (!isTrainingDay(league, d, a)) return restPlan();
   const r = rng(`${seed}:${key}`);
+  const gym = isGymDay(a, d);
+  const hasDb = (a.dumbbellKg ?? 0) > 0;
+  const canPull = gym || !!a.hasBar;
+  const roll = r();
+  const intensity: DayPlan["intensity"] = roll < 0.3 ? "leggero" : roll < 0.8 ? "normale" : "tosto";
   const weeks = assessedAt ? weeksBetween(assessedAt, d) : 0;
-  const prog = 1 + Math.min(0.4, weeks * 0.06); // +6% a settimana fino a +40%
-  let pool = POOL[focus].filter((t) => RANK[t.min ?? "low"] <= RANK[league]);
-  if (focus === "pull" && a.pullups < 1) pool = pool.filter((t) => t.name !== "Trazioni");
-  if (focus === "push" && league !== "low") pool = pool.filter((t) => t.name !== "Flessioni sulle ginocchia");
-  pool = [...pool].sort(() => r() - 0.5);
-  const n = league === "low" ? 3 : 4;
-  const sets = league === "low" ? 3 : league === "mid" ? 3 : 4;
-  const exercises = pool.slice(0, n).map((t, i) => {
-    const jitter = 0.9 + r() * 0.2;
-    const raw = t.base(a, league) * prog * jitter;
-    const amount = t.unit === "sec" ? Math.max(10, Math.round(raw / 5) * 5) : Math.max(2, Math.round(raw));
-    return { id: `${key}:${i}`, name: t.name, sets, amount, unit: t.unit, tip: t.tip };
+  const prog = 1 + Math.min(0.3, weeks * 0.04);
+  const pick = <T,>(arr: T[]) => arr[Math.floor(r() * arr.length)];
+  const shuffled = <T,>(arr: T[]) => [...arr].sort(() => r() - 0.5);
+
+  let title: string; let list: Tpl[];
+  if (gym) {
+    title = "Parco / Palestra";
+    list = [PULL[0], pick(OUTDOOR.slice(0, 2)), OUTDOOR[2], pick(ABS)];
+  } else {
+    const types = ["push", "abs", "mix", ...(hasDb ? ["arms"] : [])];
+    const t = types[Math.floor(r() * types.length)];
+    if (t === "push") { title = "Flessioni & addome"; list = [...shuffled(PUSH).slice(0, 2), ...shuffled(ABS).slice(0, 2)]; }
+    else if (t === "abs") { title = "Addome & core"; list = [...shuffled(ABS).slice(0, 3), pick(LEGS)]; }
+    else if (t === "arms") { title = "Pesi"; list = [...shuffled(DUMB).slice(0, 3), pick(PUSH)]; }
+    else { title = "Total body"; list = [pick(PUSH), pick(ABS), pick(LEGS), hasDb ? pick(DUMB) : pick(ABS.filter((x) => x.name !== "Plank"))]; }
+    if (canPull && r() < 0.35) list[list.length - 1] = PULL[0];
+  }
+  const n = intensity === "leggero" ? 3 : intensity === "tosto" ? (league === "low" ? 4 : 5) : (league === "low" ? 3 : 4);
+  if (intensity === "tosto" && list.length < n) list.push(pick(PUSH));
+  list = list.slice(0, n);
+  const sets = league === "low" ? 2 : 3;
+  const mult = INTENSITY[intensity] * prog;
+  const seen = new Set<string>();
+  const exercises = list.filter((t) => { const k = t.name + t.unit; if (seen.has(k)) return false; seen.add(k); return true; }).map((t, i) => {
+    const raw = t.amt(a, league) * (t.unit === "min" || t.unit === "km" ? INTENSITY[intensity] : mult);
+    const amount = t.unit === "sec" ? Math.max(15, Math.round(raw / 5) * 5) : t.unit === "km" ? Math.max(1, Math.round(raw * 2) / 2) : Math.max(1, Math.round(raw));
+    const s = t.unit === "min" || t.unit === "km" ? 1 : sets;
+    return { id: `${key}:${i}`, name: t.name, sets: s, amount, unit: t.unit, tip: t.tip };
   });
-  return { key, rest: false, focus, title: FOCUS_TITLE[focus], exercises };
+  return { key, rest: false, focus: title, title, exercises, intensity, gym };
 }
 
 // ---------- themes ----------
