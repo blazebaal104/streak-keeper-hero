@@ -14,7 +14,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
-  Plus, Droplets, Flame, CalendarDays, Users, Undo2, Sparkles, TrendingUp, Settings, Copy, UserPlus, Shield, X, LogOut,
+  Plus, Droplets, Flame, Dumbbell, CalendarDays, Users, Undo2, Sparkles, TrendingUp, Settings, Copy, UserPlus, Shield, X, LogOut,
   MessageCircle, Send, Trash2, Camera, Lock, Crown, Star, UserMinus, Check, CheckCheck, Bell, Snowflake, LineChart as LineChartIcon,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart, ComposedChart, ReferenceLine } from "recharts";
@@ -41,7 +41,7 @@ import {
   eventsByDay, adaptiveLimit, dailyCountsSeries, localDayKey,
   type Profile, type Badge, type FriendRow,
 } from "@/lib/sbo-cloud";
-import { FIRE_BADGES, ICE_BADGES, ALL_BADGES, badgeDef, badgeByThreshold, tierLabel, type BadgeDef, type BadgeCategory } from "@/lib/sbo-badges";
+import { FIRE_BADGES, ICE_BADGES, WORKOUT_BADGES, ALL_BADGES, badgeDef, badgeByThreshold, tierLabel, type BadgeDef, type BadgeCategory } from "@/lib/sbo-badges";
 import { FIRE_TITLES, ICE_TITLES, currentTitle, nextTitle, titleTierLabel, titleId, titleById, type TitleDef } from "@/lib/sbo-titles";
 import { TitleBadge } from "@/components/sbo/title-badge";
 import { encourage, slowdown, restart, overLimitShame, streakAtRisk, fireEncourage, iceEncourage } from "@/lib/sbo-phrases";
@@ -140,7 +140,7 @@ function SboApp() {
   const saveWD = useSaveWorkoutDay(userId);
   const markAgentRead = useMarkAgentRead(userId);
   const tickFn = useServerFn(agentTick);
-  const [showQuiz, setShowQuiz] = useState<false | "start" | "reassess">(false);
+  const [showQuiz, setShowQuiz] = useState<false | "start" | "reassess" | "redo">(false);
   const [showPlanOverlay, setShowPlanOverlay] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
   const [showAgent, setShowAgent] = useState(false);
@@ -155,20 +155,25 @@ function SboApp() {
   const weekStartKey = localDayKey(zeroWeekStart(new Date()));
   const weekCount = useMemo(() => events.filter((e) => localDayKey(e.ts) >= weekStartKey).length, [events, weekStartKey]);
   const workoutsWeek = useMemo(() => workouts.filter((w) => w.day >= weekStartKey && (w.completed || w.custom.length > 0)).length, [workouts, weekStartKey]);
-  const todayPlan = useMemo(() => (pz && userId ? planForDay(new Date(), pz.league, pz.answers, pz.last_assessment_at ? new Date(pz.last_assessment_at) : pzStart, userId) : null),
+  const doneKeysBefore = useMemo(() => { const t = localDayKey(new Date()); return new Set(workouts.filter((w) => w.day < t && (w.completed || w.custom.length > 0)).map((w) => w.day)); }, [workouts]);
+  const todayPlan = useMemo(() => (pz && userId ? planForDay(new Date(), pz.league, pz.answers, pz.last_assessment_at ? new Date(pz.last_assessment_at) : pzStart, userId, doneKeysBefore) : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pz, userId]);
+    [pz, userId, doneKeysBefore]);
+  useEffect(() => { if (pz && !pz.active && (pz.answers as { _redo?: boolean })?._redo) setShowQuiz("redo"); }, [pz]);
   const todayWD = todayPlan ? wdByDay.get(todayPlan.key) : undefined;
   const reassessDue = !!pz?.last_assessment_at && Date.now() - new Date(pz.last_assessment_at).getTime() > 30 * 86400000;
   useZeroTheme(pzActive ? pz!.theme : null);
 
-  const runTick = async (reason: "open" | "event" | "quit") => {
+  const runTick = async (reason: "open" | "event" | "quit" | "workout") => {
     try { await tickFn({ data: { tzOffset: new Date().getTimezoneOffset(), reason } }); }
     catch (e) { console.warn("coach tick failed", e); }
   };
   // Coach checks in when the app opens
   useEffect(() => {
     if (!pzActive || !userId) return;
+    const k = `sbo:pzTick:${localDayKey(new Date())}`;
+    if (localStorage.getItem(k)) return;
+    localStorage.setItem(k, "1");
     runTick("open");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pzActive, userId]);
@@ -204,6 +209,7 @@ function SboApp() {
     saveWD.mutate({ day: todayPlan.key, done_ids, custom, plan_size: todayPlan.exercises.length, completed });
     if (completed && !was) {
       toast.success("💪 Allenamento completato!", { description: "Spunta verde sul calendario. Il coach approva." });
+      runTick("workout");
       const id = Date.now();
       setBursts((b) => [...b, id]);
       setTimeout(() => setBursts((b) => b.filter((x) => x !== id)), 2400);
@@ -213,6 +219,11 @@ function SboApp() {
     const cur = new Set(todayWD?.done_ids ?? []);
     if (cur.has(id)) cur.delete(id); else cur.add(id);
     saveToday({ done_ids: Array.from(cur) });
+  };
+  const skipExercise = (id: string) => {
+    const cur = todayWD?.done_ids ?? [];
+    if (cur.some((x) => x.startsWith("skip:"))) return;
+    saveToday({ done_ids: [...cur, `skip:${id}`, id] });
   };
   const addCustomWorkout = (name: string, note: string) => {
     saveToday({ custom: [...(todayWD?.custom ?? []), { name, note, at: new Date().toISOString() }] });
@@ -227,7 +238,7 @@ function SboApp() {
     const w = wdByDay.get(localDayKey(day));
     if (w && (w.completed || w.custom.length > 0)) return "done";
     if (day.getTime() === t.getTime()) return null;
-    return isTrainingDay(pz.league, day) ? "missed" : null;
+    return isTrainingDay(pz.league, day, pz.answers) ? "missed" : null;
   };
   const chart30 = useMemo(() => {
     let wk = "", cum = 0;
@@ -236,9 +247,12 @@ function SboApp() {
       const ws = localDayKey(zeroWeekStart(new Date(d.date + "T12:00:00")));
       if (ws !== wk) { wk = ws; cum = 0; }
       cum += d.count;
-      return { ...d, workouts: w ? (w.completed ? 1 : 0) + w.custom.length : 0, week: cum };
+      const lim = pzStart && new Date(d.date + "T12:00:00") >= new Date(new Date(pzStart).setHours(0, 0, 0, 0)) ? weeklyLimitFor(pz!.start_limit, pzStart, new Date(d.date + "T12:00:00")) : Infinity;
+      const over = Math.min(d.count, Math.max(0, cum - lim));
+      return { ...d, workouts: w ? (w.completed ? 1 : 0) + w.custom.length : 0, over: over || null };
     });
-  }, [series30, wdByDay]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [series30, wdByDay, pz]);
   const chart90 = useMemo(() => {
     const raw = series90.map((d) => { const w = wdByDay.get(d.date); return w ? (w.completed ? 1 : 0) + w.custom.length : 0; });
     return series90.map((d, i) => {
@@ -251,7 +265,7 @@ function SboApp() {
   useEffect(() => {
     if (!userId) return;
     checkStreakBadges(userId).catch(() => {});
-  }, [userId, events.length]);
+  }, [userId]);
 
   // Notifications: permission + streak reminder + PWA push subscribe
   useEffect(() => {
@@ -303,7 +317,7 @@ function SboApp() {
     const brokeIce = iceStreak > 0;
     await addEvent.mutateAsync(undefined);
     if (pzActive) {
-      runTick("event");
+      if (weekCount + 1 >= weeklyLimit) runTick("event");
       const id = Date.now();
       setBursts((b) => [...b, id]);
       setTimeout(() => setBursts((b) => b.filter((x) => x !== id)), 2400);
@@ -393,6 +407,16 @@ function SboApp() {
           </div>
         </button>
         <div className="flex items-center gap-2">
+          {pzActive ? (<>
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-2 backdrop-blur" title="Questa settimana / limite">
+            <Droplets className="h-4 w-4" style={{ color: `var(--zero-${weekCount > weeklyLimit ? "over" : weekCount === weeklyLimit ? "limit" : "ok"})` }} />
+            <span className="text-sm font-semibold">{weekCount}/{weeklyLimit}</span>
+          </div>
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-2 backdrop-blur" title="Allenamenti questa settimana">
+            <Dumbbell className="h-4 w-4 text-primary" />
+            <span className="text-sm font-semibold">{workoutsWeek}</span>
+          </div>
+          </>) : (<>
           <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-2 backdrop-blur" title="Streak di fuoco (giorni consecutivi con almeno un evento)">
             <Flame className="h-4 w-4 text-orange-400" />
             <span className="text-sm font-semibold">{fireStreak}</span>
@@ -401,6 +425,7 @@ function SboApp() {
             <Snowflake className="h-4 w-4 text-sky-300" />
             <span className="text-sm font-semibold">{iceStreak}</span>
           </div>
+          </>)}
           <Button variant="ghost" size="icon" className="relative rounded-full border border-border bg-card/60 backdrop-blur" onClick={() => setShowInvites(true)} aria-label="Notifiche">
             <Bell className="h-4 w-4" />
             {invites.length > 0 && <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 rounded-full bg-destructive text-[10px] font-bold text-white grid place-items-center px-1">{invites.length}</span>}
@@ -440,7 +465,7 @@ function SboApp() {
                     </Button>
                   </div>
                 )}
-                <TodayPlanCard plan={todayPlan} wd={todayWD} onToggle={toggleExercise} onCustom={() => setShowCustom(true)} onExpand={() => setShowPlanOverlay(true)} />
+                <TodayPlanCard plan={todayPlan} wd={todayWD} onToggle={toggleExercise} onSkip={skipExercise} onCustom={() => setShowCustom(true)} onExpand={() => setShowPlanOverlay(true)} />
                 <div className="flex items-center justify-center gap-4">
                   {equipped.map((b, i) => (
                     <BadgeSlot key={i} def={b} onClick={() => setShowInventory({ slot: i as 0 | 1 | 2 })} />
@@ -536,7 +561,7 @@ function SboApp() {
             <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
               <div className="mb-3 flex items-center justify-between px-1">
                 <p className="text-sm font-semibold">Andamento — ultimi 30 giorni</p>
-                <span className="text-[10px] text-muted-foreground">📈 media mobile 7gg</span>
+                
               </div>
               {chart30.every((d) => d.count === 0 && d.workouts === 0) ? (
                 <p className="py-10 text-center text-xs text-muted-foreground">Nessun dato ancora. Il grafico si popolerà con l'uso.</p>
@@ -549,6 +574,11 @@ function SboApp() {
                           <stop offset="0%" stopColor="#f97316" stopOpacity={0.55} />
                           <stop offset="100%" stopColor="#f97316" stopOpacity={0} />
                         </linearGradient>
+                        <linearGradient id="gOver" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#ffd000" stopOpacity={0.95} />
+                          <stop offset="45%" stopColor="#ff3d00" stopOpacity={0.8} />
+                          <stop offset="100%" stopColor="#7f0000" stopOpacity={0.2} />
+                        </linearGradient>
                         <linearGradient id="gWork" x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="#ef4444" stopOpacity={0.45} />
                           <stop offset="100%" stopColor="#ef4444" stopOpacity={0} />
@@ -560,9 +590,7 @@ function SboApp() {
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
                       {pzActive && <Area type="monotone" dataKey="workouts" stroke="#ef4444" fill="url(#gWork)" strokeWidth={2} name="Allenamenti" />}
                       <Area type="monotone" dataKey="count" stroke="#fb923c" fill="url(#gCount)" strokeWidth={2} name="Al giorno" />
-                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media 7gg" />
-                      {pzActive && <Line type="stepAfter" dataKey="week" stroke="#facc15" strokeWidth={1.5} dot={false} name="Totale settimana" />}
-                      {pzActive && <ReferenceLine y={weeklyLimit} ifOverflow="extendDomain" stroke="#facc15" strokeDasharray="6 4" label={{ value: `limite ${weeklyLimit}/sett.`, fill: "#facc15", fontSize: 10, position: "insideTopRight" }} />}
+                      {pzActive && <Area type="monotone" dataKey="over" stroke="#ff2a00" fill="url(#gOver)" strokeWidth={2.5} name="Oltre il limite" />}
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
@@ -571,7 +599,7 @@ function SboApp() {
                 <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 px-1 text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#fb923c]" /> eventi</span>
                   <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-[#ef4444]" /> allenamenti</span>
-                  <span className="flex items-center gap-1"><span className="h-0.5 w-3 bg-[#facc15]" /> totale settimana vs limite</span>
+                  <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-gradient-to-b from-[#ffd000] to-[#ff2a00]" /> oltre il limite</span>
                 </div>
               )}
             </Card>
@@ -587,13 +615,13 @@ function SboApp() {
                       <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
                       <YAxis fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
-                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media 7gg" />
-                      {pzActive && <Line type="monotone" dataKey="wma7" stroke="#ef4444" strokeWidth={2} dot={false} name="Allenamenti (media 7gg)" />}
+                      <Line type="monotone" dataKey="count" stroke="#fb923c" strokeWidth={2} dot={false} name="Al giorno" />
+                      {pzActive && <Line type="monotone" dataKey="workouts" stroke="#ef4444" strokeWidth={2} dot={false} name="Allenamenti" />}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               )}
-              <p className="mt-2 px-1 text-[11px] text-muted-foreground">{pzActive ? "Obiettivo: la linea rossa (allenamenti) sempre sopra quella blu." : "La curva mostra se stai salendo o scendendo. Obiettivo: portarla giù nel tempo."}</p>
+              <p className="mt-2 px-1 text-[11px] text-muted-foreground">{pzActive ? "Obiettivo: la linea rossa (allenamenti) sempre sopra quella arancione." : "La curva mostra se stai salendo o scendendo. Obiettivo: portarla giù nel tempo."}</p>
             </Card>
           </TabsContent>
 
@@ -830,11 +858,13 @@ function SboApp() {
       <ZeroQuestionnaire
         open={showQuiz !== false}
         reassess={showQuiz === "reassess"}
+        redo={showQuiz === "redo"}
         initial={pz?.answers}
         initialTheme={pz?.theme}
         onClose={() => setShowQuiz(false)}
         onSubmit={async (answers, theme, league, startLimit) => {
           const nowIso = new Date().toISOString();
+          answers = { ...answers }; delete (answers as { _redo?: boolean })._redo;
           try {
             if (showQuiz === "reassess" && pz) {
               await savePz.mutateAsync({ answers, league, theme, last_assessment_at: nowIso });
@@ -850,8 +880,8 @@ function SboApp() {
         }}
       />
       {pzActive && todayPlan && (
-        <PlanOverlay open={showPlanOverlay} plan={todayPlan} wd={todayWD} name={profile.username} day={pzDay}
-          onToggle={toggleExercise} onCustom={() => setShowCustom(true)}
+        <PlanOverlay open={showPlanOverlay} plan={todayPlan} wd={todayWD} name={pz?.answers?.realName || profile.username} day={pzDay}
+          onToggle={toggleExercise} onSkip={skipExercise} onCustom={() => setShowCustom(true)}
           onClose={() => setShowPlanOverlay(false)} />
       )}
       <CustomWorkoutDialog open={showCustom} onClose={() => setShowCustom(false)} onSave={addCustomWorkout} />
@@ -1222,6 +1252,7 @@ function InventoryDialog({ slot, profile, badges, totalEvents, totalCleanDays, o
 
         {renderGroup("🔥 Streak di fuoco (fai ogni giorno)", FIRE_BADGES, "fire")}
         {renderGroup("❄️ Streak di ghiaccio (giorni puliti)", ICE_BADGES, "ice")}
+        {renderGroup("💪 Allenamenti totali", WORKOUT_BADGES, "workout")}
 
         <TitlesSection totalEvents={totalEvents} totalCleanDays={totalCleanDays} equippedTitle={profile.equipped_title} onEquipTitle={onEquipTitle} />
 
@@ -1243,7 +1274,7 @@ function InventoryDialog({ slot, profile, badges, totalEvents, totalCleanDays, o
               <div className="rounded-lg border border-border p-4 text-sm">
                 <p className="font-semibold mb-1">Come ottenerla</p>
                 <p className="text-muted-foreground">
-                  {preview.category === "ice"
+                  {preview.category === "workout" ? <>Completa <b>{preview.threshold} allenamenti</b> in totale. 💪</> : preview.category === "ice"
                     ? <>Non registrare alcun evento per <b>{preview.threshold} giorni di fila</b>. Le medaglie di ghiaccio sono le più preziose. ❄️</>
                     : <>Registra almeno un evento ogni giorno per <b>{preview.threshold} giorni di fila</b>. 🔥</>}
                 </p>

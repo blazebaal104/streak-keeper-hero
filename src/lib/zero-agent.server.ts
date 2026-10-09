@@ -37,6 +37,7 @@ const D_WEEK = [
   "Siamo a {count}/{limit}. Non avvicinarti al tetto.", "{count} volte su {limit}. L'ideale è restare ben sotto.",
 ];
 const D_CLOSE = [
+  "dai che sei forte", "non farmi pentire", "vediamo se oggi mi stupisci", "occhio che ti guardo eh", "stasera mi racconti", "fai il bravo coglione 😏", "su, muovi il culo",
   "Ci sentiamo.", "Non deludermi.", "Ti tengo d'occhio.", "Vai.", "Spacca.", "Fiero di te se arrivi a stasera pulito.",
   "Domani ti chiedo com'è andata.", "Sei più forte di un impulso.", "Avanti così.", "Fammi vedere di che pasta sei.",
   "Ricordati perché hai iniziato.", "Un giorno alla volta.", "Io ci credo, credici anche tu.", "Muoviti.", "Zero scuse.",
@@ -105,11 +106,13 @@ const R_A = [
   "OH {NAME}. CHE HAI COMBINATO?",
 ];
 const R_B = [
+  "TESTA DI CAZZO, TI AVEVO DATO FIDUCIA!", "RAMMOLLITO! UN RAMMOLLITO SEI!", "MI HAI PRESO PER IL CULO TUTTA LA SETTIMANA?!", "PEZZO DI MERDA, NON TI VERGOGNI?!", "MA CHE CAZZO TI DICO A FARE LE COSE SE POI FAI COME TI PARE?!", "SEI UN FALLITO SE CONTINUI COSÌ, E LO SAI ANCHE TU!", "HAI TRADITO ME E HAI TRADITO TE STESSO, COGLIONE!", "BRAVO, APPLAUSI. CHE SCHIFO.",
   "NON SAI REGOLARTI, NON SAI FARE NIENTE!", "IL LIMITE ERA {limit}! {limit}!!", "SEI UN COGLIONE, TE L'AVEVO DETTO!",
   "TUTTO IL LAVORO DELLA SETTIMANA BUTTATO NEL CESSO!", "MA CI TIENI ALMENO UN PO' A TE STESSO?!", "PENSAVO FOSSI PIÙ FORTE DI COSÌ!",
   "UN IMPULSO TI HA FREGATO COME UN BAMBINO!", "TI SEI FATTO COMANDARE DA UNA VOGLIA DI DIECI SECONDI!",
 ];
 const R_C = [
+  "E TE LO DICO PERCHÉ CI TENGO, CAZZO. SE NON CI TENESSI STAREI ZITTO.", "IO NON MOLLO TE. TU NON MOLLARE TE. DOMANI SI RIPARTE.", "SO CHE SEI MEGLIO DI COSÌ. FAMMELO VEDERE.", "MI INCAZZO PERCHÉ CREDO IN TE, TESTA DURA.",
   "LA PROSSIMA SETTIMANA NON VOGLIO VEDERLO O TORNO IL DOPPIO PIÙ INCAZZATO.", "VAI A FARE 50 SQUAT. ADESSO.",
   "DA ORA FINO A LUNEDÌ: ZERO. ZERO!", "RIPRENDITI, CAZZO. SUBITO.", "NON FARMELO RIPETERE.", "STASERA TELEFONO FUORI DALLA CAMERA. È UN ORDINE.",
   "SE SUCCEDE ANCORA TI SPAMMO FINO A DOMANI.",
@@ -159,7 +162,11 @@ export type Ctx = {
   done: number; planned: number;
 };
 
+const P_A = ["oh {name}", "{name} ma allora sai farlo", "ecco {name}", "minchia {name}", "bravo {name}", "{name} grande", "vedi {name}?", "ok {name} rispetto"];
+const P_B = ["allenamento fatto, così mi piaci", "scheda chiusa. niente scuse oggi, solo lavoro", "visto che non ci voleva tanto?", "questo è il {name} che voglio vedere", "un altro mattone messo", "oggi ti sei guadagnato il divano", "il te di un mese fa ti invidia"];
+const P_C = ["domani si continua", "non montarti la testa", "stasera dormi bene", "fiero di te, sul serio", "avanti così testa dura", "ora mangia qualcosa di decente"];
 export const phrases = {
+  praise(used: Set<string>, c: Ctx) { return compose(used, "pr", [P_A, P_B, P_C], { ...c }, ", ").replace(/^./, (x) => x.toUpperCase()); },
   daily(used: Set<string>, c: Ctx) {
     const v = { ...c };
     return c.rest ? compose(used, "dr", [D_OPEN, D_REST, D_WEEK, D_CLOSE], v) : compose(used, "dt", [D_OPEN, D_TRAIN, D_WEEK, D_CLOSE], v);
@@ -197,8 +204,8 @@ export const phrases = {
 };
 
 // ---------------- AI writer (budgeted) ----------------
-const SYSTEM = `Sei "Coach Zero", il personal trainer italiano dell'app SBO. Scrivi in chat come una persona vera, mai come un bot: frasi brevi, colloquiali, dirette, in italiano. Segui l'utente nel "Progetto Zero": allenamento a corpo libero + autocontrollo sulla masturbazione (limite settimanale; l'obiettivo è farlo il meno possibile, non arrivare al limite).
-Tono: quando l'utente va bene sei caloroso ma esigente. Quando sbaglia sei durissimo, volgare e senza filtri (parolacce e insulti tipo "coglione" sono ok), in MAIUSCOLO quando sei furioso, come un vero coach incazzato. Mai minacce reali, mai incitare all'autolesionismo, mai insulti su aspetto, origine o orientamento.
+const SYSTEM = `Sei "Coach Zero", il personal trainer italiano dell'app SBO. Scrivi in chat come una persona vera su WhatsApp: minuscole, frasi corte, slang italiano, niente frasi da poster motivazionale, niente "ricorda che", niente elenchi, niente trattini lunghi. Nessuno deve capire che sei un'IA. Segui l'utente nel "Progetto Zero": allenamento a corpo libero + autocontrollo sulla masturbazione (limite settimanale; l'obiettivo è farlo il meno possibile, non arrivare al limite).
+Tono: quando l'utente va bene sei caloroso ma esigente. Quando sbaglia sei durissimo, volgare e senza filtri (tante parolacce e insulti: coglione, testa di cazzo, rammollito, pezzo di merda; accusalo di aver tradito la tua fiducia), ma alla fine fai capire che lo fai perché ci tieni a lui e vuoi che diventi una persona migliore, in MAIUSCOLO quando sei furioso, come un vero coach incazzato. Mai minacce reali, mai incitare all'autolesionismo, mai insulti su aspetto, origine o orientamento.
 Usa i dati che ti do (nome, numeri, lega, giorni). Ogni messaggio deve essere originale. Non usare emoji in eccesso (max 1). Restituisci SOLO i messaggi della chat: se ne mandi più di uno separali con una riga contenente solo ---. Niente virgolette, niente prefissi.`;
 
 export type AiResult = { ok: true; messages: string[] } | { ok: false; status: number };

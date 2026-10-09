@@ -74,6 +74,7 @@ export function useUpdateProfile(userId: string | null) {
 export function useProfileById(id: string | null | undefined) {
   return useQuery({
     queryKey: ["profile-by-id", id],
+    staleTime: 6 * 3600e3,
     enabled: !!id,
     queryFn: async (): Promise<Profile | null> => {
       if (!id) return null;
@@ -101,6 +102,7 @@ export function useEvents(userId: string | null) {
 export function useEventsOf(otherId: string | null) {
   return useQuery({
     queryKey: ["events-of", otherId],
+    staleTime: 6 * 3600e3,
     enabled: !!otherId,
     queryFn: async (): Promise<SboEvent[]> => {
       const { data, error } = await supabase.from("events").select("*").eq("user_id", otherId!).order("ts", { ascending: false }).limit(1000);
@@ -113,6 +115,7 @@ export function useEventsOf(otherId: string | null) {
 export function useBadgesOf(otherId: string | null) {
   return useQuery({
     queryKey: ["badges-of", otherId],
+    staleTime: 6 * 3600e3,
     enabled: !!otherId,
     queryFn: async (): Promise<Badge[]> => {
       const { data, error } = await supabase.from("badges").select("*").eq("user_id", otherId!).order("threshold", { ascending: true });

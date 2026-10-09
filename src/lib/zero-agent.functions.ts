@@ -6,7 +6,7 @@ import {
   LEAGUE_LABEL, type League, type ZeroAnswers,
 } from "./sbo-zero";
 
-const Input = z.object({ tzOffset: z.number().min(-900).max(900), reason: z.enum(["open", "event", "quit"]) });
+const Input = z.object({ tzOffset: z.number().min(-900).max(900), reason: z.enum(["open", "event", "quit", "workout"]) });
 
 type Flags = Record<string, unknown> & {
   dailyDay?: string; reportWeek?: string; atLimitWeek?: string; rant?: Record<string, number>;
@@ -46,7 +46,7 @@ export const agentTick = createServerFn({ method: "POST" })
     const limit = weeklyLimitFor(pz.start_limit, started, now);
 
     const { data: prof } = await sb.from("profiles").select("username").eq("id", userId).maybeSingle();
-    const name: string = prof?.username ?? "campione";
+    const name: string = (pz.answers as ZeroAnswers)?.realName?.trim() || prof?.username || "campione";
 
     const since = new Date(ws.getTime() - 7 * 86400000 + tz).toISOString();
     const { data: evs } = await sb.from("events").select("ts").eq("user_id", userId).gte("ts", since);
@@ -93,7 +93,9 @@ export const agentTick = createServerFn({ method: "POST" })
     }
     const facts = `Utente: ${name}. Giorno ${days} del Progetto Zero. ${LEAGUE_LABEL[league]}. Limite settimanale attuale: ${limit}. Questa settimana: ${count}. Settimane consecutive sopra il limite prima di questa: ${ctx.overStreak}.`;
 
-    if (data.reason === "quit") {
+    if (data.reason === "workout") {
+      out.push({ kind: "praise", content: phrases.praise(used, ctx) });
+    } else if (data.reason === "quit") {
       const ai = await tryAi(`${facts}\nL'utente ha appena DISATTIVATO il Progetto Zero dopo ${days} giorni. Sei furioso: scrivi 2-3 messaggi in maiuscolo, volgari, per convincerlo a riattivarlo subito.`);
       (ai ?? [phrases.quit(ctx)]).forEach((c) => out.push({ kind: "quit", content: c }));
     } else {
@@ -104,7 +106,7 @@ export const agentTick = createServerFn({ method: "POST" })
           for (let i = 0; i < 7; i++) {
             const d = new Date(prevWs.getTime() + i * 86400000);
             if (d < new Date(started.getFullYear(), started.getMonth(), started.getDate())) continue;
-            if (isTrainingDay(league, d)) { planned++; if (doneSet.has(localKey(d))) done++; }
+            if (isTrainingDay(league, d, answers)) { planned++; if (doneSet.has(localKey(d))) done++; }
           }
           const prevLimit = weeklyLimitFor(pz.start_limit, started, prevWs);
           flags.overStreak = prevCount > prevLimit ? Number(flags.overStreak ?? 0) + 1 : 0;
@@ -123,7 +125,7 @@ export const agentTick = createServerFn({ method: "POST" })
         // Missed yesterday?
         const y = new Date(now.getTime() - 86400000);
         const yk = localKey(y);
-        if (flags.missedDay !== yk && y >= new Date(started.getFullYear(), started.getMonth(), started.getDate()) && isTrainingDay(league, y) && !doneSet.has(yk)) {
+        if (flags.missedDay !== yk && y >= new Date(started.getFullYear(), started.getMonth(), started.getDate()) && isTrainingDay(league, y, answers) && !doneSet.has(yk)) {
           out.push({ kind: "missed", content: phrases.missed(used, ctx) });
           flags.missedDay = yk;
         }
@@ -136,15 +138,17 @@ export const agentTick = createServerFn({ method: "POST" })
       }
       // Limit reached / exceeded
       const rant = { ...(flags.rant ?? {}) };
-      if (count === limit && flags.atLimitWeek !== weekKey) {
-        const ai = await tryAi(`${facts}\nHa appena RAGGIUNTO esattamente il limite settimanale (${count}/${limit}). Scrivi 1-2 messaggi un po' incazzati: bravo che non l'ha superato, ma l'ideale è stare sotto il limite, non raggiungerlo. Fino a lunedì deve stare a zero.`);
-        (ai ?? [phrases.atLimit(used, ctx)]).forEach((c) => out.push({ kind: "limit", content: c }));
+      const alc = (flags.atLimitWeek === weekKey ? Number(flags.alCount ?? 0) : 0);
+      if (data.reason === "event" && count === limit && alc < 3) {
+        flags.alCount = alc + 1;
+        [phrases.atLimit(used, ctx)].forEach((c) => out.push({ kind: "limit", content: c }));
         flags.atLimitWeek = weekKey;
       }
-      if (count > limit && (rant[weekKey] ?? 0) < count - limit) {
-        const ai = await tryAi(`${facts}\nHa SUPERATO il limite: ${count} su ${limit} (sforato di ${count - limit}). Sei incazzatissimo: spammalo con 3-5 messaggi brevi TUTTI IN MAIUSCOLO, volgari, come una persona vera furiosa. Chiudi dicendo che la prossima settimana non vuoi vederlo o torni il doppio più incazzato.${ctx.overStreak > 0 ? " È recidivo: sii il doppio più incazzato e ricordaglielo." : ""}`);
+      if (data.reason === "event" && count > limit) {
+        const firstRant = (rant[weekKey] ?? 0) === 0;
+        const ai = firstRant ? await tryAi(`${facts}\nHa SUPERATO il limite: ${count} su ${limit} (sforato di ${count - limit}). Sei incazzatissimo: spammalo con 3-5 messaggi brevi TUTTI IN MAIUSCOLO, volgari, come una persona vera furiosa. Chiudi dicendo che la prossima settimana non vuoi vederlo o torni il doppio più incazzato.${ctx.overStreak > 0 ? " È recidivo: sii il doppio più incazzato e ricordaglielo." : ""}`) : null;
         (ai ?? phrases.rant(used, ctx)).forEach((c) => out.push({ kind: "rant", content: c }));
-        rant[weekKey] = count - limit;
+        rant[weekKey] = (rant[weekKey] ?? 0) + 1;
         flags.rant = Object.fromEntries(Object.entries(rant).slice(-6));
       }
     }
