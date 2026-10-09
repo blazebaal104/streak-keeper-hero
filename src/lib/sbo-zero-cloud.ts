@@ -65,7 +65,6 @@ export function useSaveWorkoutDay(userId: string | null) {
         { user_id: userId!, ...row },
       ]);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["workouts", userId] }),
   });
 }
 
@@ -75,8 +74,8 @@ export function useAgentMessages(userId: string | null) {
     if (!userId) return;
     const ch = supabase
       .channel(`agent:${userId}:${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "agent_messages", filter: `user_id=eq.${userId}` }, () => {
-        qc.invalidateQueries({ queryKey: ["agent", userId] });
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "agent_messages", filter: `user_id=eq.${userId}` }, (p) => {
+        qc.setQueryData<AgentMessage[]>(["agent", userId], (old = []) => old.some((m) => m.id === (p.new as AgentMessage).id) ? old : [...old, p.new as AgentMessage]);
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };

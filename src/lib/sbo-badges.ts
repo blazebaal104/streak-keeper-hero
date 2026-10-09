@@ -1,7 +1,7 @@
 // Fire (daily) & Ice (abstinence) streak badge definitions.
 // Must match DB check_streak_badges thresholds/tiers.
 export type BadgeTier = "common" | "uncommon" | "rare" | "super_rare" | "epic" | "mythic" | "legendary";
-export type BadgeCategory = "fire" | "ice" | "streak"; // legacy 'streak' kept for old rows
+export type BadgeCategory = "fire" | "ice" | "streak" | "workout"; // legacy 'streak' kept for old rows
 
 export type BadgeDef = {
   category: BadgeCategory;
@@ -39,7 +39,18 @@ export const ICE_BADGES: BadgeDef[] = [
 ];
 
 
-export const ALL_BADGES: BadgeDef[] = [...FIRE_BADGES, ...ICE_BADGES];
+const W = (threshold: number, tier: BadgeTier, name: string, emoji: string, gradient: string, ring: string, shiny: boolean): BadgeDef => ({ category: "workout", threshold, tier, name, emoji, gradient, ring, shiny });
+export const WORKOUT_BADGES: BadgeDef[] = [
+  W(5, "common", "Primi passi", "👟", "linear-gradient(135deg,#9ca3af,#4b5563)", "ring-slate-400/40", false),
+  W(10, "common", "Principiante", "💪", "linear-gradient(135deg,#a3a3a3,#525252)", "ring-neutral-400/40", false),
+  W(25, "uncommon", "Costante", "🏃", "linear-gradient(135deg,#4ade80,#16a34a)", "ring-green-400/50", false),
+  W(50, "rare", "Atleta", "🏅", "linear-gradient(135deg,#38bdf8,#0284c7)", "ring-sky-400/60", false),
+  W(75, "super_rare", "Guerriero", "⚔️", "linear-gradient(135deg,#60a5fa,#2563eb,#1e40af)", "ring-blue-400/60", true),
+  W(100, "epic", "Atleta professionista", "🏆", "linear-gradient(135deg,#a78bfa,#7c3aed)", "ring-violet-400/70", true),
+  W(200, "mythic", "Macchina", "🦾", "linear-gradient(135deg,#f472b6,#a855f7,#facc15)", "ring-fuchsia-400/70", true),
+  W(365, "legendary", "Leggenda", "👑", "linear-gradient(135deg,#facc15,#f97316,#dc2626,#a855f7)", "ring-yellow-400/80", true),
+];
+export const ALL_BADGES: BadgeDef[] = [...FIRE_BADGES, ...ICE_BADGES, ...WORKOUT_BADGES];
 
 // Legacy: some older code refers to STREAK_BADGES.
 export const STREAK_BADGES: BadgeDef[] = FIRE_BADGES;

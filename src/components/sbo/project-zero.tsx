@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import coachImg from "@/assets/coach-zero.jpg";
 import { motion, AnimatePresence } from "motion/react";
 import { Check, Dumbbell, Droplets, X, Plus, Target, Moon, ChevronRight, ChevronLeft, Bot, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -33,8 +34,9 @@ const QUESTIONS: Q[] = [
   { key: "weeklyNow", title: "Quante volte a settimana lo fai adesso?", hint: "Sii onesto: serve a darti un limite iniziale realistico (max 5, ideale 3 o meno).", min: 0, max: 40, step: 1, unit: "volte/settimana", def: 5 },
 ];
 
-export function ZeroQuestionnaire({ open, reassess, initial, initialTheme, onClose, onSubmit }: {
-  open: boolean; reassess?: boolean; initial?: Partial<ZeroAnswers>; initialTheme?: string;
+const WD = ["Dom", "Lun", "Mar", "Mer", "Gio", "Ven", "Sab"];
+export function ZeroQuestionnaire({ open, reassess, redo, initial, initialTheme, onClose, onSubmit }: {
+  open: boolean; reassess?: boolean; redo?: boolean; initial?: Partial<ZeroAnswers>; initialTheme?: string;
   onClose: () => void; onSubmit: (a: ZeroAnswers, theme: string, league: League, startLimit: number) => void;
 }) {
   const [step, setStep] = useState(0);
@@ -43,7 +45,7 @@ export function ZeroQuestionnaire({ open, reassess, initial, initialTheme, onClo
   }));
   const [theme, setTheme] = useState(initialTheme ?? "obsidian");
   useEffect(() => { if (open) setStep(0); }, [open]);
-  const total = QUESTIONS.length + 3; // intro + questions + theme + result
+  const total = QUESTIONS.length + 4; // intro + questions + theme + result
   const league = computeLeague(ans);
   const limit = startLimitFrom(ans.weeklyNow);
 
@@ -52,8 +54,10 @@ export function ZeroQuestionnaire({ open, reassess, initial, initialTheme, onClo
       return (
         <div className="space-y-4">
           <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary/15 text-primary"><Target className="h-8 w-8" /></div>
-          <h2 className="text-2xl font-bold">{reassess ? "Nuova valutazione" : "Progetto Zero"}</h2>
-          {reassess ? (
+          <h2 className="text-2xl font-bold">{redo ? "Progetto Zero aggiornato" : reassess ? "Nuova valutazione" : "Progetto Zero"}</h2>
+          {redo ? (
+            <p className="text-sm text-muted-foreground">Ci sono stati dei problemi tecnici e il Progetto Zero è stato aggiornato con tante novità (allenamenti nuovi, manubri, palestra, giorni di riposo). Per questo devi rifare il questionario. Ci vuole un minuto.</p>
+          ) : reassess ? (
             <p className="text-sm text-muted-foreground">È passato un mese. Rispondi con i tuoi numeri di oggi: il coach ricalcola la tua lega e il tuo piano.</p>
           ) : (
             <ul className="space-y-2 text-sm text-muted-foreground">
@@ -86,6 +90,24 @@ export function ZeroQuestionnaire({ open, reassess, initial, initialTheme, onClo
       );
     }
     if (qi === QUESTIONS.length) {
+      return (
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold">Ancora due cose</h2>
+          <Label>Come ti chiami? (così ti chiama il coach)</Label>
+          <Input value={ans.realName ?? ""} maxLength={24} placeholder="Es. Franco" onChange={(e) => setAns({ ...ans, realName: e.target.value })} />
+          <Label>Hai un manubrio? Peso in kg (0 = no)</Label>
+          <Input type="number" inputMode="numeric" min={0} max={40} value={ans.dumbbellKg ?? 0} onChange={(e) => setAns({ ...ans, dumbbellKg: Math.max(0, Math.min(40, Number(e.target.value) || 0)) })} />
+          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={!!ans.hasBar} onChange={(e) => setAns({ ...ans, hasBar: e.target.checked })} /> Ho una barra per trazioni a casa</label>
+          <Label>Che giorni vai in palestra o al parco?</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {[1, 2, 3, 4, 5, 6, 0].map((d) => { const on = (ans.gymDays ?? []).includes(d); return (
+              <button key={d} type="button" onClick={() => setAns({ ...ans, gymDays: on ? (ans.gymDays ?? []).filter((x) => x !== d) : [...(ans.gymDays ?? []), d] })}
+                className={`rounded-full border px-3 py-1 text-xs ${on ? "border-primary bg-primary/15 text-primary" : "border-border"}`}>{WD[d]}</button>); })}
+          </div>
+        </div>
+      );
+    }
+    if (qi === QUESTIONS.length + 1) {
       return (
         <div className="space-y-4">
           <h2 className="text-xl font-bold">Scegli il tuo tema</h2>
@@ -135,7 +157,7 @@ export function ZeroQuestionnaire({ open, reassess, initial, initialTheme, onClo
           {step < total - 1 ? (
             <Button className="flex-1" onClick={() => setStep(step + 1)}>{step === 0 ? "Iniziamo" : "Avanti"} <ChevronRight className="ml-1 h-4 w-4" /></Button>
           ) : (
-            <Button className="flex-1" onClick={() => onSubmit(ans, theme, league, limit)}>{reassess ? "Aggiorna il piano" : "Attiva il Progetto Zero"}</Button>
+            <Button className="flex-1" onClick={() => onSubmit(ans, theme, league, limit)}>{reassess && !redo ? "Aggiorna il piano" : "Attiva il Progetto Zero"}</Button>
           )}
         </DialogFooter>
       </DialogContent>
@@ -243,8 +265,9 @@ export function ZeroButtons({ weekCount, limit, workoutDone, rest, onSbo, onWork
 }
 
 // ---------------- Today's plan ----------------
-function PlanList({ plan, wd, onToggle }: { plan: DayPlan; wd: WorkoutDay | undefined; onToggle: (id: string) => void }) {
+function PlanList({ plan, wd, onToggle, onSkip }: { plan: DayPlan; wd: WorkoutDay | undefined; onToggle: (id: string) => void; onSkip?: (id: string) => void }) {
   const done = new Set(wd?.done_ids ?? []);
+  const skipUsed = (wd?.done_ids ?? []).some((x) => x.startsWith("skip:"));
   if (plan.rest) {
     return (
       <div className="flex items-start gap-3 rounded-xl bg-secondary/40 p-4">
@@ -257,8 +280,9 @@ function PlanList({ plan, wd, onToggle }: { plan: DayPlan; wd: WorkoutDay | unde
     <ul className="space-y-2">
       {plan.exercises.map((e) => {
         const ok = done.has(e.id);
+        const skipped = done.has(`skip:${e.id}`);
         return (
-          <li key={e.id}>
+          <li key={e.id} className="flex items-center gap-2">
             <button onClick={() => onToggle(e.id)}
               className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${ok ? "border-transparent bg-[var(--zero-ok)]/15" : "border-border bg-secondary/30 hover:border-primary/40"}`}>
               <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full border-2 transition ${ok ? "border-[var(--zero-ok)] bg-[var(--zero-ok)] text-white" : "border-muted-foreground/40"}`}>
@@ -268,8 +292,9 @@ function PlanList({ plan, wd, onToggle }: { plan: DayPlan; wd: WorkoutDay | unde
                 <span className={`block text-sm font-semibold ${ok ? "line-through opacity-60" : ""}`}>{e.name}</span>
                 <span className="block truncate text-[11px] text-muted-foreground">{e.tip}</span>
               </span>
-              <span className="shrink-0 text-right font-mono text-sm font-bold">{e.sets}×{e.amount}<span className="text-[10px] font-normal text-muted-foreground">{e.unit === "sec" ? "s" : ""}</span></span>
+              <span className="shrink-0 text-right font-mono text-sm font-bold">{skipped ? "skip" : <>{e.sets > 1 ? `${e.sets}×` : ""}{e.amount}<span className="text-[10px] font-normal text-muted-foreground">{e.unit === "sec" ? "s" : e.unit === "min" ? " min" : e.unit === "km" ? " km" : ""}</span></>}</span>
             </button>
+            {onSkip && !ok && !skipUsed && <button onClick={() => onSkip(e.id)} className="shrink-0 rounded-full border border-border px-2 py-1 text-[10px] text-muted-foreground">Skip</button>}
           </li>
         );
       })}
@@ -277,8 +302,8 @@ function PlanList({ plan, wd, onToggle }: { plan: DayPlan; wd: WorkoutDay | unde
   );
 }
 
-export function TodayPlanCard({ plan, wd, onToggle, onCustom, onExpand }: {
-  plan: DayPlan; wd: WorkoutDay | undefined; onToggle: (id: string) => void; onCustom: () => void; onExpand: () => void;
+export function TodayPlanCard({ plan, wd, onToggle, onSkip, onCustom, onExpand }: {
+  plan: DayPlan; wd: WorkoutDay | undefined; onToggle: (id: string) => void; onSkip?: (id: string) => void; onCustom: () => void; onExpand: () => void;
 }) {
   const doneN = plan.exercises.filter((e) => wd?.done_ids.includes(e.id)).length;
   return (
@@ -286,14 +311,14 @@ export function TodayPlanCard({ plan, wd, onToggle, onCustom, onExpand }: {
       <div className="mb-3 flex items-center justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">Obiettivi di oggi</p>
-          <p className="font-display text-lg font-bold">{plan.title}</p>
+          <p className="font-display text-lg font-bold">{plan.title}{plan.intensity ? <span className="ml-2 text-xs font-normal text-muted-foreground">· {plan.intensity}</span> : null}</p>
         </div>
         <div className="flex items-center gap-1">
           {!plan.rest && <span className="mr-1 font-mono text-xs text-muted-foreground">{doneN}/{plan.exercises.length}</span>}
           <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onExpand} aria-label="Apri a schermo intero"><Maximize2 className="h-4 w-4" /></Button>
         </div>
       </div>
-      <PlanList plan={plan} wd={wd} onToggle={onToggle} />
+      <PlanList plan={plan} wd={wd} onToggle={onToggle} onSkip={onSkip} />
       {(wd?.custom?.length ?? 0) > 0 && (
         <div className="mt-3 space-y-1">
           {wd!.custom.map((c, i) => (
@@ -308,9 +333,9 @@ export function TodayPlanCard({ plan, wd, onToggle, onCustom, onExpand }: {
   );
 }
 
-export function PlanOverlay({ open, plan, wd, name, day, onToggle, onCustom, onClose }: {
+export function PlanOverlay({ open, plan, wd, name, day, onToggle, onSkip, onCustom, onClose }: {
   open: boolean; plan: DayPlan; wd: WorkoutDay | undefined; name: string; day: number;
-  onToggle: (id: string) => void; onCustom: () => void; onClose: () => void;
+  onToggle: (id: string) => void; onSkip?: (id: string) => void; onCustom: () => void; onClose: () => void;
 }) {
   const doneN = plan.exercises.filter((e) => wd?.done_ids.includes(e.id)).length;
   const pct = plan.rest ? 100 : Math.round((doneN / Math.max(1, plan.exercises.length)) * 100);
@@ -340,7 +365,7 @@ export function PlanOverlay({ open, plan, wd, name, day, onToggle, onCustom, onC
               </div>
               <p className="text-sm text-muted-foreground">{plan.rest ? "Niente da spuntare oggi. Se vuoi comunque muoverti, aggiungi un allenamento libero." : pct === 100 ? "Fatto tutto. Il coach è fiero di te." : `${doneN} di ${plan.exercises.length} esercizi completati.`}</p>
             </div>
-            <PlanList plan={plan} wd={wd} onToggle={onToggle} />
+            <PlanList plan={plan} wd={wd} onToggle={onToggle} onSkip={onSkip} />
             <Button variant="secondary" className="mt-4 w-full" onClick={onCustom}><Plus className="mr-1.5 h-4 w-4" /> Aggiungi un allenamento tuo</Button>
             <Button className="mt-2 w-full" onClick={onClose}>Vai alla home</Button>
           </motion.div>
@@ -387,7 +412,7 @@ export function AgentRow({ messages, onOpen }: { messages: AgentMessage[]; onOpe
   return (
     <button onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-primary/30 bg-card/70 p-3 text-left backdrop-blur transition hover:border-primary/60">
       <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
-        <Bot className="h-5 w-5" />
+        <img src={coachImg} alt="Coach Zero" className="h-11 w-11 rounded-full object-cover" loading="lazy" />
         <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card" style={{ background: "var(--zero-ok)" }} />
       </span>
       <span className="min-w-0 flex-1">
@@ -415,7 +440,7 @@ export function AgentChatDialog({ messages, onClose }: { messages: AgentMessage[
     <Dialog open onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="flex h-[85vh] flex-col border-border bg-card p-0 sm:max-w-md">
         <DialogHeader className="flex-row items-center gap-3 border-b border-border p-4 text-left">
-          <span className="grid h-10 w-10 place-items-center rounded-full bg-primary text-primary-foreground"><Bot className="h-5 w-5" /></span>
+          <img src={coachImg} alt="Coach Zero" className="h-10 w-10 rounded-full object-cover" />
           <div>
             <DialogTitle>Coach Zero</DialogTitle>
             <DialogDescription className="text-xs">Il tuo personal trainer. Ti scrive lui.</DialogDescription>
