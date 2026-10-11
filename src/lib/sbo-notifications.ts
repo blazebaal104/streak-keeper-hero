@@ -48,7 +48,7 @@ export const CLAN_ROLE_LABEL: Record<"leader" | "co_leader" | "recruit", string>
 };
 
 // Compress a user-selected image to a small square data URL for the avatar.
-export async function compressImageToDataUrl(file: File, size = 256, quality = 0.82): Promise<string> {
+export async function compressImageToDataUrl(file: File, size = 640, quality = 0.82): Promise<string> {
   const img = await new Promise<HTMLImageElement>((res, rej) => {
     const i = new Image();
     i.onload = () => res(i);

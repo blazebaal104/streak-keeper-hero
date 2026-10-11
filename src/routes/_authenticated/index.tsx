@@ -108,6 +108,30 @@ function SboApp() {
   const friends = friendsQ.data ?? [];
   const invites = invitesQ.data ?? [];
 
+  // Deep links from push notifications: /?open=dm:<userId> | clan | invites | friend:<userId>
+  const [tab, setTab] = useState("home");
+  const [pendingOpen, setPendingOpen] = useState<string | null>(() =>
+    typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("open"),
+  );
+  useEffect(() => {
+    if (!pendingOpen) return;
+    const [kind, id] = pendingOpen.split(":");
+    if (kind === "dm" || kind === "friend") {
+      if (!friendsQ.isSuccess) return; // wait for the friend list
+      const p = friends.find((f) => f.profile.id === id)?.profile;
+      setTab("friends");
+      if (p) (kind === "dm" ? setChatWith : setViewFriend)(p);
+    } else if (kind === "clan") {
+      setTab("friends");
+      setShowClanChat(true);
+    } else if (kind === "invites") {
+      setTab("friends");
+      setShowInvites(true);
+    }
+    setPendingOpen(null);
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [pendingOpen, friendsQ.isSuccess, friends]);
+
   const today = countToday(events);
   const month = countThisMonth(events);
   const fireStreak = computeFireStreak(events);
@@ -255,9 +279,12 @@ function SboApp() {
   }, [series30, wdByDay, pz]);
   const chart90 = useMemo(() => {
     const raw = series90.map((d) => { const w = wdByDay.get(d.date); return w ? (w.completed ? 1 : 0) + w.custom.length : 0; });
+    const avg = (arr: number[]) => Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 100) / 100;
     return series90.map((d, i) => {
-      const win = raw.slice(Math.max(0, i - 6), i + 1);
-      return { ...d, workouts: raw[i], wma7: Math.round((win.reduce((a, b) => a + b, 0) / win.length) * 100) / 100 };
+      const from = Math.max(0, i - 6);
+      // Rolling 7-day average, recomputed every day: rises gradually in heavy weeks, falls gradually in light ones.
+      const ma7 = avg(series90.slice(from, i + 1).map((x) => x.count));
+      return { ...d, workouts: raw[i], ma7, wma7: avg(raw.slice(from, i + 1)) };
     });
   }, [series90, wdByDay]);
 
@@ -437,7 +464,7 @@ function SboApp() {
       </header>
 
       <main className="mx-auto max-w-3xl px-6 pb-24">
-        <Tabs defaultValue="home" className="w-full">
+        <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList className="mx-auto grid w-full max-w-md grid-cols-4 rounded-full bg-card/60 backdrop-blur">
             <TabsTrigger value="home" className="rounded-full text-xs"><Droplets className="mr-1 h-3.5 w-3.5" /> Home</TabsTrigger>
             <TabsTrigger value="calendar" className="rounded-full text-xs"><CalendarDays className="mr-1 h-3.5 w-3.5" /> Cal</TabsTrigger>
@@ -615,13 +642,13 @@ function SboApp() {
                       <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
                       <YAxis fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
-                      <Line type="monotone" dataKey="count" stroke="#fb923c" strokeWidth={2} dot={false} name="Al giorno" />
+                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2.5} dot={false} name="Media 7gg" />
                       {pzActive && <Line type="monotone" dataKey="workouts" stroke="#ef4444" strokeWidth={2} dot={false} name="Allenamenti" />}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               )}
-              <p className="mt-2 px-1 text-[11px] text-muted-foreground">{pzActive ? "Obiettivo: la linea rossa (allenamenti) sempre sopra quella arancione." : "La curva mostra se stai salendo o scendendo. Obiettivo: portarla giù nel tempo."}</p>
+              <p className="mt-2 px-1 text-[11px] text-muted-foreground">{pzActive ? "Obiettivo: la linea rossa (allenamenti) sempre sopra quella blu." : "La linea blu è la media degli ultimi 7 giorni: mostra se stai salendo o scendendo. Obiettivo: portarla giù nel tempo."}</p>
             </Card>
           </TabsContent>
 
@@ -802,11 +829,18 @@ function SboApp() {
             </div>
 
             <Button variant="secondary" className="w-full" onClick={async () => {
-              const p = await ensureNotificationPermission();
-              if (p === "granted") toast.success("Notifiche attivate 🔔");
-              else toast.error("Notifiche negate dal browser");
+              // Must run from a tap: browsers only show the permission prompt on a user gesture.
+              const ok = isPushSupported() ? await subscribeToPush(profile.id) : (await ensureNotificationPermission()) === "granted";
+              if (ok) toast.success("Notifiche attivate 🔔 Arriveranno anche ad app chiusa.");
+              else toast.error("Notifiche bloccate: abilitale nelle impostazioni del telefono per SBO.");
             }}>
               <Bell className="mr-2 h-4 w-4" /> Attiva notifiche del sistema
+            </Button>
+            <Button variant="ghost" className="w-full text-xs" onClick={async () => {
+              await schedulePush(profile.id, { deliverAt: new Date(), title: "SBO 🔔", body: "Notifica di prova: se la vedi, funziona tutto!", tag: "test", url: "/" });
+              toast.success("Notifica di prova inviata: arriva entro un minuto. Puoi anche chiudere l'app.");
+            }}>
+              Invia notifica di prova
             </Button>
           </div>
           <DialogFooter><Button className="w-full" onClick={() => setShowSettings(false)}>Fatto</Button></DialogFooter>
@@ -1547,12 +1581,25 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
   const ice = computeIceStreak(events);
   const month = countThisMonth(events);
   const byDay = useMemo(() => eventsByDay(events), [events]);
+  const [avatarOpen, setAvatarOpen] = useState(false);
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="border-border bg-card max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <AvatarView profile={visibleProfile} size={56} className="border-2 border-primary/40" />
+            <button type="button" onClick={() => setAvatarOpen(true)} className="shrink-0 rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Apri la foto di ${visibleProfile.username}`}>
+              <AvatarView profile={visibleProfile} size={56} className="border-2 border-primary/40" />
+            </button>
+            <Dialog open={avatarOpen} onOpenChange={setAvatarOpen}>
+              <DialogContent className="flex h-[100dvh] w-screen max-w-none items-center justify-center border-0 bg-black/95 p-0 sm:rounded-none" onClick={() => setAvatarOpen(false)}>
+                <DialogTitle className="sr-only">Foto di {visibleProfile.username}</DialogTitle>
+                {visibleProfile.avatar_url ? (
+                  <img src={visibleProfile.avatar_url} alt={`Foto di ${visibleProfile.username}`} className="max-h-[100dvh] max-w-full object-contain" />
+                ) : (
+                  <span style={{ fontSize: "min(60vw, 60vh)", lineHeight: 1 }}>{visibleProfile.avatar}</span>
+                )}
+              </DialogContent>
+            </Dialog>
             <div>
               <DialogTitle>{visibleProfile.username}</DialogTitle>
               {titleById(visibleProfile.equipped_title) ? (
