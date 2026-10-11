@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sbo",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  "vars": {
+    "SUPABASE_URL": "https://kxgswrwitsedppjzcokh.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_Nry4enJeteEo6y1kIBzaLg_Z8jw2ivT",
+    "VAPID_PUBLIC_KEY": "BNp_XOyAZS6Zpkjmd1CeWwvUa9le67SYB7fM33EF4cM0eNSH1_E5FGOX4pgMdVeIrupVD0UeryspidJlK3GNP68",
+    "VAPID_SUBJECT": "mailto:perlospam696@gmail.com"
+  }
+}

@@ -11,7 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Capacitor } from "@capacitor/core";
 
 export const VAPID_PUBLIC_KEY =
-  "BDK44fy_3Q3lUMVmKoP01jrY4Hf1jYO1PtO_PdVPG6dsrUJ8eIP5ANvRJ00DD4kGRBJ_H4m6XNVc_fVqFo4vQeA";
+  "BNp_XOyAZS6Zpkjmd1CeWwvUa9le67SYB7fM33EF4cM0eNSH1_E5FGOX4pgMdVeIrupVD0UeryspidJlK3GNP68";
 
 // --- platform helpers ---------------------------------------------------
 
