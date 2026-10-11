@@ -9,8 +9,8 @@ android {
         applicationId "com.sbo.app"
         minSdk 21
         targetSdk 35
-        versionCode (System.getenv("VERSION_CODE") ?: "1").toInteger()
-        versionName "1.0." + (System.getenv("VERSION_CODE") ?: "1")
+        versionCode = Integer.parseInt(System.getenv("VERSION_CODE") ?: "1")
+        versionName = "1.0." + (System.getenv("VERSION_CODE") ?: "1")
         resValue "string", "launchUrl", "https://" + webHost + "/"
         resValue "string", "hostName", webHost
         resValue "string", "asset_statements",
