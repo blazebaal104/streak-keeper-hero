@@ -28,9 +28,17 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           VERSION_CODE: ${{ github.run_number }}
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+          printf '%s' "${{ secrets.ANDROID_KEYSTORE_B64 }}" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/release.jks"
           export KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
-          gradle -p android assembleRelease --no-daemon
+          keytool -list -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD" >/dev/null 2>&1 || { echo "::error::Keystore or password secret is wrong (could not open the keystore)."; exit 1; }
+          set +e
+          gradle -p android assembleRelease --no-daemon > build.log 2>&1
+          rc=$?
+          set -e
+          if [ $rc -ne 0 ]; then
+            grep -E "error:|What went wrong|^> |Could not|FAILURE|AAPT|e: " build.log | head -15 | while IFS= read -r l; do echo "::error::$l"; done
+            exit 1
+          fi
           cp android/app/build/outputs/apk/release/app-release.apk SBO.apk
       - uses: actions/upload-artifact@v4
         with: { name: SBO-apk, path: SBO.apk }
