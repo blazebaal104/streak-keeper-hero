@@ -68,7 +68,8 @@ function AuthPage() {
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     const { error } = await supabase.auth.resetPasswordForEmail(parsed.data, { redirectTo: `${window.location.origin}/auth?reset=1` });
     if (error) {
-      toast.error(/rate|seconds/i.test(error.message) ? "Hai chiesto troppi codici: aspetta un minuto e riprova." : error.message);
+      toast.error(/rate|seconds/i.test(error.message) ? "Hai chiesto troppi codici: aspetta un minuto e riprova."
+        : /sending/i.test(error.message) ? "Non riusciamo a inviare l'email in questo momento. Riprova più tardi." : error.message);
       return;
     }
     setCodeSent(true);
