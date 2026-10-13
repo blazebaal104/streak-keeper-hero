@@ -617,7 +617,7 @@ function SboApp() {
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#ffffff" opacity={0.15} />
                       <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
-                      <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
+                      <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} domain={[0, (max: number) => Math.max(3, Math.ceil(max))]} />
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
                       {pzActive && <Area type="monotone" dataKey="workouts" stroke="#ef4444" fill="url(#gWork)" strokeWidth={2} name="Allenamenti" />}
                       <Area type="monotone" dataKey="count" stroke="#fb923c" fill="url(#gCount)" strokeWidth={2} name="Al giorno" />
@@ -644,10 +644,10 @@ function SboApp() {
                     <LineChart data={chart90} margin={{ top: 6, right: 8, left: -22, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#ffffff" opacity={0.15} />
                       <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
-                      <YAxis fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
+                      <YAxis fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} domain={[0, (max: number) => Math.max(3, Math.ceil(max))]} allowDecimals={false} />
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
                       <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2.5} dot={false} name="Media" />
-                      {pzActive && <Line type="monotone" dataKey="workouts" stroke="#ef4444" strokeWidth={2} dot={false} name="Allenamenti" />}
+                      {pzActive && <Line type="monotone" dataKey="wma7" stroke="#ef4444" strokeWidth={2} dot={false} name="Allenamenti (media 7gg)" />}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -1699,7 +1699,7 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke="#ffffff" opacity={0.15} />
                       <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
-                      <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
+                      <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} domain={[0, (max: number) => Math.max(3, Math.ceil(max))]} />
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
                       <Area type="monotone" dataKey="count" stroke="#fb923c" fill={`url(#gFriend-${friend.id})`} strokeWidth={2} name="Al giorno" />
                       <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media" />
