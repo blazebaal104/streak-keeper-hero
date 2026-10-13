@@ -8,7 +8,7 @@ const db = supabase as any;
 
 export type ProjectZero = {
   user_id: string; active: boolean; started_at: string | null; league: League; start_limit: number;
-  theme: string; answers: ZeroAnswers; last_assessment_at: string | null;
+  theme: string; answers: ZeroAnswers; last_assessment_at: string | null; limit_set_at: string | null;
 };
 export type CustomWorkout = { name: string; note?: string; at: string };
 export type WorkoutDay = { user_id: string; day: string; done_ids: string[]; plan_size: number; custom: CustomWorkout[]; completed: boolean };

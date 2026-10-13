@@ -43,7 +43,7 @@ export const agentTick = createServerFn({ method: "POST" })
     const days = Math.floor((now.getTime() - new Date(started.getFullYear(), started.getMonth(), started.getDate()).getTime()) / 86400000) + 1;
     const answers = pz.answers as ZeroAnswers;
     const league = (pz.league ?? computeLeague(answers)) as League;
-    const limit = weeklyLimitFor(pz.start_limit, started, now);
+    const limit = weeklyLimitFor(pz.start_limit, started, now, pz.limit_set_at ? shift(pz.limit_set_at) : null);
 
     const { data: prof } = await sb.from("profiles").select("username").eq("id", userId).maybeSingle();
     const name: string = (pz.answers as ZeroAnswers)?.realName?.trim() || prof?.username || "campione";
@@ -108,7 +108,7 @@ export const agentTick = createServerFn({ method: "POST" })
             if (d < new Date(started.getFullYear(), started.getMonth(), started.getDate())) continue;
             if (isTrainingDay(league, d, answers)) { planned++; if (doneSet.has(localKey(d))) done++; }
           }
-          const prevLimit = weeklyLimitFor(pz.start_limit, started, prevWs);
+          const prevLimit = weeklyLimitFor(pz.start_limit, started, prevWs, pz.limit_set_at ? shift(pz.limit_set_at) : null);
           flags.overStreak = prevCount > prevLimit ? Number(flags.overStreak ?? 0) + 1 : 0;
           const rc = { ...ctx, count: prevCount, limit: prevLimit, done, planned };
           const ai = await tryAi(`${facts}\nResoconto della settimana appena finita: ${prevCount} volte su limite ${prevLimit}; allenamenti fatti ${done} su ${planned}. Nuovo limite per questa settimana: ${limit}. Scrivi 1-3 messaggi di resoconto personale. Se ha sforato il limite sii furioso in maiuscolo; se è stato sotto il limite e si è allenato, complimentati ma alza l'asticella; se ha raggiunto esattamente il limite, rimproveralo un po'.`);

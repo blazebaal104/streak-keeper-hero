@@ -60,10 +60,12 @@ export function weeksBetween(a: Date, b: Date) {
   return Math.max(0, Math.floor((weekStart(b).getTime() - weekStart(a).getTime()) / (7 * 86400000)));
 }
 /** Weekly limit: starts at 3–5 and drops by one every two weeks until 3. */
-export function weeklyLimitFor(startLimit: number, startedAt: Date | null, now = new Date()) {
-  const s = Math.max(3, Math.min(5, startLimit));
+export function weeklyLimitFor(startLimit: number, startedAt: Date | null, now = new Date(), limitSetAt: Date | string | null = null) {
+  const s = Math.max(0, Math.min(5, Math.round(startLimit)));
+  // Chosen by hand in settings: that's the limit, full stop (from the moment it was set).
+  if (limitSetAt && now >= new Date(new Date(limitSetAt).setHours(0, 0, 0, 0))) return s;
   if (!startedAt) return s;
-  return Math.max(3, s - Math.floor(weeksBetween(startedAt, now) / 2));
+  return Math.max(Math.min(3, s), s - Math.floor(weeksBetween(startedAt, now) / 2));
 }
 
 // ---------- workout plan ----------

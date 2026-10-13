@@ -175,7 +175,8 @@ function SboApp() {
   const wdByDay = useMemo(() => new Map(workouts.map((w) => [w.day, w])), [workouts]);
   const pzStart = pz?.started_at ? new Date(pz.started_at) : null;
   const pzDay = pzStart ? Math.floor((new Date().setHours(0, 0, 0, 0) - new Date(pzStart).setHours(0, 0, 0, 0)) / 86400000) + 1 : 0;
-  const weeklyLimit = pz ? weeklyLimitFor(pz.start_limit, pzStart) : 3;
+  const weeklyLimit = pz ? weeklyLimitFor(pz.start_limit, pzStart, new Date(), pz.limit_set_at) : 3;
+  const [limitDraft, setLimitDraft] = useState<number | null>(null);
   const weekStartKey = localDayKey(zeroWeekStart(new Date()));
   const weekCount = useMemo(() => events.filter((e) => localDayKey(e.ts) >= weekStartKey).length, [events, weekStartKey]);
   const workoutsWeek = useMemo(() => workouts.filter((w) => w.day >= weekStartKey && (w.completed || w.custom.length > 0)).length, [workouts, weekStartKey]);
@@ -271,7 +272,7 @@ function SboApp() {
       const ws = localDayKey(zeroWeekStart(new Date(d.date + "T12:00:00")));
       if (ws !== wk) { wk = ws; cum = 0; }
       cum += d.count;
-      const lim = pzStart && new Date(d.date + "T12:00:00") >= new Date(new Date(pzStart).setHours(0, 0, 0, 0)) ? weeklyLimitFor(pz!.start_limit, pzStart, new Date(d.date + "T12:00:00")) : Infinity;
+      const lim = pzStart && new Date(d.date + "T12:00:00") >= new Date(new Date(pzStart).setHours(0, 0, 0, 0)) ? weeklyLimitFor(pz!.start_limit, pzStart, new Date(d.date + "T12:00:00"), pz!.limit_set_at) : Infinity;
       const over = Math.min(d.count, Math.max(0, cum - lim));
       return { ...d, workouts: w ? (w.completed ? 1 : 0) + w.custom.length : 0, over: over || null };
     });
@@ -280,11 +281,14 @@ function SboApp() {
   const chart90 = useMemo(() => {
     const raw = series90.map((d) => { const w = wdByDay.get(d.date); return w ? (w.completed ? 1 : 0) + w.custom.length : 0; });
     const avg = (arr: number[]) => Math.round((arr.reduce((a, b) => a + b, 0) / arr.length) * 100) / 100;
+    // Exponential moving average (half-life ~5 days): every day pulls the line only a little,
+    // so it climbs and descends gradually instead of jumping when a busy day leaves a 7-day window.
+    const alpha = 1 - Math.pow(0.5, 1 / 5);
+    let ema = avg(series90.slice(0, 7).map((x) => x.count));
     return series90.map((d, i) => {
+      ema = ema + alpha * (d.count - ema);
       const from = Math.max(0, i - 6);
-      // Rolling 7-day average, recomputed every day: rises gradually in heavy weeks, falls gradually in light ones.
-      const ma7 = avg(series90.slice(from, i + 1).map((x) => x.count));
-      return { ...d, workouts: raw[i], ma7, wma7: avg(raw.slice(from, i + 1)) };
+      return { ...d, workouts: raw[i], ma7: Math.round(ema * 100) / 100, wma7: avg(raw.slice(from, i + 1)) };
     });
   }, [series90, wdByDay]);
 
@@ -642,13 +646,13 @@ function SboApp() {
                       <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
                       <YAxis fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
-                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2.5} dot={false} name="Media 7gg" />
+                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2.5} dot={false} name="Media" />
                       {pzActive && <Line type="monotone" dataKey="workouts" stroke="#ef4444" strokeWidth={2} dot={false} name="Allenamenti" />}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
               )}
-              <p className="mt-2 px-1 text-[11px] text-muted-foreground">{pzActive ? "Obiettivo: la linea rossa (allenamenti) sempre sopra quella blu." : "La linea blu è la media degli ultimi 7 giorni: mostra se stai salendo o scendendo. Obiettivo: portarla giù nel tempo."}</p>
+              <p className="mt-2 px-1 text-[11px] text-muted-foreground">{pzActive ? "Obiettivo: la linea rossa (allenamenti) sempre sopra quella blu." : "La linea blu è la tua media: sale e scende piano piano, giorno dopo giorno. Obiettivo: portarla giù nel tempo."}</p>
             </Card>
           </TabsContent>
 
@@ -783,6 +787,22 @@ function SboApp() {
               </div>
               {pzActive && (
                 <div className="mt-4 space-y-3">
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <Label>Limite settimanale</Label>
+                      <span className="font-mono text-sm font-semibold">{limitDraft ?? weeklyLimit}</span>
+                    </div>
+                    <Slider min={0} max={5} step={1} value={[limitDraft ?? weeklyLimit]}
+                      onValueChange={([v]) => setLimitDraft(v)}
+                      onValueCommit={async ([v]) => {
+                        try {
+                          await savePz.mutateAsync({ start_limit: v, limit_set_at: new Date().toISOString() });
+                          toast.success(`Limite settimanale: ${v}`);
+                        } catch (e) { toast.error((e as Error).message); }
+                        finally { setLimitDraft(null); }
+                      }} />
+                    <p className="mt-1 text-[11px] text-muted-foreground">Da 0 a 5 a settimana. Vale da subito e resta fisso finché non lo cambi.</p>
+                  </div>
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Tema</p>
                   <ThemePicker value={pz!.theme} onChange={(t) => savePz.mutate({ theme: t })} />
                   <Button variant="secondary" size="sm" className="w-full" onClick={() => setShowQuiz("reassess")}>Rifai il questionario</Button>
@@ -1682,7 +1702,7 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
                       <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} />
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
                       <Area type="monotone" dataKey="count" stroke="#fb923c" fill={`url(#gFriend-${friend.id})`} strokeWidth={2} name="Al giorno" />
-                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media 7gg" />
+                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
