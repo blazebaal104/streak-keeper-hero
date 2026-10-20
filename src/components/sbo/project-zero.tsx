@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import coachImg from "@/assets/coach-zero.jpg";
 import { motion, AnimatePresence } from "motion/react";
-import { Check, Dumbbell, Droplets, X, Plus, Target, Moon, ChevronRight, ChevronLeft, Bot, Maximize2 } from "lucide-react";
+import { Check, Dumbbell, Droplets, X, Plus, Target, Moon, ChevronRight, ChevronLeft, Bot, Maximize2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -424,9 +424,18 @@ export function AgentRow({ messages, onOpen }: { messages: AgentMessage[]; onOpe
   );
 }
 
-export function AgentChatDialog({ messages, onClose }: { messages: AgentMessage[]; onClose: () => void }) {
+export function AgentChatDialog({ messages, onClose, onSend }: { messages: AgentMessage[]; onClose: () => void; onSend?: (text: string) => Promise<void> }) {
   const end = useRef<HTMLDivElement>(null);
-  useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length]);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [messages.length, sending]);
+  const send = async () => {
+    const text = draft.trim();
+    if (!text || sending || !onSend) return;
+    setDraft("");
+    setSending(true);
+    try { await onSend(text); } finally { setSending(false); }
+  };
   const grouped = useMemo(() => {
     const out: { label: string; items: AgentMessage[] }[] = [];
     for (const m of messages) {
@@ -443,7 +452,7 @@ export function AgentChatDialog({ messages, onClose }: { messages: AgentMessage[
           <img src={coachImg} alt="Coach Zero" className="h-10 w-10 rounded-full object-cover" />
           <div>
             <DialogTitle>Coach Zero</DialogTitle>
-            <DialogDescription className="text-xs">Il tuo personal trainer. Ti scrive lui.</DialogDescription>
+            <DialogDescription className="text-xs">{onSend ? "Il tuo personal trainer · AI" : "Il tuo personal trainer. Ti scrive lui."}</DialogDescription>
           </div>
         </DialogHeader>
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
@@ -453,18 +462,36 @@ export function AgentChatDialog({ messages, onClose }: { messages: AgentMessage[
               <p className="text-center text-[10px] uppercase tracking-wider text-muted-foreground">{g.label}</p>
               {g.items.map((m) => {
                 const angry = m.kind === "rant" || m.kind === "quit";
+                const mine = m.kind === "user";
                 return (
                   <motion.div key={m.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
-                    className={`max-w-[85%] rounded-2xl rounded-tl-sm px-3.5 py-2 text-sm ${angry ? "border border-destructive/50 bg-destructive/15 font-semibold" : m.kind === "tip" ? "border border-primary/30 bg-primary/10" : "bg-secondary"}`}>
+                    className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${mine ? "ml-auto rounded-tr-sm bg-primary text-primary-foreground" : `rounded-tl-sm ${angry ? "border border-destructive/50 bg-destructive/15 font-semibold" : m.kind === "tip" ? "border border-primary/30 bg-primary/10" : "bg-secondary"}`}`}>
                     <p className="whitespace-pre-wrap">{m.content}</p>
-                    <p className="mt-1 text-right text-[10px] text-muted-foreground">{new Date(m.created_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</p>
+                    <p className={`mt-1 text-right text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>{new Date(m.created_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</p>
                   </motion.div>
                 );
               })}
             </div>
           ))}
+          {sending && (
+            <div className="w-fit rounded-2xl rounded-tl-sm bg-secondary px-3.5 py-2 text-sm text-muted-foreground">
+              <span className="animate-pulse">Coach Zero sta scrivendo…</span>
+            </div>
+          )}
           <div ref={end} />
         </div>
+        {onSend && (
+          <form className="flex items-end gap-2 border-t border-border p-3" onSubmit={(e) => { e.preventDefault(); send(); }}>
+            <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={1} maxLength={1000}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              placeholder="Scrivi al coach…"
+              className="max-h-28 min-h-10 flex-1 resize-none rounded-2xl border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-primary" />
+            <button type="submit" disabled={sending || !draft.trim()} aria-label="Invia"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground disabled:opacity-40">
+              <Send className="h-4 w-4" />
+            </button>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

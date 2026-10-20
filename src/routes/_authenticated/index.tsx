@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip as RTooltip, ResponsiveContainer, CartesianGrid, Area, AreaChart, ComposedChart, ReferenceLine } from "recharts";
 import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
+import { coachChat } from "@/lib/coach-chat.functions";
 import { Target } from "lucide-react";
 import { agentTick } from "@/lib/zero-agent.functions";
 import { planForDay, weeklyLimitFor, weekStart as zeroWeekStart, isTrainingDay, LEAGUE_LABEL } from "@/lib/sbo-zero";
@@ -164,6 +166,8 @@ function SboApp() {
   const saveWD = useSaveWorkoutDay(userId);
   const markAgentRead = useMarkAgentRead(userId);
   const tickFn = useServerFn(agentTick);
+  const chatFn = useServerFn(coachChat);
+  const qc = useQueryClient();
   const [showQuiz, setShowQuiz] = useState<false | "start" | "reassess" | "redo">(false);
   const [showPlanOverlay, setShowPlanOverlay] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
@@ -939,7 +943,14 @@ function SboApp() {
           onClose={() => setShowPlanOverlay(false)} />
       )}
       <CustomWorkoutDialog open={showCustom} onClose={() => setShowCustom(false)} onSave={addCustomWorkout} />
-      {showAgent && <AgentChatDialog messages={agentMsgs} onClose={() => setShowAgent(false)} />}
+      {showAgent && <AgentChatDialog messages={agentMsgs} onClose={() => setShowAgent(false)} onSend={async (text) => {
+        try {
+          const r = await chatFn({ data: { text, tzOffset: new Date().getTimezoneOffset() } });
+          if (!r.ok) toast.error("Per oggi basta messaggi al coach 😤 Riprova domani.");
+          else if (r.left <= 3) toast(`Ancora ${r.left} messaggi al coach per oggi.`);
+        } catch { toast.error("Messaggio non inviato. Controlla la connessione e riprova."); }
+        await qc.invalidateQueries({ queryKey: ["agent", userId] });
+      }} />}
 
       {/* CLAN CHAT */}
       {showClanChat && profile.clan_id && userId && (
