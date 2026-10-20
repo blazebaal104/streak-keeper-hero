@@ -14,6 +14,7 @@ export const coachChat = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { geminiReply, fallbackReply } = await import("./coach-chat.server");
+    type Mood = "FURIOSO" | "SEVERO" | "NORMALE" | "FIERO";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const admin = supabaseAdmin as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -63,14 +64,49 @@ export const coachChat = createServerFn({ method: "POST" })
 
     // Recent conversation (automatic coach messages included, so it knows what it already said)
     const { data: hist } = await admin.from("agent_messages").select("kind,content,created_at").eq("user_id", userId)
-      .order("created_at", { ascending: false }).limit(24);
-    const history = (hist ?? []).reverse().map((m: { kind: string; content: string }) => ({ role: m.kind === "user" ? "user" as const : "model" as const, text: m.content }));
+      .order("created_at", { ascending: false }).limit(30);
+    const recent = (hist ?? []).reverse() as { kind: string; content: string; created_at: string }[];
+    const history = recent.map((m) => ({ role: m.kind === "user" ? "user" as const : "model" as const, text: m.content }));
+
+    // Mood carries over between messages: saved after each reply; otherwise derived from the coach's last automatic messages.
+    const { data: st } = await admin.from("agent_state").select("flags").eq("user_id", userId).maybeSingle();
+    const flags = { ...(st?.flags ?? {}) } as Record<string, unknown>;
+    const lastCoach = [...recent].reverse().find((m) => m.kind !== "user");
+    const angryKinds = ["rant", "quit"];
+    const severeKinds = ["limit", "missed"];
+    let mood: Mood = "NORMALE";
+    let why = "nessun motivo particolare";
+    const saved = flags.chatMood as { mood?: Mood; at?: string; why?: string } | undefined;
+    const lastCoachAt = lastCoach ? new Date(lastCoach.created_at).getTime() : 0;
+    if (saved?.mood && saved.at && new Date(saved.at).getTime() >= lastCoachAt - 2000) {
+      mood = saved.mood; why = saved.why || "come eri rimasto nell'ultimo messaggio";
+    } else if (lastCoach && angryKinds.includes(lastCoach.kind)) {
+      mood = "FURIOSO"; why = "gli hai appena fatto una sfuriata nei messaggi qui sopra (ha sgarrato) e non ti ha ancora dato nessun motivo per calmarti";
+    } else if (lastCoach && severeKinds.includes(lastCoach.kind)) {
+      mood = "SEVERO"; why = "l'ultimo tuo messaggio era un richiamo (limite raggiunto o allenamento saltato)";
+    } else if (lastCoach && lastCoach.kind === "praise") {
+      mood = "FIERO"; why = "ha appena completato l'allenamento";
+    }
+    // A mood older than a day fades one step towards normal.
+    if (lastCoachAt && Date.now() - lastCoachAt > 24 * 3600e3 && (mood === "FURIOSO" || mood === "SEVERO")) {
+      mood = mood === "FURIOSO" ? "SEVERO" : "NORMALE"; why += " (è passato più di un giorno, sei un po' meno caldo ma non hai dimenticato)";
+    }
+    ctx += `\nIl tuo umore attuale: ${mood}. Motivo: ${why}.`;
 
     const key = process.env.GEMINI_API_KEY;
-    const r = key ? await geminiReply(key, ctx, history) : { ok: false as const, status: 0 };
+    const r = key ? await geminiReply(key, ctx, history, mood) : { ok: false as const, status: 0 };
     if (!r.ok) console.warn("[coach-chat] gemini failed", r.status);
-    const reply = r.ok ? r.text : fallbackReply();
-    const replyIso = new Date(Date.now() + 500).toISOString();
-    await admin.from("agent_messages").insert({ user_id: userId, kind: "chat", content: reply, created_at: replyIso, read_at: replyIso });
+    const newMood: Mood = r.ok ? r.mood : mood;
+    const replies = r.ok ? r.messages : [fallbackReply()];
+    const kind = newMood === "FURIOSO" ? "rant" : "chat";
+    const base = Date.now() + 500;
+    await admin.from("agent_messages").insert(replies.map((content, i) => {
+      const at = new Date(base + i * 1200).toISOString();
+      return { user_id: userId, kind, content, created_at: at, read_at: at };
+    }));
+    if (r.ok) {
+      flags.chatMood = { mood: newMood, at: new Date(base + replies.length * 1200).toISOString(), why: newMood === mood ? why : `nell'ultimo scambio sei passato da ${mood} a ${newMood}` };
+      await admin.from("agent_state").upsert({ user_id: userId, flags, updated_at: new Date().toISOString() });
+    }
     return { ok: true as const, ai: r.ok, left: CHAT_PER_DAY - (sentToday ?? 0) - 1 };
   });
