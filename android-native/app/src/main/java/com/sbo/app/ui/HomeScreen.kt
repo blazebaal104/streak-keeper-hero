@@ -68,6 +68,11 @@ private val CardShape = RoundedCornerShape(24.dp) // web: rounded-xl = 1.25rem +
 @Composable
 fun HomeScreen(vm: HomeViewModel) {
     val s by vm.state.collectAsState()
+    HomeContent(s, onAdd = vm::add, onUndo = vm::undo)
+}
+
+@Composable
+fun HomeContent(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     CompositionLocalProvider(LocalTextStyle provides TextStyle(fontFamily = Inter, color = Sbo.foreground)) {
         Box(
@@ -88,7 +93,7 @@ fun HomeScreen(vm: HomeViewModel) {
                     Header(p, s.fire, s.ice)
                     TabsBar(tab) { tab = it }
                     Spacer(Modifier.height(32.dp))
-                    if (tab == 0) HomeTab(s, vm) else ComingSoon()
+                    if (tab == 0) HomeTab(s, onAdd, onUndo) else ComingSoon()
                     Spacer(Modifier.height(96.dp))
                 }
             }
@@ -193,7 +198,7 @@ private fun TabsBar(selected: Int, onSelect: (Int) -> Unit) {
 }
 
 @Composable
-private fun HomeTab(s: HomeState, vm: HomeViewModel) {
+private fun HomeTab(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit) {
     val p = s.profile ?: return
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Stat("Oggi", s.today, accent = s.today >= s.limit, modifier = Modifier.weight(1f).fillMaxHeight())
@@ -206,7 +211,7 @@ private fun HomeTab(s: HomeState, vm: HomeViewModel) {
     }
     Spacer(Modifier.height(24.dp))
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        StreakButton(s.fire, s.ice, onPress = vm::add)
+        StreakButton(s.fire, s.ice, onPress = onAdd)
         Text(
             when {
                 s.fire > 0 -> "🔥 La tua fiamma cresce: ${s.fire} giorni di fila."
@@ -217,7 +222,7 @@ private fun HomeTab(s: HomeState, vm: HomeViewModel) {
         )
         if (s.events.isNotEmpty()) {
             Row(
-                Modifier.padding(top = 8.dp).height(36.dp).clip(RoundedCornerShape(10.dp)).clickable { vm.undo() }.padding(horizontal = 12.dp),
+                Modifier.padding(top = 8.dp).height(36.dp).clip(RoundedCornerShape(10.dp)).clickable { onUndo() }.padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(Lucide.Undo2, null, tint = Sbo.mutedFg, modifier = Modifier.size(14.dp))

@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -67,6 +68,9 @@ import kotlin.math.min
 import kotlin.math.sin
 
 private val DISC = 192.dp
+
+/** Screenshot tests: show this still frame of the fire footage instead of playing the video. */
+val LocalFireStill = staticCompositionLocalOf<Int?> { null }
 
 /**
  * The main SBO button.
@@ -291,6 +295,10 @@ private fun HotRim(level: Float, modifier: Modifier) {
 
 @Composable
 private fun FireVideo(modifier: Modifier) {
+    LocalFireStill.current?.let { still ->
+        Image(painterResource(still), null, contentScale = ContentScale.FillBounds, modifier = modifier)
+        return
+    }
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
     var ready by remember { mutableStateOf(false) }
