@@ -1,0 +1,72 @@
+name: Native app (build + screenshots)
+on:
+  push:
+    branches: [native]
+    paths: [android-native/**, .github/workflows/native.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency: { group: native-shots, cancel-in-progress: true }
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: "8.10.2" }
+      - name: Build dev app
+        run: |
+          set +e
+          gradle -p android-native assembleDevDebug --no-daemon > build.log 2>&1
+          rc=$?
+          mkdir -p shots; cp build.log shots/build.log
+          if [ $rc -ne 0 ]; then grep -E "^e: |error:|What went wrong|Could not" build.log | head -30 | while IFS= read -r l; do echo "::error::$l"; done; fi
+          exit 0
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Screenshots on an emulator
+        if: hashFiles('android-native/app/build/outputs/apk/dev/debug/app-dev-debug.apk') != ''
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          disable-animations: false
+          script: bash android-native/ci/shots.sh
+      - uses: actions/upload-artifact@v4
+        with: { name: native, path: shots }
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Web screenshot
+        run: |
+          mkdir -p shots && cd android-native/ci && npm init -y >/dev/null && npm i playwright@1.48.2 >/dev/null && npx playwright install --with-deps chromium >/dev/null
+          cd ../.. && node android-native/ci/web-shot.mjs
+      - uses: actions/upload-artifact@v4
+        with: { name: web, path: shots }
+  publish:
+    needs: [native, web]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: in }
+      - name: Push screenshots to ci-shots branch
+        run: |
+          D="run-${{ github.run_number }}"
+          mkdir -p out/$D && cp -r in/*/* out/$D/ 2>/dev/null || true
+          cd out
+          git init -q && git checkout -q -b ci-shots
+          git config user.name "github-actions[bot]" && git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git fetch -q --depth 1 origin ci-shots && git reset -q --soft FETCH_HEAD || true
+          git add -A && git commit -q -m "Screenshots $D (${{ github.sha }})" && git push -q origin ci-shots
