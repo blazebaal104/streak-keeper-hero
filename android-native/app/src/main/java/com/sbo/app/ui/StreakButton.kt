@@ -238,8 +238,8 @@ private fun FlameLayer(level: Float, overflow: Dp, modifier: Modifier) {
             blendMode = BlendMode.Screen
             colorFilter = ColorFilter.colorMatrix(
                 ColorMatrix().apply {
-                    setToSaturation(saturation)
-                    val k = 1.9f; val off = -0.32f * 255f
+                    setToSaturation(1.05f)
+                    val k = 1.45f; val off = -0.16f * 255f
                     timesAssign(ColorMatrix(floatArrayOf(k, 0f, 0f, 0f, off, 0f, k, 0f, 0f, off, 0f, 0f, k, 0f, off, 0f, 0f, 0f, 1f, 0f)))
                 },
             )
