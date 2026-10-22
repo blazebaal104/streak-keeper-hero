@@ -1,0 +1,20 @@
+--------- beginning of main
+10-22 16:53:34.198  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:34.389  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:34.560  1935  1961 E memtrack: Couldn't load memtrack module
+--------- beginning of system
+10-22 16:53:34.788  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:36.770  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:36.777  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:36.784  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:36.851  1822  1862 E OMXNodeInstance: !!! Observer died. Quickly, do something, ... anything...
+10-22 16:53:36.941  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:37.489  4522  4522 E com.sbo.app.de: Unknown bits set in runtime_flags: 0x8000
+10-22 16:53:39.594  1741  2431 E SurfaceFlinger: ro.sf.lcd_density must be defined as a build property
+10-22 16:53:39.594  1741  2431 E SurfaceFlinger: ro.sf.lcd_density must be defined as a build property
+10-22 16:53:40.887  1935  2610 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+10-22 16:53:44.587  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:44.624  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:44.627  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:44.723  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:45.429  1683  4559 E ResolverController: No valid NAT64 prefix (100, <unspecified>/0)

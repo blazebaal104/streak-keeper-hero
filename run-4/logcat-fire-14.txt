@@ -1,0 +1,66 @@
+--------- beginning of system
+--------- beginning of main
+10-22 16:52:58.515  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:52:58.693  1683  3386 E ResolverController: No valid NAT64 prefix (100, <unspecified>/0)
+10-22 16:53:00.606  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:00.901  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:01.421  2801  3023 E SQLiteLog: (1) no such table: audio_genres
+10-22 16:53:03.846  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:03.876  3434  3434 E ActivityThread: Service com.android.email.service.EmailBroadcastProcessorService has leaked ServiceConnection com.android.emailcommon.service.ServiceProxy$ProxyConnection@d1eb2f6 that was originally bound here
+10-22 16:53:03.876  3434  3434 E ActivityThread: android.app.ServiceConnectionLeaked: Service com.android.email.service.EmailBroadcastProcessorService has leaked ServiceConnection com.android.emailcommon.service.ServiceProxy$ProxyConnection@d1eb2f6 that was originally bound here
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at android.app.LoadedApk$ServiceDispatcher.<init>(LoadedApk.java:1805)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at android.app.LoadedApk.getServiceDispatcherCommon(LoadedApk.java:1677)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at android.app.LoadedApk.getServiceDispatcher(LoadedApk.java:1656)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at android.app.ContextImpl.bindServiceCommon(ContextImpl.java:1721)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at android.app.ContextImpl.bindService(ContextImpl.java:1650)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at android.content.ContextWrapper.bindService(ContextWrapper.java:705)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at com.android.emailcommon.service.ServiceProxy.setTask(ServiceProxy.java:181)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at com.android.emailcommon.service.ServiceProxy.test(ServiceProxy.java:224)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at com.android.email.service.EmailServiceUtils.isServiceAvailable(EmailServiceUtils.java:160)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at com.android.email.provider.AccountReconciler.reconcileAccountsInternal(AccountReconciler.java:171)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at com.android.email.provider.AccountReconciler.reconcileAccounts(AccountReconciler.java:115)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at com.android.email.service.EmailBroadcastProcessorService.reconcileAndStartServices(EmailBroadcastProcessorService.java:305)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at com.android.email.service.EmailBroadcastProcessorService.onBootCompleted(EmailBroadcastProcessorService.java:295)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at com.android.email.service.EmailBroadcastProcessorService.onHandleIntent(EmailBroadcastProcessorService.java:130)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at android.app.IntentService$ServiceHandler.handleMessage(IntentService.java:78)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at android.os.Handler.dispatchMessage(Handler.java:107)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at android.os.Looper.loop(Looper.java:214)
+10-22 16:53:03.876  3434  3434 E ActivityThread: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+10-22 16:53:04.131  1935  1961 E memtrack: Couldn't load memtrack module
+10-22 16:53:04.452  3525  3546 E ActivityThread: Failed to find provider info for com.android.launcher2.settings
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: Error inserting title_key=RLN*B:DFL instance_id=null duration=12956 is_ringtone=1 album_artist=null orientation=null format=47362 height=null is_drm=0 bucket_display_name=ringtones is_audiobook=0 parent=140 volume_name=internal title_resource_uri=null date_modified=1629523148 composer=null _display_name=URSAMINOR.ogg datetaken=null mime_type=audio/ogg is_notification=0 year=null _data=/system/product/media/audio/ringtones/URSAMINOR.ogg _size=144112 is_alarm=0 title=Ursa Minor track=0 width=null is_music=0 group_id=1957744874 document_id=null artist_id=2 date_added=1792687984 is_podcast=0 album_id=6 original_document_id=null bucket_id=-2044634724 media_type=2 relative_path=null
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: android.database.sqlite.SQLiteConstraintException: UNIQUE constraint failed: files._data (code 2067 SQLITE_CONSTRAINT_UNIQUE)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.database.sqlite.SQLiteConnection.nativeExecuteForLastInsertedRowId(Native Method)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.database.sqlite.SQLiteConnection.executeForLastInsertedRowId(SQLiteConnection.java:879)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.database.sqlite.SQLiteSession.executeForLastInsertedRowId(SQLiteSession.java:790)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.database.sqlite.SQLiteStatement.executeInsert(SQLiteStatement.java:88)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.database.sqlite.SQLiteDatabase.insertWithOnConflict(SQLiteDatabase.java:1599)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.database.sqlite.SQLiteDatabase.insert(SQLiteDatabase.java:1468)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at com.android.providers.media.MediaProvider.insertFile(MediaProvider.java:2713)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at com.android.providers.media.MediaProvider.insertInternal(MediaProvider.java:3076)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at com.android.providers.media.MediaProvider.insert(MediaProvider.java:2903)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.content.ContentProviderOperation.applyInternal(ContentProviderOperation.java:321)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.content.ContentProviderOperation.apply(ContentProviderOperation.java:304)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.content.ContentProvider.applyBatch(ContentProvider.java:2126)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at com.android.providers.media.MediaProvider.applyBatch(MediaProvider.java:3302)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.content.ContentProvider.applyBatch(ContentProvider.java:2117)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.content.ContentResolver.applyBatch(ContentResolver.java:1865)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at com.android.providers.media.scan.ModernMediaScanner$Scan.applyPending(ModernMediaScanner.java:439)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at com.android.providers.media.scan.ModernMediaScanner$Scan.walkFileTree(ModernMediaScanner.java:274)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at com.android.providers.media.scan.ModernMediaScanner$Scan.run(ModernMediaScanner.java:245)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at com.android.providers.media.scan.ModernMediaScanner.scanDirectory(ModernMediaScanner.java:166)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at com.android.providers.media.MediaService.onScanVolume(MediaService.java:150)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at com.android.providers.media.MediaService.onScanVolume(MediaService.java:131)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at com.android.providers.media.MediaService.onHandleIntent(MediaService.java:86)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.app.IntentService$ServiceHandler.handleMessage(IntentService.java:78)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.os.Handler.dispatchMessage(Handler.java:107)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.os.Looper.loop(Looper.java:214)
+10-22 16:53:04.732  2801  3023 E SQLiteDatabase: 	at android.os.HandlerThread.run(HandlerThread.java:67)
+10-22 16:53:06.093  3007  3585 E EGL_emulation: eglQueryContext 32c0  EGL_BAD_ATTRIBUTE
+10-22 16:53:06.093  3007  3585 E EGL_emulation: tid 3585: eglQueryContext(1903): error 0x3004 (EGL_BAD_ATTRIBUTE)
+10-22 16:53:06.164  1822  1862 E OMXNodeInstance: getExtensionIndex(0xef7195c0:google.h264.decoder, OMX.google.android.index.enableAndroidNativeBuffers) ERROR: UnsupportedIndex(0x8000101a)
+10-22 16:53:06.164  3007  3588 E ACodec  : [OMX.google.h264.decoder] setPortMode on output to DynamicANWBuffer failed w/ err -1010
+10-22 16:53:06.195  1822  1862 E OMXNodeInstance: setConfig(0xef7195c0:google.h264.decoder, ConfigPriority(0x6f800002)) ERROR: UnsupportedIndex(0x8000101a)
+10-22 16:53:06.196  1822  2152 E OMXNodeInstance: getConfig(0xef7195c0:google.h264.decoder, ConfigAndroidVendorExtension(0x6f100004)) ERROR: UnsupportedIndex(0x8000101a)
+10-22 16:53:06.196  1822  1822 E OMXNodeInstance: getConfig(0xef7195c0:google.h264.decoder, ??(0x7f000003)) ERROR: UnsupportedSetting(0x80001019)
+10-22 16:53:06.406  1822  2152 E OMXNodeInstance: getConfig(0xef7195c0:google.h264.decoder, ??(0x7f000003)) ERROR: UnsupportedSetting(0x80001019)

@@ -26,8 +26,8 @@ Daemon will be stopped at the end of the build
 > Task :app:packageDevDebugResources
 > Task :app:parseDevDebugLocalResources
 > Task :app:processDevDebugManifest
-> Task :app:javaPreCompileDevDebug
 > Task :app:processDevDebugManifestForPackage
+> Task :app:javaPreCompileDevDebug
 > Task :app:mergeDevDebugShaders
 > Task :app:compileDevDebugShaders NO-SOURCE
 > Task :app:generateDevDebugAssets UP-TO-DATE
@@ -62,7 +62,7 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app:packageDevDebug
 > Task :app:createDevDebugApkListingFileRedirect
 > Task :app:assembleDevDebug
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1792686077629.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1792687598320.json
 
-BUILD SUCCESSFUL in 5m 23s
+BUILD SUCCESSFUL in 4m 32s
 37 actionable tasks: 37 executed
