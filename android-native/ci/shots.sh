@@ -11,7 +11,7 @@ for mode in fire:14 fire:2 ice:9 neutral; do
   adb shell am force-stop com.sbo.app.dev
   adb logcat -c
   adb shell am start -n com.sbo.app.dev/com.sbo.app.MainActivity --es preview "$mode"
-  sleep 12
+  sleep 20
   for f in 1 2 3; do
     adb exec-out screencap -p > "$OUT/native-$name-$f.png"
     sleep 0.35
