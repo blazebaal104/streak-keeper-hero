@@ -35,6 +35,8 @@ jobs:
           ls -l /dev/kvm || echo "::warning::no /dev/kvm"
           nproc; free -g
       - name: Screenshots on an emulator
+        id: emu1
+        continue-on-error: true
         if: hashFiles('android-native/app/build/outputs/apk/dev/debug/app-dev-debug.apk') != ''
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -45,7 +47,22 @@ jobs:
           ram-size: 3072M
           cores: 3
           force-avd-creation: true
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 480
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none -accel on
+          disable-animations: false
+          script: bash android-native/ci/shots.sh
+      - name: Screenshots on an emulator (retry)
+        if: steps.emu1.outcome == 'failure'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: pixel_4
+          ram-size: 3072M
+          cores: 3
+          force-avd-creation: true
+          emulator-boot-timeout: 600
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none -accel on
           disable-animations: false
           script: bash android-native/ci/shots.sh
