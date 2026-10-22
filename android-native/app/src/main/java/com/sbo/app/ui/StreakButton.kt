@@ -341,7 +341,7 @@ private fun Sparks(level: Float, overflow: Dp, modifier: Modifier) {
             val local = (time + hash(i, 1) * life) / life
             val cycle = local.toInt()
             val ph = local - cycle
-            val sx = (hash(i, cycle + 7) - 0.5f) * 1.6f // -0.8r .. 0.8r, independent per spark and per life
+            val sx = ((hash(i, cycle + 7) + hash(i, cycle + 13) + hash(i * 3 + 1, cycle)) / 1.5f - 1f).coerceIn(-0.8f, 0.8f) // -0.8r .. 0.8r, independent per spark and per life
             val start = Offset(c.x + sx * r, c.y - r * kotlin.math.sqrt(1f - sx * sx) - overflow.toPx() * (0.3f + 0.3f * hash(i, cycle + 11)))
             val rise = (overflow.toPx() * 0.45f) * (0.6f + 0.4f * hash(i, cycle + 3))
             val drift = (hash(i, cycle + 5) - 0.5f) * r * 0.5f

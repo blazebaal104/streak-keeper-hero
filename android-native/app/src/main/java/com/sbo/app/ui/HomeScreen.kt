@@ -125,15 +125,15 @@ private fun AmbientMood(mode: String) {
 private fun Header(p: Profile, fire: Int, ice: Int) {
     Row(Modifier.fillMaxWidth().padding(top = 32.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         Avatar(p, 44)
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(p.username, fontFamily = SpaceGrotesk, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.45).sp, maxLines = 1)
             Text(p.friend_code, color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp, fontFamily = FontFamily.Monospace)
         }
         Chip(Lucide.Flame, Sbo.orange, fire)
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(6.dp))
         Chip(Lucide.Snowflake, Sbo.sky, ice)
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(6.dp))
         RoundIcon(Lucide.Bell)
         Spacer(Modifier.width(8.dp))
         RoundIcon(Lucide.Settings)
@@ -143,7 +143,7 @@ private fun Header(p: Profile, fire: Int, ice: Int) {
 @Composable
 private fun Chip(icon: ImageVector, tint: Color, n: Int) {
     Row(
-        Modifier.height(38.dp).clip(CircleShape).surface().border(1.dp, Sbo.border, CircleShape).padding(horizontal = 12.dp),
+        Modifier.height(38.dp).clip(CircleShape).surface().border(1.dp, Sbo.border, CircleShape).padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp))
