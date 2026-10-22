@@ -72,7 +72,7 @@ private val CardShape = RoundedCornerShape(24.dp) // web: rounded-xl = 1.25rem +
 @Composable
 fun HomeScreen(vm: HomeViewModel) {
     val s by vm.state.collectAsState()
-    HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip, onDayAdd = vm::addOnDay, onDayRemove = vm::removeOnDay, onAddFriend = vm::addFriend, onRemoveFriend = vm::removeFriend)
+    HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip, onDayAdd = vm::addOnDay, onDayRemove = vm::removeOnDay, onAddFriend = vm::addFriend, onRemoveFriend = vm::removeFriend, onLeaveClan = vm::leaveClan)
 }
 
 @Composable
@@ -83,20 +83,36 @@ fun HomeContent(
     onDayRemove: (java.time.LocalDate) -> Unit = {},
     onAddFriend: (String, (String) -> Unit) -> Unit = { _, _ -> },
     onRemoveFriend: (String) -> Unit = {},
+    onLeaveClan: () -> Unit = {},
     rain: DropRain = remember { DropRain() },
     openInventory: Int? = null,
     startTab: Int = 0,
     today: java.time.LocalDate = java.time.LocalDate.now(),
 ) {
     var tab by rememberSaveable { mutableIntStateOf(startTab) }
+    val toastRef = remember { mutableStateOf<ToastState?>(null) }
     var dayEdit by remember { mutableStateOf<java.time.LocalDate?>(null) }
     var addFriend by remember { mutableStateOf(false) }
     var chatWith by remember { mutableStateOf<Profile?>(null) }
     var clanChat by remember { mutableStateOf(false) }
     var confirmRemove by remember { mutableStateOf<Profile?>(null) }
     val toast = remember { ToastState() }
+    toastRef.value = toast
+    var confirmLeave by remember { mutableStateOf(false) }
     var inventory by remember { mutableStateOf(openInventory) }
-    val add = { rain.burst(); onAdd() }
+    val add = {
+        rain.burst()
+        s.profile?.takeIf { it.notifications_enabled }?.let { pr ->
+            val n = pr.username
+            when {
+                s.today + 1 >= s.limit -> toastRef.value?.show("🌊 Fermati un attimo", com.sbo.app.logic.Phrases.slowdown(n))
+                s.ice > 0 -> toastRef.value?.show("❄️ Streak di ghiaccio rotta", com.sbo.app.logic.Phrases.restart(n))
+                s.fire > 0 -> toastRef.value?.show(com.sbo.app.logic.Phrases.fireEncourage(n, s.fire + if (s.today == 0) 1 else 0))
+                else -> toastRef.value?.show(com.sbo.app.logic.Phrases.encourage(n))
+            }
+        }
+        onAdd()
+    }
     CompositionLocalProvider(LocalTextStyle provides TextStyle(fontFamily = Inter, color = Sbo.foreground)) {
         Box(
             Modifier.fillMaxSize().background(Sbo.background).drawBehind {
@@ -122,7 +138,7 @@ fun HomeContent(
                         2 -> TrendTab(s.events, today)
                         else -> SocialTab(
                             p, s.social, onToast = toast::show, onAddFriend = { addFriend = true },
-                            onChat = { chatWith = it }, onClanChat = { clanChat = true }, onRemove = { confirmRemove = it },
+                            onChat = { chatWith = it }, onClanChat = { clanChat = true }, onRemove = { confirmRemove = it }, onLeaveClan = { confirmLeave = true },
                         )
                     }
                     Spacer(Modifier.height(96.dp))
@@ -136,6 +152,14 @@ fun HomeContent(
             if (p != null) chatWith?.let { DirectChatDialog(p, it) { chatWith = null } }
             val clan = s.social.clan
             if (p != null && clanChat && clan != null) ClanChatDialog(p, clan, s.social.members) { clanChat = false }
+            if (confirmLeave) SboDialog({ confirmLeave = false }) {
+                Text("Uscire dal clan?", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                Spacer(Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SmallButton("Annulla", modifier = Modifier.weight(1f), height = 36.dp, fontSize = 14) { confirmLeave = false }
+                    SmallButton("Esci", variant = "default", modifier = Modifier.weight(1f), height = 36.dp, fontSize = 14) { onLeaveClan(); confirmLeave = false; toast.show("Hai lasciato il clan") }
+                }
+            }
             confirmRemove?.let { f ->
                 SboDialog({ confirmRemove = null }) {
                     Text("Rimuovere ${f.username}?", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())

@@ -81,6 +81,7 @@ fun CalendarTab(events: List<SboEvent>, limit: Int, today: LocalDate = LocalDate
             }
             Spacer(Modifier.height(12.dp))
             Text("Tocca un giorno degli ultimi 7 per aggiungere o togliere eventi dimenticati.", color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(6.dp))
         }
     }
 }
@@ -99,7 +100,7 @@ private fun MonthGrid(month: YearMonth, today: LocalDate, byDay: Map<LocalDate, 
             )
             NavButton(Lucide.ChevronRight, Modifier.align(Alignment.CenterEnd), onNext)
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(18.dp))
         Row(Modifier.fillMaxWidth()) {
             for (i in 0 until 7) {
                 val d = WEEK_START.plus(i.toLong())
@@ -113,8 +114,8 @@ private fun MonthGrid(month: YearMonth, today: LocalDate, byDay: Map<LocalDate, 
         val lead = ((first.dayOfWeek.value - WEEK_START.value) + 7) % 7
         var cursor = first.minusDays(lead.toLong())
         val weeks = ceil((lead + month.lengthOfMonth()) / 7.0).toInt()
-        repeat(weeks) {
-            Spacer(Modifier.height(8.dp))
+        repeat(weeks) { w ->
+            Spacer(Modifier.height(if (w == 0) 10.dp else 8.dp))
             Row(Modifier.fillMaxWidth()) {
                 repeat(7) {
                     val d = cursor
@@ -224,6 +225,7 @@ fun TrendTab(events: List<SboEvent>, today: LocalDate = LocalDate.now()) {
                 Spacer(Modifier.height(12.dp))
                 if (s30.all { it.count == 0 }) Empty("Nessun dato ancora. Il grafico si popolerà con l'uso.", 40)
                 else Chart(s30.map { it.date }, s30.map { it.count.toFloat() }, area = true, color = Color(0xFFFB923C), height = 224)
+                Spacer(Modifier.height(6.dp))
             }
         }
         Card(padding = 16.dp) {
@@ -232,7 +234,7 @@ fun TrendTab(events: List<SboEvent>, today: LocalDate = LocalDate.now()) {
                 Spacer(Modifier.height(12.dp))
                 if (s90.all { it.count == 0 }) Empty("Nessun dato ancora.", 32)
                 else Chart(s90.map { it.date }, ema90(s90), area = false, color = Color(0xFF38BDF8), height = 192, stroke = 2.5f)
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(14.dp))
                 Text(
                     "La linea blu è la tua media: sale e scende piano piano, giorno dopo giorno. Obiettivo: portarla giù nel tempo.",
                     color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(horizontal = 4.dp),
@@ -260,6 +262,7 @@ private fun Chart(dates: List<LocalDate>, values: List<Float>, area: Boolean, co
         val r = size.width - 8.dp.toPx()
         val top = 6.dp.toPx()
         val xAxisH = 30.dp.toPx()
+        val axisW = 0.7.dp.toPx()
         val b = size.height - xAxisH
         val maxV = max(3f, ceil(values.max()))
         val step = niceIntStep(maxV)
@@ -275,7 +278,7 @@ private fun Chart(dates: List<LocalDate>, values: List<Float>, area: Boolean, co
             val y = yOf(v)
             drawLine(grid, Offset(l, y), Offset(r, y), 1f, pathEffect = dash)
             // the web's Y labels fall outside the chart (margin.left -22) and are clipped: only the tick marks show
-            drawLine(Color.White, Offset(l - 6.dp.toPx(), y), Offset(l, y), 1f)
+            drawLine(Color.White, Offset(l - 5.dp.toPx(), y), Offset(l, y), axisW)
             v += step
         }
         // x ticks (preserveEnd)
@@ -286,7 +289,7 @@ private fun Chart(dates: List<LocalDate>, values: List<Float>, area: Boolean, co
         while (i >= 0) {
             val x = xOf(i)
             drawLine(grid, Offset(x, top), Offset(x, b), 1f, pathEffect = dash)
-            drawLine(Color.White, Offset(x, b), Offset(x, b + 6.dp.toPx()), 1f)
+            drawLine(Color.White, Offset(x, b), Offset(x, b + 5.dp.toPx()), axisW)
             val t = measurer.measure(labels[i], tick)
             drawText(t, topLeft = Offset((x - t.size.width / 2f).coerceIn(0f, size.width - t.size.width), b + 9.dp.toPx()))
             i -= every
@@ -294,8 +297,8 @@ private fun Chart(dates: List<LocalDate>, values: List<Float>, area: Boolean, co
         drawLine(grid, Offset(r, top), Offset(r, b), 1f, pathEffect = dash)
         drawLine(grid, Offset(l, top), Offset(r, top), 1f, pathEffect = dash)
         // axis lines
-        drawLine(Color.White, Offset(l, top), Offset(l, b), 1f)
-        drawLine(Color.White, Offset(l, b), Offset(r, b), 1f)
+        drawLine(Color.White, Offset(l, top), Offset(l, b), axisW)
+        drawLine(Color.White, Offset(l, b), Offset(r, b), axisW)
         val pts = values.mapIndexed { k, value -> Offset(xOf(k), yOf(value)) }
         val line = monotonePath(pts)
         if (area) {

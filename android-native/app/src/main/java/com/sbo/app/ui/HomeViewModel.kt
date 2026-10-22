@@ -103,6 +103,11 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
         done(msg); refresh()
     }
 
+    fun leaveClan() = viewModelScope.launch {
+        val id = uid ?: return@launch
+        runCatching { Supa.leaveClan(id) }; refresh()
+    }
+
     fun removeFriend(other: String) = viewModelScope.launch {
         val id = uid ?: return@launch
         runCatching { Supa.removeFriend(id, other) }; refresh()

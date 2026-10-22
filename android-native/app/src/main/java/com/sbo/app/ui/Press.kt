@@ -39,7 +39,9 @@ class PressScale internal constructor() {
 fun rememberPressScale(): PressScale = remember { PressScale() }
 
 private const val DOWN = 0.9f
-private const val MIN_DIP_MS = 120L
+private const val MIN_DIP_MS = 40L
+// same spring as the website's framer-motion button: stiffness 400, damping 15, mass 1 (ratio 0.375)
+private val SPRING = spring<Float>(dampingRatio = 0.375f, stiffness = 400f)
 
 fun Modifier.pressable(press: PressScale, label: String, onPress: () -> Unit): Modifier = this.composed { composedPress(press, label, onPress) }
 
@@ -54,15 +56,16 @@ private fun Modifier.composedPress(press: PressScale, label: String, onPress: ()
                 awaitFirstDown(requireUnconsumed = false)
                 val downAt = System.currentTimeMillis()
                 var sink: Job? = scope.launch {
-                    press.anim.animateTo(DOWN, spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = 1600f))
+                    press.anim.animateTo(DOWN, SPRING)
                 }
                 view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                 val up = waitForUpOrCancellation()
                 scope.launch {
                     val held = System.currentTimeMillis() - downAt
                     if (held < MIN_DIP_MS) delay(MIN_DIP_MS - held)
-                    sink?.cancel(); sink = null
-                    press.anim.animateTo(1f, spring(dampingRatio = 0.48f, stiffness = 380f))
+                    sink = null
+                    // keeps the current velocity (Animatable carries it over), like framer's spring
+                    press.anim.animateTo(1f, SPRING)
                 }
                 if (up != null) { up.consume(); onPress() }
             }

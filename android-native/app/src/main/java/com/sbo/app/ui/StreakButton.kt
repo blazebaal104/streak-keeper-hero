@@ -100,7 +100,8 @@ private fun Disc(
     base: Dp, press: PressScale, onPress: () -> Unit,
     glow: Color, glowAlpha: Float, iceAura: Boolean = false, surface: @Composable () -> Unit,
 ) {
-    Box(Modifier.padding(bottom = base).size(DISC).graphicsLayer { scaleX = press.value; scaleY = press.value }, contentAlignment = Alignment.Center) {
+    Box(Modifier.padding(bottom = base).size(DISC), contentAlignment = Alignment.Center) {
+      Box(Modifier.requiredSize(DISC * 1.6f).graphicsLayer { scaleX = press.value; scaleY = press.value }, contentAlignment = Alignment.Center) {
         Glow(glow, glowAlpha, reach = 1.55f, flicker = if (iceAura) 0.25f else 0f, speed = 3600)
         Box(
             Modifier.size(DISC).clip(CircleShape).pressable(press, "Aggiungi 1 al contatore", onPress),
@@ -110,6 +111,7 @@ private fun Disc(
             GlassDome(strong = true)
             PlusMark()
         }
+      }
     }
 }
 
@@ -187,21 +189,23 @@ private fun FireButton(level: Float, base: Dp, press: PressScale, onPress: () ->
     val overflow = DISC * (0.2f + 0.035f * level)
     val layerW = DISC * 1.5f
     val layerH = DISC + overflow
+    val under = 48.dp // room below the disc for the glow, inside the scaled layer
     Box(
         Modifier
             .layout { measurable, constraints ->
                 // taller than the slot we get: anchor the disc at the bottom, let the flames spill upwards
-                val p = measurable.measure(Constraints.fixed(layerW.roundToPx(), layerH.roundToPx()))
+                val p = measurable.measure(Constraints.fixed(layerW.roundToPx(), (layerH + under).roundToPx()))
                 layout(constraints.maxWidth, constraints.maxHeight) {
-                    p.place((constraints.maxWidth - p.width) / 2, constraints.maxHeight - base.roundToPx() - p.height)
+                    p.place((constraints.maxWidth - p.width) / 2, constraints.maxHeight - base.roundToPx() - p.height + under.roundToPx())
                 }
             }
             .graphicsLayer {
                 scaleX = press.value; scaleY = press.value
-                transformOrigin = TransformOrigin(0.5f, 1f - (DISC / 2) / layerH) // press around the disc centre
+                transformOrigin = TransformOrigin(0.5f, 1f - (under + DISC / 2) / (layerH + under)) // press around the disc centre
             },
-        contentAlignment = Alignment.BottomCenter,
+        contentAlignment = Alignment.TopCenter,
     ) {
+      Box(Modifier.size(width = layerW, height = layerH), contentAlignment = Alignment.BottomCenter) {
         Box(Modifier.size(DISC), contentAlignment = Alignment.Center) {
             Glow(Color(0xFFFF7A1A), 0.5f + level * 0.35f, reach = 1.45f, flicker = 0.35f, speed = 1300)
         }
@@ -216,6 +220,7 @@ private fun FireButton(level: Float, base: Dp, press: PressScale, onPress: () ->
             PlusMark()
         }
         Sparks(level, overflow, Modifier.size(width = layerW, height = layerH))
+      }
     }
 }
 

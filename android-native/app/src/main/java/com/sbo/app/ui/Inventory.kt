@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -86,7 +87,9 @@ fun SboDialog(onClose: () -> Unit, content: @Composable () -> Unit) {
                 .background(Sbo.card).border(1.dp, Sbo.border)
                 .clickable(remember { MutableInteractionSource() }, indication = null) {},
         ) {
-            Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) { content() }
+            androidx.compose.runtime.CompositionLocalProvider(
+                androidx.compose.material3.LocalTextStyle provides androidx.compose.ui.text.TextStyle(fontFamily = Inter, color = Sbo.foreground),
+            ) { Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) { content() } }
             Icon(
                 Lucide.X, "Chiudi", tint = Sbo.foreground.copy(alpha = 0.7f),
                 modifier = Modifier.align(Alignment.TopEnd).padding(top = 16.dp, end = 16.dp).size(16.dp).clickable(onClick = onClose),
@@ -120,7 +123,7 @@ fun InventoryDialog(slot: Int, profile: Profile, badges: List<Badge>, onClose: (
                     topLeft = Offset(w / 2, w / 2), size = androidx.compose.ui.geometry.Size(size.width - w, size.height - w),
                     style = Stroke(w, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))),
                 )
-            }.clickable { onEquip(null) }.padding(12.dp),
+            }.clickable { onEquip(null) }.padding(horizontal = 12.dp, vertical = 14.dp),
             horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(Lucide.X, null, tint = Sbo.mutedFg, modifier = Modifier.size(16.dp))
@@ -136,7 +139,7 @@ fun InventoryDialog(slot: Int, profile: Profile, badges: List<Badge>, onClose: (
 
 @Composable
 private fun Group(title: String, defs: List<BadgeDef>, group: String, badges: List<Badge>, equipped: Set<String>, onEquip: (String?) -> Unit, onPreview: (BadgeDef) -> Unit) {
-    Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(32.dp))
     Text(title.uppercase(), color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.6.sp)
     Spacer(Modifier.height(8.dp))
     defs.chunked(3).forEachIndexed { r, row ->
@@ -162,15 +165,18 @@ private fun MedalCell(def: BadgeDef, owned: Badge?, isEquipped: Boolean, onClick
             .pressable(press, def.name, onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box {
-            BadgeArt(def, side = null, locked = owned == null)
-            if (owned == null) Icon(Lucide.Lock, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(14.dp))
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+            Box {
+                BadgeArt(def, side = 84.dp, locked = owned == null)
+                // web: the lock sits on the tile's top-right corner
+                if (owned == null) Icon(Lucide.Lock, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.align(Alignment.TopEnd).offset(x = 6.dp, y = 8.dp).size(14.dp))
+            }
             if (isEquipped) Text(
                 "Equipaggiata", color = Sbo.background, fontSize = 9.sp, lineHeight = 12.sp,
                 modifier = Modifier.align(Alignment.TopStart).padding(4.dp).clip(RoundedCornerShape(4.dp)).background(Sbo.primary).padding(horizontal = 4.dp, vertical = 2.dp),
             )
         }
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(2.dp))
         Text(def.name, color = if (owned != null) Sbo.foreground else Sbo.mutedFg, fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
         Spacer(Modifier.height(4.dp))
         Text("${def.threshold}gg", color = Sbo.mutedFg, fontSize = 9.sp, lineHeight = 12.sp)
@@ -184,7 +190,7 @@ private fun LockedPreview(def: BadgeDef, onClose: () -> Unit) {
     val p by t.animateFloat(0f, 1f, infiniteRepeatable(keyframes { durationMillis = 3000; 0f at 0; 1f at 3000 }), label = "p")
     val sparkleClock = t.animateFloat(0f, 1000f, infiniteRepeatable(tween(1_000_000, easing = androidx.compose.animation.core.LinearEasing)), label = "c")
     SboDialog(onClose) {
-        Row(Modifier.fillMaxWidth().padding(end = 24.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+        Row(Modifier.fillMaxWidth().padding(end = 24.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Lucide.Lock, null, tint = Sbo.foreground, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(8.dp))
             Text("${def.name} — ${def.tier.label}", fontSize = 18.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.45).sp)
@@ -241,7 +247,7 @@ private val grayPaint = androidx.compose.ui.graphics.Paint().apply {
 private fun GrayEmoji(emoji: String) {
     Box(Modifier.drawWithContent {
         drawIntoCanvas { c -> c.saveLayer(androidx.compose.ui.geometry.Rect(Offset.Zero, size), grayPaint); drawContent(); c.restore() }
-    }) { Text(emoji, fontSize = 72.sp, lineHeight = 72.sp) }
+    }) { Text(emoji, fontSize = 50.sp, lineHeight = 60.sp) }
 }
 
 /** Little ✦ twinkling at fixed random spots (web FloatingSparkles). */

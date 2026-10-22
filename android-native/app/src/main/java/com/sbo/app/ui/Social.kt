@@ -97,7 +97,7 @@ internal fun SmallButton(
         horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) Icon(icon, null, tint = if (variant == "ghost") Sbo.mutedFg else fg, modifier = Modifier.size(16.dp))
-        if (icon != null && text != null) Spacer(Modifier.width(8.dp))
+        if (icon != null && text != null) Spacer(Modifier.width(14.dp)) // web: icon mr-1.5 + gap-2
         if (text != null) Text(text, color = fg, fontSize = fontSize.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1)
     }
 }
@@ -141,7 +141,7 @@ internal fun AvatarSmall(p: Profile, size: Int) {
 @Composable
 fun SocialTab(
     me: Profile, social: com.sbo.app.ui.Social,
-    onToast: (String) -> Unit, onAddFriend: () -> Unit, onChat: (Profile) -> Unit, onClanChat: () -> Unit, onRemove: (Profile) -> Unit,
+    onToast: (String) -> Unit, onAddFriend: () -> Unit, onChat: (Profile) -> Unit, onClanChat: () -> Unit, onRemove: (Profile) -> Unit, onLeaveClan: () -> Unit = {},
 ) {
     val clip = LocalClipboardManager.current
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -150,7 +150,7 @@ fun SocialTab(
                 SectionLabel("Il tuo codice amico")
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(me.friend_code, fontFamily = FontFamily.Monospace, fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.4.sp, modifier = Modifier.weight(1f))
+                    Text(me.friend_code, fontFamily = FontFamily.Monospace, fontSize = 24.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.4.sp, modifier = Modifier.weight(1f))
                     Spacer(Modifier.width(8.dp))
                     SmallButton("Copia", Lucide.Copy) { clip.setText(AnnotatedString(me.friend_code)); onToast("📋 Codice copiato!") }
                 }
@@ -158,7 +158,11 @@ fun SocialTab(
         }
         Column {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                SectionLabel("Clan")
+                Box(Modifier.weight(1f)) { SectionLabel("Clan") }
+                if (social.clan != null) Row(Modifier.clickable(onClick = onLeaveClan), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Lucide.X, null, tint = Sbo.mutedFg, modifier = Modifier.size(12.dp)); Spacer(Modifier.width(4.dp))
+                    Text("esci", color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
+                }
             }
             val clan = social.clan
             if (clan != null) ClanCard(clan, social.members, me, onClanChat)
@@ -245,7 +249,7 @@ private fun ClanCard(clan: com.sbo.app.data.Clan, members: List<Profile>, me: Pr
                             m.username + if (m.id == me.id) " (tu)" else "", fontSize = 14.sp, lineHeight = 20.sp,
                             fontWeight = if (m.id == me.id) FontWeight.SemiBold else FontWeight.Normal, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         )
-                        Spacer(Modifier.width(4.dp))
+                        Spacer(Modifier.width(12.dp))
                         RoleBadge(m.clan_role)
                     }
                 }
@@ -262,7 +266,7 @@ private fun RoleBadge(role: String) {
         else -> listOf("Recluta", Sbo.muted.copy(alpha = 0.3f), Sbo.mutedFg, Color.White.copy(alpha = 0.10f))
     }
     Row(
-        Modifier.clip(CircleShape).background(bg as Color).border(1.dp, border as Color, CircleShape).padding(horizontal = 6.dp, vertical = 2.dp),
+        Modifier.clip(CircleShape).background(bg as Color).border(1.dp, border as Color, CircleShape).padding(horizontal = 7.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (role == "leader") { Icon(Lucide.Crown, null, tint = fg as Color, modifier = Modifier.size(12.dp)); Spacer(Modifier.width(4.dp)) }
@@ -485,7 +489,7 @@ fun ClanChatDialog(me: Profile, clan: com.sbo.app.data.Clan, members: List<Profi
 
 // ---------------------------------------------------------------- toast (sonner, top-center, dark)
 
-class ToastState { var text by mutableStateOf<String?>(null); internal var serial by mutableStateOf(0) }
+class ToastState { var text by mutableStateOf<String?>(null); var desc by mutableStateOf<String?>(null); internal var serial by mutableStateOf(0) }
 
 @Composable
 fun ToastHost(state: ToastState) {
@@ -493,12 +497,14 @@ fun ToastHost(state: ToastState) {
     val a = remember(state.serial) { Animatable(0f) }
     LaunchedEffect(state.serial) { a.animateTo(1f, tween(220)); delay(2600); a.animateTo(0f, tween(220)); state.text = null }
     Box(Modifier.fillMaxSize().statusBarsPadding().padding(top = 16.dp, start = 16.dp, end = 16.dp), contentAlignment = Alignment.TopCenter) {
-        Text(
-            t, fontSize = 13.sp, lineHeight = 18.sp, color = Sbo.foreground,
-            modifier = Modifier.graphicsLayer { alpha = a.value; translationY = (1f - a.value) * -16.dp.toPx() }
+        Column(
+            Modifier.graphicsLayer { alpha = a.value; translationY = (1f - a.value) * -16.dp.toPx() }
                 .fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color.Black).border(1.dp, Color(0xFF333333), RoundedCornerShape(8.dp)).padding(16.dp),
-        )
+        ) {
+            Text(t, fontSize = 13.sp, lineHeight = 18.sp, color = Sbo.foreground, fontWeight = FontWeight.Medium)
+            state.desc?.let { Text(it, fontSize = 13.sp, lineHeight = 18.sp, color = Sbo.foreground.copy(alpha = 0.9f)) }
+        }
     }
 }
 
-fun ToastState.show(msg: String) { text = msg; serial++ }
+fun ToastState.show(msg: String, description: String? = null) { text = msg; desc = description; serial++ }

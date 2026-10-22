@@ -27,6 +27,7 @@ data class Profile(
     val equipped_title: String? = null,
     val clan_id: String? = null,
     val clan_role: String = "recruit",
+    val notifications_enabled: Boolean = true,
 )
 
 @Serializable
@@ -151,6 +152,10 @@ object Supa {
     suspend fun removeFriend(uid: String, other: String) {
         val (a, b) = listOf(uid, other).sorted()
         client.from("friendships").delete { filter { eq("user_a", a); eq("user_b", b) } }
+    }
+
+    suspend fun leaveClan(uid: String) {
+        client.from("profiles").update({ set("clan_id", null as String?); set("clan_role", "recruit") }) { filter { eq("id", uid) } }
     }
 
     suspend fun clan(id: String): Clan = client.from("clans").select { filter { eq("id", id) } }.decodeSingle()

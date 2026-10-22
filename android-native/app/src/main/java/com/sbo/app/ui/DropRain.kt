@@ -106,7 +106,7 @@ fun DropRainOverlay(rain: DropRain, modifier: Modifier = Modifier) {
                 val fadeOut = (1f - ((y / h) - 0.82f) / 0.25f).coerceIn(0f, 1f)
                 val a = d.alpha * fadeIn * fadeOut
                 if (a <= 0.01f) continue
-                val grow = 0.6f + 0.4f * (t / 0.35f).coerceAtMost(1f)
+                val grow = 0.8f + 0.2f * (t / 0.35f).coerceAtMost(1f)
                 val stretch = 1f + 0.22f * (v / 1500f)
                 drawDrop(drop, Offset(x, y), d.w * dp * grow, stretch, d.tilt * e, a)
             }
@@ -117,13 +117,13 @@ fun DropRainOverlay(rain: DropRain, modifier: Modifier = Modifier) {
 private fun DrawScope.drawDrop(path: Path, at: Offset, w: Float, stretch: Float, tilt: Float, a: Float) {
     // soft glow behind (the web's drop-shadow-glow)
     drawCircle(
-        Brush.radialGradient(0f to Color(0xFFBFEFFF).copy(alpha = 0.32f * a), 1f to Color.Transparent, center = Offset(at.x, at.y + w * 0.95f), radius = w * 1.15f),
-        radius = w * 1.15f, center = Offset(at.x, at.y + w * 0.95f),
+        Brush.radialGradient(0f to Color.White.copy(alpha = 0.25f * a), 1f to Color.Transparent, center = Offset(at.x, at.y + w * 0.95f), radius = w * 0.65f),
+        radius = w * 0.65f, center = Offset(at.x, at.y + w * 0.95f),
     )
     translate(at.x - w / 2f, at.y) {
         rotate(tilt, pivot = Offset(w / 2f, w * 0.7f)) {
             scale(w / 20f, w / 20f * stretch, pivot = Offset.Zero) {
-                drawPath(path, Color.White.copy(alpha = 0.95f * a))
+                drawPath(path, Color.White.copy(alpha = a))
             }
         }
     }
