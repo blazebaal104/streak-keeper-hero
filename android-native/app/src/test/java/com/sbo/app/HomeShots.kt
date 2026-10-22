@@ -2,7 +2,10 @@ package com.sbo.app
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
+import org.junit.Rule
 import com.sbo.app.data.Profile
 import com.sbo.app.data.SboEvent
 import com.sbo.app.ui.HomeContent
@@ -18,6 +21,7 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(sdk = [34], qualifiers = "w411dp-h914dp-xxhdpi")
 class HomeShots {
+    @get:Rule val rule = createComposeRule()
     private val profile = Profile(id = "d0", username = "tester_dev", avatar = "🧪", friend_code = "XSSZ8F", daily_limit = 3, use_adaptive_limit = true)
     private val ev = listOf(SboEvent("e1", "d0", "2026-10-22T10:00:00+00:00"))
     private fun state(fire: Int, ice: Int) = HomeState(
@@ -26,11 +30,15 @@ class HomeShots {
     )
 
     private fun shot(name: String, fire: Int, ice: Int, still: Int? = null) {
-        captureRoboImage("build/shots/native-$name.png") {
+        // The UI has endless animations (fire, glow, sparks): drive the clock by hand or it never idles.
+        rule.mainClock.autoAdvance = false
+        rule.setContent {
             CompositionLocalProvider(LocalFireStill provides (still ?: R.drawable.fire_still_1)) {
                 HomeContent(state(fire, ice), onAdd = {}, onUndo = {})
             }
         }
+        rule.mainClock.advanceTimeBy(700)
+        rule.onRoot().captureRoboImage("build/shots/native-$name.png")
     }
 
     @Test fun fire2a() = shot("fire-2-1", 2, 0, R.drawable.fire_still_1)
