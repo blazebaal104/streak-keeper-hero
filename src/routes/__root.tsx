@@ -8,7 +8,8 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { IS_DEV_SITE } from "@/lib/sbo-env";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -119,11 +120,29 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
+function DevStrip() {
+  const [dev, setDev] = useState(false);
+  useEffect(() => {
+    if (!IS_DEV_SITE) return;
+    setDev(true);
+    if (!document.title.startsWith("[DEV]")) document.title = "[DEV] " + document.title;
+  }, []);
+  if (!dev) return null;
+  return (
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center">
+      <span className="rounded-b-md bg-amber-400 px-3 py-0.5 text-[10px] font-black uppercase tracking-[0.3em] text-black shadow">
+        DEV · versione di prova
+      </span>
+    </div>
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
     <QueryClientProvider client={queryClient}>
+      <DevStrip />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
     </QueryClientProvider>

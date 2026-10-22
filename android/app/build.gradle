@@ -1,6 +1,8 @@
 plugins { id "com.android.application" }
 
-def webHost = "sbo.perlospam696.workers.dev"
+def statementsFor(String host) {
+    return "[{\\\"relation\\\": [\\\"delegate_permission/common.handle_all_urls\\\"], \\\"target\\\": {\\\"namespace\\\": \\\"web\\\", \\\"site\\\": \\\"https://" + host + "\\\"}}]"
+}
 
 android {
     namespace "com.sbo.app"
@@ -11,11 +13,27 @@ android {
         targetSdk 35
         versionCode = Integer.parseInt(System.getenv("VERSION_CODE") ?: "1")
         versionName = "1.0." + (System.getenv("VERSION_CODE") ?: "1")
-        resValue "string", "launchUrl", "https://" + webHost + "/"
-        resValue "string", "hostName", webHost
-        resValue "string", "asset_statements",
-            "[{\\\"relation\\\": [\\\"delegate_permission/common.handle_all_urls\\\"], \\\"target\\\": {\\\"namespace\\\": \\\"web\\\", \\\"site\\\": \\\"https://" + webHost + "\\\"}}]"
-        manifestPlaceholders = [hostName: webHost]
+    }
+    flavorDimensions "env"
+    productFlavors {
+        prod {
+            dimension "env"
+            def host = "sbo.perlospam696.workers.dev"
+            resValue "string", "app_name", "SBO"
+            resValue "string", "launchUrl", "https://" + host + "/"
+            resValue "string", "asset_statements", statementsFor(host)
+            manifestPlaceholders = [hostName: host]
+        }
+        dev {
+            dimension "env"
+            // Installs next to the real app: different package, name and icon.
+            applicationIdSuffix ".dev"
+            def host = "sbo-dev.perlospam696.workers.dev"
+            resValue "string", "app_name", "SBO Dev"
+            resValue "string", "launchUrl", "https://" + host + "/"
+            resValue "string", "asset_statements", statementsFor(host)
+            manifestPlaceholders = [hostName: host]
+        }
     }
     signingConfigs {
         release {

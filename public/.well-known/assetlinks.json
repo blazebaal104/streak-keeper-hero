@@ -1,10 +1,26 @@
 [
   {
-    "relation": ["delegate_permission/common.handle_all_urls"],
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
     "target": {
       "namespace": "android_app",
       "package_name": "com.sbo.app",
-      "sha256_cert_fingerprints": ["AC:48:07:36:14:6F:50:F7:C7:C7:F9:09:04:02:4C:8B:20:29:B9:FD:CE:5E:04:CC:7A:D9:80:2C:5C:06:6E:7C"]
+      "sha256_cert_fingerprints": [
+        "AC:48:07:36:14:6F:50:F7:C7:C7:F9:09:04:02:4C:8B:20:29:B9:FD:CE:5E:04:CC:7A:D9:80:2C:5C:06:6E:7C"
+      ]
+    }
+  },
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.sbo.app.dev",
+      "sha256_cert_fingerprints": [
+        "AC:48:07:36:14:6F:50:F7:C7:C7:F9:09:04:02:4C:8B:20:29:B9:FD:CE:5E:04:CC:7A:D9:80:2C:5C:06:6E:7C"
+      ]
     }
   }
 ]

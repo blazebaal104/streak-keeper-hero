@@ -1,7 +1,7 @@
 name: Build Android APK
 on:
   push:
-    branches: [migrate-cloudflare]
+    branches: [migrate-cloudflare, dev]
     paths: [android/**, .github/workflows/android-apk.yml]
   workflow_dispatch:
 permissions:
@@ -32,16 +32,19 @@ jobs:
           export KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
           keytool -list -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD" >/dev/null 2>&1 || { echo "::error::Keystore or password secret is wrong (could not open the keystore)."; exit 1; }
           set +e
-          gradle -p android assembleRelease --no-daemon > build.log 2>&1
+          if [ "${GITHUB_REF_NAME}" = "dev" ]; then FLAVOR=dev; NAME="SBO-Dev"; else FLAVOR=prod; NAME="SBO"; fi
+          echo "FLAVOR=$FLAVOR" >> "$GITHUB_ENV"; echo "APK_NAME=$NAME" >> "$GITHUB_ENV"
+          T=$(echo "$FLAVOR" | sed 's/./\U&/')
+          gradle -p android "assemble${T}Release" --no-daemon > build.log 2>&1
           rc=$?
           set -e
           if [ $rc -ne 0 ]; then
             grep -E "error:|What went wrong|^> |Could not|FAILURE|AAPT|e: " build.log | head -15 | while IFS= read -r l; do echo "::error::$l"; done
             exit 1
           fi
-          cp android/app/build/outputs/apk/release/app-release.apk SBO.apk
+          cp "android/app/build/outputs/apk/$FLAVOR/release/app-$FLAVOR-release.apk" "$APK_NAME.apk"
       - uses: actions/upload-artifact@v4
-        with: { name: SBO-apk, path: SBO.apk }
+        with: { name: "${{ env.APK_NAME }}-apk", path: "${{ env.APK_NAME }}.apk" }
       - name: Publish as release
         env: { GH_TOKEN: "${{ github.token }}" }
-        run: gh release create "apk-${{ github.run_number }}" SBO.apk --title "SBO Android ${{ github.run_number }}" --notes "APK firmato per Android." --target "${{ github.sha }}"
+        run: gh release create "apk-${{ env.FLAVOR }}-${{ github.run_number }}" "$APK_NAME.apk" --title "$APK_NAME Android ${{ github.run_number }}" --notes "APK firmato per Android ($FLAVOR)." --target "${{ github.sha }}" ${{ env.FLAVOR == 'dev' && '--prerelease' || '' }}

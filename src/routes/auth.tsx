@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Toaster } from "@/components/ui/sonner";
 import logo from "@/assets/sbo-logo.png";
+import { IS_DEV_SITE } from "@/lib/sbo-env";
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
@@ -22,6 +23,8 @@ export const Route = createFileRoute("/auth")({
   beforeLoad: async () => {
     // Coming from a password-reset link: stay here to set the new password.
     if (typeof window !== "undefined" && /[?&]reset=1|type=recovery/.test(window.location.href)) return;
+    // Dev copy: skip the login screen (open /auth?login=1 to test it anyway).
+    if (IS_DEV_SITE && !/[?&]login=1/.test(window.location.search)) throw redirect({ to: "/" });
     const { data } = await supabase.auth.getUser();
     if (data.user) throw redirect({ to: "/" });
   },

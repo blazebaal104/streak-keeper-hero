@@ -2,6 +2,7 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 import { brokeredPreviewStorage } from './previewAuthStorage';
+import { IS_DEV_SITE, DEV_SUPABASE } from '@/lib/sbo-env';
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith('sb_publishable_') || value.startsWith('sb_secret_');
@@ -31,8 +32,12 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 function createSupabaseClient() {
   // Use import.meta.env for client-side (Vite build-time replacement)
   // Fall back to process.env for SSR (server-side rendering)
-  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
+  // Server: the worker's own vars (prod or dev). Browser on the dev site: the dev project.
+  const onServer = typeof window === 'undefined';
+  const SUPABASE_URL = onServer ? (process.env.SUPABASE_URL || import.meta.env.VITE_SUPABASE_URL)
+    : IS_DEV_SITE ? DEV_SUPABASE.url : (import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL);
+  const SUPABASE_PUBLISHABLE_KEY = onServer ? (process.env.SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY)
+    : IS_DEV_SITE ? DEV_SUPABASE.key : (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY);
 
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     const missing = [
