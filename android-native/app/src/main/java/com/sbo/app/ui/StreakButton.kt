@@ -230,37 +230,32 @@ private fun FlameLayer(level: Float, overflow: Dp, modifier: Modifier) {
             colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) })
         }
     }
-    val t = rememberInfiniteTransition(label = "tips")
-    val time = t.animateFloat(0f, 1000f, infiniteRepeatable(tween(1_000_000, easing = LinearEasing)), label = "t")
     Box(
         modifier.drawWithContent {
             val r = DISC.toPx() / 2f
             val c = Offset(size.width / 2f, size.height - r)
-            val now = time.value // read in the draw phase only: redraws, never recomposes
+            val reach = (r + overflow.toPx()) / r
             drawIntoCanvas { canvas ->
                 canvas.saveLayer(Rect(Offset.Zero, size), layerPaint)
                 drawContent()
+                // mask = disc ∪ a band hugging the upper rim; it follows the arc (so the flame tops are
+                // shaped by the footage itself, not by a straight line) and dies out gently
                 canvas.saveLayer(Rect(Offset.Zero, size), Paint().apply { blendMode = BlendMode.DstIn })
-                // mask, column by column: above the rim each column keeps flame up to its own height,
-                // which wanders over time, so the tongues end in separate tips instead of a flat line.
-                val cols = 64
-                val w = size.width / cols
-                val ov = overflow.toPx()
-                for (i in 0 until cols) {
-                    val x = (i + 0.5f) * w
-                    val dx = (x - c.x) / r
-                    if (kotlin.math.abs(dx) > 1.25f) continue
-                    // where this column meets the rim (or the side of the disc)
-                    val rimY = if (kotlin.math.abs(dx) <= 1f) c.y - r * kotlin.math.sqrt(1f - dx * dx) else c.y
-                    val side = 1f - kotlin.math.abs(dx) / 1.25f // shorter towards the sides
-                    val n = 0.55f + 0.45f * (0.5f + 0.5f * sin(now * 2.1f + i * 0.71f) * sin(now * 1.3f + i * 0.37f + 1.7f))
-                    val top = rimY - ov * side * n * 1.6f
-                    val y0 = top.coerceAtLeast(0f)
-                    drawRect(
-                        Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black, startY = y0, endY = rimY),
-                        topLeft = Offset(i * w - 0.5f, y0), size = androidx.compose.ui.geometry.Size(w + 1f, (rimY - y0).coerceAtLeast(0f)),
-                    )
-                }
+                drawRect(
+                    Brush.radialGradient(
+                        0f to Color.Black, (1f / reach) to Color.Black,
+                        (0.35f / reach + 0.65f) to Color.Black.copy(alpha = 0.7f), 1f to Color.Transparent,
+                        center = c, radius = r * reach,
+                    ),
+                )
+                // only the upper part breaks out: fade the band away towards the equator (no hard line)
+                drawRect(
+                    Brush.verticalGradient(
+                        0f to Color.Black, (c.y - r * 0.35f) / size.height to Color.Black,
+                        (c.y + r * 0.1f) / size.height to Color.Transparent, 1f to Color.Transparent,
+                    ),
+                    blendMode = BlendMode.DstIn,
+                )
                 drawCircle(Color.Black, r - 0.5f, c)
                 canvas.restore()
                 canvas.restore()
