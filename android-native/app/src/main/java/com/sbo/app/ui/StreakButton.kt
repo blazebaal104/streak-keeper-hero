@@ -186,7 +186,7 @@ private fun IcePlate(@DrawableRes res: Int, alpha: Float) {
  */
 @Composable
 private fun FireButton(level: Float, base: Dp, scale: Float, interaction: MutableInteractionSource, onPress: () -> Unit) {
-    val overflow = DISC * (0.22f + 0.13f * level)
+    val overflow = DISC * (0.2f + 0.08f * level)
     val layerW = DISC * 1.5f
     val layerH = DISC + overflow
     Box(
@@ -208,14 +208,13 @@ private fun FireButton(level: Float, base: Dp, scale: Float, interaction: Mutabl
             Glow(Color(0xFFFF7A1A), 0.5f + level * 0.35f, reach = 1.45f, flicker = 0.35f, speed = 1300)
         }
         // body of the disc: a hot red-orange core, never black
-        Box(Modifier.size(DISC).clip(CircleShape).background(Brush.radialGradient(0f to Color(0xFFB4410A), 0.65f to Color(0xFF7A2200), 1f to Color(0xFF3D0C00))))
+        Box(Modifier.size(DISC).clip(CircleShape).background(Brush.radialGradient(0f to Color(0xFFD2560F), 0.6f to Color(0xFF9A3406), 1f to Color(0xFF7A2A08))))
         FlameLayer(level, overflow, Modifier.size(width = layerW, height = layerH))
         HotRim(level, Modifier.size(width = layerW, height = layerH))
         Box(
             Modifier.size(DISC).clip(CircleShape).clickable(interaction, indication = null, onClick = onPress),
             contentAlignment = Alignment.Center,
         ) {
-            GlassDome(strong = false)
             PlusMark()
         }
         Sparks(level, overflow, Modifier.size(width = layerW, height = layerH))
@@ -231,31 +230,37 @@ private fun FlameLayer(level: Float, overflow: Dp, modifier: Modifier) {
             colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) })
         }
     }
+    val t = rememberInfiniteTransition(label = "tips")
+    val time = t.animateFloat(0f, 1000f, infiniteRepeatable(tween(1_000_000, easing = LinearEasing)), label = "t")
     Box(
         modifier.drawWithContent {
             val r = DISC.toPx() / 2f
             val c = Offset(size.width / 2f, size.height - r)
-            val reach = (r + overflow.toPx()) / r
+            val now = time.value // read in the draw phase only: redraws, never recomposes
             drawIntoCanvas { canvas ->
                 canvas.saveLayer(Rect(Offset.Zero, size), layerPaint)
                 drawContent()
-                // mask = disc ∪ a band hugging the upper rim that fades out over `overflow`
                 canvas.saveLayer(Rect(Offset.Zero, size), Paint().apply { blendMode = BlendMode.DstIn })
-                drawRect(
-                    Brush.radialGradient(
-                        0f to Color.Black, (1f / reach) to Color.Black,
-                        (1f / reach + 1f) / 2f to Color.Black.copy(alpha = 0.55f), 1f to Color.Transparent,
-                        center = c, radius = r * reach,
-                    ),
-                )
-                // only the top of the disc breaks out: fade the band away from ~2/8 o'clock downwards
-                drawRect(
-                    Brush.verticalGradient(
-                        0f to Color.Black, (c.y - r * 0.35f) / size.height to Color.Black,
-                        (c.y + r * 0.1f) / size.height to Color.Transparent, 1f to Color.Transparent,
-                    ),
-                    blendMode = BlendMode.DstIn,
-                )
+                // mask, column by column: above the rim each column keeps flame up to its own height,
+                // which wanders over time, so the tongues end in separate tips instead of a flat line.
+                val cols = 64
+                val w = size.width / cols
+                val ov = overflow.toPx()
+                for (i in 0 until cols) {
+                    val x = (i + 0.5f) * w
+                    val dx = (x - c.x) / r
+                    if (kotlin.math.abs(dx) > 1.25f) continue
+                    // where this column meets the rim (or the side of the disc)
+                    val rimY = if (kotlin.math.abs(dx) <= 1f) c.y - r * kotlin.math.sqrt(1f - dx * dx) else c.y
+                    val side = 1f - kotlin.math.abs(dx) / 1.25f // shorter towards the sides
+                    val n = 0.55f + 0.45f * (0.5f + 0.5f * sin(now * 2.1f + i * 0.71f) * sin(now * 1.3f + i * 0.37f + 1.7f))
+                    val top = rimY - ov * side * n * 1.6f
+                    val y0 = top.coerceAtLeast(0f)
+                    drawRect(
+                        Brush.verticalGradient(0f to Color.Transparent, 1f to Color.Black, startY = y0, endY = rimY),
+                        topLeft = Offset(i * w - 0.5f, y0), size = androidx.compose.ui.geometry.Size(w + 1f, (rimY - y0).coerceAtLeast(0f)),
+                    )
+                }
                 drawCircle(Color.Black, r - 0.5f, c)
                 canvas.restore()
                 canvas.restore()
@@ -341,8 +346,8 @@ private fun Sparks(level: Float, overflow: Dp, modifier: Modifier) {
             val local = (time + hash(i, 1) * life) / life
             val cycle = local.toInt()
             val ph = local - cycle
-            val ang = (-PI / 2 + (hash(i, cycle + 7) - 0.5f) * PI * 0.75).toFloat()
-            val start = Offset(c.x + r * kotlin.math.cos(ang), c.y + r * sin(ang))
+            val sx = (hash(i, cycle + 7) - 0.5f) * 1.6f // -0.8r .. 0.8r, independent per spark and per life
+            val start = Offset(c.x + sx * r, c.y - r * kotlin.math.sqrt(1f - sx * sx) - overflow.toPx() * 0.4f * hash(i, cycle + 11))
             val rise = (overflow.toPx() * 1.4f + r * 0.4f) * (0.6f + 0.4f * hash(i, cycle + 3))
             val drift = (hash(i, cycle + 5) - 0.5f) * r * 0.5f
             val p = Offset(start.x + drift * ph + sin(ph * 9f + i) * 3f, start.y - rise * ph)

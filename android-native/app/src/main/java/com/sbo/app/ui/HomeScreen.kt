@@ -143,7 +143,7 @@ private fun Header(p: Profile, fire: Int, ice: Int) {
 @Composable
 private fun Chip(icon: ImageVector, tint: Color, n: Int) {
     Row(
-        Modifier.height(38.dp).clip(CircleShape).background(Sbo.card.copy(alpha = 0.9f)).border(1.dp, Sbo.border, CircleShape).padding(horizontal = 10.dp),
+        Modifier.height(38.dp).clip(CircleShape).surface().border(1.dp, Sbo.border, CircleShape).padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp))
@@ -155,7 +155,7 @@ private fun Chip(icon: ImageVector, tint: Color, n: Int) {
 @Composable
 private fun RoundIcon(icon: ImageVector, onClick: () -> Unit = {}) {
     Box(
-        Modifier.size(34.dp).clip(CircleShape).background(Sbo.card.copy(alpha = 0.9f)).border(1.dp, Sbo.border, CircleShape).clickable(onClick = onClick),
+        Modifier.size(37.dp).clip(CircleShape).surface().border(1.dp, Sbo.border, CircleShape).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Icon(icon, null, tint = Sbo.foreground, modifier = Modifier.size(16.dp)) }
 }
@@ -180,7 +180,7 @@ fun Avatar(p: Profile, sizeDp: Int) {
 private fun TabsBar(selected: Int, onSelect: (Int) -> Unit) {
     val tabs = listOf("Home" to Lucide.Droplets, "Cal" to Lucide.CalendarDays, "Trend" to Lucide.ChartLine, "Social" to Lucide.Users)
     Row(
-        Modifier.fillMaxWidth().height(36.dp).clip(CircleShape).background(Sbo.card.copy(alpha = 0.9f)).padding(3.dp),
+        Modifier.fillMaxWidth().height(40.dp).clip(CircleShape).surface().padding(horizontal = 4.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         tabs.forEachIndexed { i, (label, icon) ->
@@ -246,19 +246,22 @@ private fun HomeTab(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit) {
 
 /** Card look of the web (bg-card/90 over the page gradient, very faint border). */
 private fun Modifier.sboCard(borderColor: Color = Sbo.border, borderWidth: Float = 1f) =
-    this.clip(CardShape)
-        .background(Brush.verticalGradient(listOf(Sbo.card.copy(alpha = 0.92f), Sbo.card.copy(alpha = 0.86f))))
-        .border(borderWidth.dp, borderColor, CardShape)
+    this.clip(CardShape).surface().border(borderWidth.dp, borderColor, CardShape)
+
+/** Translucent surface like the web (card colour at ~75% + a faint light from the top), so the page tint shows through. */
+private fun Modifier.surface() = this.background(
+    Brush.verticalGradient(listOf(Color(0xFF1A2A35).copy(alpha = 0.72f), Sbo.card.copy(alpha = 0.66f))),
+)
 
 @Composable
 private fun Card(content: @Composable () -> Unit) {
-    Box(Modifier.fillMaxWidth().sboCard(Sbo.border.copy(alpha = 0.05f)).padding(20.dp)) { content() }
+    Box(Modifier.fillMaxWidth().sboCard(Sbo.border.copy(alpha = 0.04f)).padding(20.dp)) { content() }
 }
 
 @Composable
 private fun Stat(label: String, value: Int, modifier: Modifier = Modifier, accent: Boolean = false, icon: ImageVector? = null) {
     Column(
-        modifier.sboCard(if (accent) Sbo.destructive.copy(alpha = 0.5f) else Sbo.border, if (accent) 2f else 1f).padding(16.dp),
+        modifier.sboCard(if (accent) Sbo.destructive.copy(alpha = 0.5f) else Sbo.border, if (accent) 2f else 1f).padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 22.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) { Icon(icon, null, tint = Sbo.mutedFg, modifier = Modifier.size(14.dp)); Spacer(Modifier.width(4.dp)) }
