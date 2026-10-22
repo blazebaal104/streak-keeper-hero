@@ -12,6 +12,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
@@ -40,7 +41,7 @@ fun rememberPressScale(): PressScale = remember { PressScale() }
 private const val DOWN = 0.9f
 private const val MIN_DIP_MS = 120L
 
-fun Modifier.pressable(press: PressScale, label: String, onPress: () -> Unit): Modifier = composed(press, label, onPress)
+fun Modifier.pressable(press: PressScale, label: String, onPress: () -> Unit): Modifier = this.composed { composedPress(press, label, onPress) }
 
 @Composable
 private fun Modifier.composedPress(press: PressScale, label: String, onPress: () -> Unit): Modifier {
@@ -68,5 +69,3 @@ private fun Modifier.composedPress(press: PressScale, label: String, onPress: ()
         }
 }
 
-private fun Modifier.composed(press: PressScale, label: String, onPress: () -> Unit): Modifier =
-    androidx.compose.ui.composed { composedPress(press, label, onPress) }

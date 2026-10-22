@@ -163,7 +163,7 @@ private fun MedalCell(def: BadgeDef, owned: Badge?, isEquipped: Boolean, onClick
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box {
-            BadgeArt(def, size = null, locked = owned == null)
+            BadgeArt(def, side = null, locked = owned == null)
             if (owned == null) Icon(Lucide.Lock, null, tint = Color.White.copy(alpha = 0.9f), modifier = Modifier.align(Alignment.TopEnd).padding(6.dp).size(14.dp))
             if (isEquipped) Text(
                 "Equipaggiata", color = Sbo.background, fontSize = 9.sp, lineHeight = 12.sp,

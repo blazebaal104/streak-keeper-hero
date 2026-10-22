@@ -274,8 +274,8 @@ private fun Chart(dates: List<LocalDate>, values: List<Float>, area: Boolean, co
         while (v <= yMax + 0.001f) {
             val y = yOf(v)
             drawLine(grid, Offset(l, y), Offset(r, y), 1f, pathEffect = dash)
-            val t = measurer.measure("${v.toInt()}", tick)
-            drawText(t, topLeft = Offset(l - 8.dp.toPx() - t.size.width, y - t.size.height / 2f))
+            // the web's Y labels fall outside the chart (margin.left -22) and are clipped: only the tick marks show
+            drawLine(Color.White, Offset(l - 6.dp.toPx(), y), Offset(l, y), 1f)
             v += step
         }
         // x ticks (preserveEnd)

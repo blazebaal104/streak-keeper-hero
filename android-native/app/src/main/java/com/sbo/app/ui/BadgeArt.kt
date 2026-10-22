@@ -58,7 +58,7 @@ private val grayPaint = Paint().apply { colorFilter = ColorFilter.colorMatrix(Co
  * `size` = null fills the width it is given (inventory grid).
  */
 @Composable
-fun BadgeArt(def: BadgeDef, size: Dp? = 64.dp, locked: Boolean = false, modifier: Modifier = Modifier) {
+fun BadgeArt(def: BadgeDef, side: Dp? = 64.dp, locked: Boolean = false, modifier: Modifier = Modifier) {
     val rank = def.tier.rank
     val isIce = def.category == "ice"
     val seed = def.threshold * (if (isIce) 7 else 3)
@@ -71,7 +71,7 @@ fun BadgeArt(def: BadgeDef, size: Dp? = 64.dp, locked: Boolean = false, modifier
     val bob by t.animateFloat(0f, 1f, infiniteRepeatable(tween(1700, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "bob")
     val clock = t.animateFloat(0f, 1000f, infiniteRepeatable(tween(1_000_000, easing = LinearEasing)), label = "clock")
 
-    val sized = if (size != null) modifier.size(size) else modifier.fillMaxWidth().aspectRatio(1f)
+    val sized = if (side != null) modifier.size(side) else modifier.fillMaxWidth().aspectRatio(1f)
     BoxWithConstraints(
         sized.clip(BadgeShape).border(2.dp, def.ring, BadgeShape)
             .drawBehind {
