@@ -42,7 +42,7 @@ jobs:
             grep -E "error:|What went wrong|^> |Could not|FAILURE|AAPT|e: " build.log | head -15 | while IFS= read -r l; do echo "::error::$l"; done
             exit 1
           fi
-          cp "android/app/build/outputs/apk/$FLAVOR/release/app-$FLAVOR-release.apk" "$APK_NAME.apk"
+          cp "android/app/build/outputs/apk/$FLAVOR/release/app-$FLAVOR-release.apk" "$NAME.apk"
       - uses: actions/upload-artifact@v4
         with: { name: "${{ env.APK_NAME }}-apk", path: "${{ env.APK_NAME }}.apk" }
       - name: Publish as release
