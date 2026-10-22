@@ -143,7 +143,7 @@ private fun Group(title: String, defs: List<BadgeDef>, group: String, badges: Li
     Text(title.uppercase(), color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.6.sp)
     Spacer(Modifier.height(8.dp))
     defs.chunked(3).forEachIndexed { r, row ->
-        if (r > 0) Spacer(Modifier.height(12.dp))
+        if (r > 0) Spacer(Modifier.height(16.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             row.forEach { def ->
                 val owned = badges.firstOrNull { it.threshold == def.threshold && Badges.sameGroup(it.category, group) }
@@ -199,7 +199,7 @@ private fun LockedPreview(def: BadgeDef, onClose: () -> Unit) {
         Box(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(24.dp))
                 .background(Brush.linearGradient(def.gradient, start = Offset.Zero, end = Offset.Infinite))
-                .padding(vertical = 32.dp),
+                .padding(vertical = 42.dp),
             contentAlignment = Alignment.Center,
         ) {
             FloatingSparkles(def.threshold, 14, sparkleClock)
@@ -215,11 +215,12 @@ private fun LockedPreview(def: BadgeDef, onClose: () -> Unit) {
                 }
                 Spacer(Modifier.height(16.dp))
                 Text(def.name, color = Color.White, fontSize = 18.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(5.dp))
                 Text("Non ancora sbloccata", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp, lineHeight = 20.sp)
             }
         }
         Spacer(Modifier.height(16.dp))
-        Column(Modifier.fillMaxWidth().border(1.dp, Sbo.border, RoundedCornerShape(20.dp)).padding(16.dp)) {
+        Column(Modifier.fillMaxWidth().border(1.dp, Sbo.border, RoundedCornerShape(20.dp)).padding(horizontal = 16.dp, vertical = 20.dp)) {
             Text("Come ottenerla", fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(4.dp))
             val b = SpanStyle(fontWeight = FontWeight.Bold)

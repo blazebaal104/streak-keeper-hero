@@ -502,7 +502,8 @@ fun ToastHost(state: ToastState) {
                 .fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color.Black).border(1.dp, Color(0xFF333333), RoundedCornerShape(8.dp)).padding(16.dp),
         ) {
             Text(t, fontSize = 13.sp, lineHeight = 18.sp, color = Sbo.foreground, fontWeight = FontWeight.Medium)
-            state.desc?.let { Text(it, fontSize = 13.sp, lineHeight = 18.sp, color = Sbo.foreground.copy(alpha = 0.9f)) }
+            state.desc?.let { Spacer(Modifier.height(4.dp)); Text(it, fontSize = 13.sp, lineHeight = 20.sp, color = Sbo.foreground.copy(alpha = 0.9f)) }
+            Spacer(Modifier.height(3.dp))
         }
     }
 }

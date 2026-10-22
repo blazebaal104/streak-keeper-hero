@@ -41,7 +41,7 @@ fun rememberPressScale(): PressScale = remember { PressScale() }
 private const val DOWN = 0.9f
 private const val MIN_DIP_MS = 40L
 // same spring as the website's framer-motion button: stiffness 400, damping 15, mass 1 (ratio 0.375)
-private val SPRING = spring<Float>(dampingRatio = 0.375f, stiffness = 400f)
+private val SPRING = spring<Float>(dampingRatio = 0.35f, stiffness = 400f)
 
 fun Modifier.pressable(press: PressScale, label: String, onPress: () -> Unit): Modifier = this.composed { composedPress(press, label, onPress) }
 

@@ -69,7 +69,8 @@ class DropRain {
     }
 }
 
-private const val G = 3000f // dp/s²
+private const val G = 4200f // dp/s²
+private const val V0 = 320f // dp/s: drops are already falling when they enter
 
 @Composable
 fun DropRainOverlay(rain: DropRain, modifier: Modifier = Modifier) {
@@ -98,9 +99,10 @@ fun DropRainOverlay(rain: DropRain, modifier: Modifier = Modifier) {
                 if (t <= 0f) continue
                 val tau = d.vt / G
                 val e = exp(-t / tau)
-                val y = (-60f + d.vt * (t - tau * (1f - e))) * dp
+                // v(t) = vt - (vt - v0)·e^(-t/τ)  →  y(t) = vt·t - (vt - v0)·τ·(1 - e^(-t/τ))
+                val y = (-60f + d.vt * t - (d.vt - V0) * tau * (1f - e)) * dp
                 if (y > h + 60f * dp) continue
-                val v = d.vt * (1f - e)
+                val v = d.vt - (d.vt - V0) * e
                 val x = d.x * size.width + (d.drift * (1f - e) + d.sway * sin(d.swayF * t + d.phase)) * dp
                 val fadeIn = (t / 0.12f).coerceAtMost(1f)
                 val fadeOut = (1f - ((y / h) - 0.82f) / 0.25f).coerceIn(0f, 1f)
@@ -117,8 +119,8 @@ fun DropRainOverlay(rain: DropRain, modifier: Modifier = Modifier) {
 private fun DrawScope.drawDrop(path: Path, at: Offset, w: Float, stretch: Float, tilt: Float, a: Float) {
     // soft glow behind (the web's drop-shadow-glow)
     drawCircle(
-        Brush.radialGradient(0f to Color.White.copy(alpha = 0.25f * a), 1f to Color.Transparent, center = Offset(at.x, at.y + w * 0.95f), radius = w * 0.65f),
-        radius = w * 0.65f, center = Offset(at.x, at.y + w * 0.95f),
+        Brush.radialGradient(0f to Color.White.copy(alpha = 0.15f * a), 1f to Color.Transparent, center = Offset(at.x, at.y + w * 0.95f), radius = w * 0.6f),
+        radius = w * 0.6f, center = Offset(at.x, at.y + w * 0.95f),
     )
     translate(at.x - w / 2f, at.y) {
         rotate(tilt, pivot = Offset(w / 2f, w * 0.7f)) {
