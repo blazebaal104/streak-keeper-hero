@@ -38,29 +38,37 @@ Daemon will be stopped at the end of the build
 > Task :app:checkDevDebugDuplicateClasses
 > Task :app:compileDevDebugKotlin
 > Task :app:mergeExtDexDevDebug
+> Task :app:compileDevDebugJavaWithJavac
+> Task :app:dexBuilderDevDebug
+> Task :app:mergeDevDebugGlobalSynthetics
+> Task :app:processDevDebugJavaRes
+> Task :app:mergeLibDexDevDebug
+> Task :app:mergeProjectDexDevDebug
+> Task :app:mergeDevDebugJniLibFolders
+> Task :app:mergeDevDebugNativeLibs
 
-> Task :app:compileDevDebugKotlin FAILED
-e: file:///home/runner/work/streak-keeper-hero/streak-keeper-hero/android-native/app/src/main/java/com/sbo/app/logic/Phrases.kt:67:9 Conflicting declarations:
-val RESTART: List<String>
-e: file:///home/runner/work/streak-keeper-hero/streak-keeper-hero/android-native/app/src/main/java/com/sbo/app/logic/Phrases.kt:176:17 Conflicting declarations:
-val RESTART: List<String>
-e: file:///home/runner/work/streak-keeper-hero/streak-keeper-hero/android-native/app/src/main/java/com/sbo/app/logic/Phrases.kt:198:35 Overload resolution ambiguity between candidates:
-val RESTART: List<String>
-val RESTART: List<String>
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1792709606770.json
+> Task :app:stripDevDebugDebugSymbols
+Unable to strip the following libraries, packaging them as they are: libandroidx.graphics.path.so.
 
-FAILURE: Build failed with an exception.
+> Task :app:mergeDevDebugJavaResource
+> Task :app:validateSigningDevDebug
+> Task :app:writeDevDebugAppMetadata
+> Task :app:writeDevDebugSigningConfigVersions
+> Task :app:bundleDevDebugClassesToRuntimeJar
+> Task :app:bundleDevDebugClassesToCompileJar
+> Task :app:packageDevDebug
+> Task :app:createDevDebugApkListingFileRedirect
+> Task :app:assembleDevDebug
+> Task :app:preDevDebugUnitTestBuild UP-TO-DATE
+> Task :app:javaPreCompileDevDebugUnitTest
+> Task :app:packageDevDebugUnitTestForUnitTest
+> Task :app:generateDevDebugUnitTestConfig
+> Task :app:compileDevDebugUnitTestKotlin
+> Task :app:compileDevDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :app:processDevDebugUnitTestJavaRes
+> Task :app:testDevDebugUnitTest
+> Task :app:finalizeTestRoborazziDevDebug
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1792710268301.json
 
-* What went wrong:
-Execution failed for task ':app:compileDevDebugKotlin'.
-> A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers$GradleKotlinCompilerWorkAction
-   > Compilation error. See log for more details
-
-* Try:
-> Run with --stacktrace option to get the stack trace.
-> Run with --info or --debug option to get more log output.
-> Run with --scan to get full insights.
-> Get more help at https://help.gradle.org.
-
-BUILD FAILED in 5m 18s
-22 actionable tasks: 22 executed
+BUILD SUCCESSFUL in 6m 45s
+46 actionable tasks: 46 executed
