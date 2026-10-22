@@ -38,11 +38,6 @@ Daemon will be stopped at the end of the build
 > Task :app:checkDevDebugDuplicateClasses
 > Task :app:compileDevDebugKotlin
 > Task :app:mergeExtDexDevDebug
-
-> Task :app:compileDevDebugKotlin
-w: file:///home/runner/work/streak-keeper-hero/streak-keeper-hero/android-native/app/src/main/java/com/sbo/app/ui/HomeScreen.kt:153:121 'val Icons.Rounded.ShowChart: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.ShowChart.
-w: file:///home/runner/work/streak-keeper-hero/streak-keeper-hero/android-native/app/src/main/java/com/sbo/app/ui/HomeScreen.kt:179:129 'val Icons.Rounded.TrendingUp: ImageVector' is deprecated. Use the AutoMirrored version at Icons.AutoMirrored.Rounded.TrendingUp.
-
 > Task :app:compileDevDebugJavaWithJavac
 > Task :app:dexBuilderDevDebug
 > Task :app:mergeDevDebugGlobalSynthetics
@@ -62,7 +57,7 @@ Unable to strip the following libraries, packaging them as they are: libandroidx
 > Task :app:packageDevDebug
 > Task :app:createDevDebugApkListingFileRedirect
 > Task :app:assembleDevDebug
-gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run-1792688158677.json
+gradle/actions: Writing build results to /home/runner/work/_temp/.gradle-actions/build-results/__run_2-1792688563169.json
 
-BUILD SUCCESSFUL in 5m 22s
+BUILD SUCCESSFUL in 4m 30s
 37 actionable tasks: 37 executed
