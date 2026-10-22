@@ -7,6 +7,8 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.rpc
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.serialization.Serializable
 
@@ -23,7 +25,30 @@ data class Profile(
     val slot_2: String? = null,
     val slot_3: String? = null,
     val equipped_title: String? = null,
+    val clan_id: String? = null,
+    val clan_role: String = "recruit",
 )
+
+@Serializable
+data class Clan(val id: String, val name: String, val tag: String, val owner_id: String = "")
+
+@Serializable
+data class DirectMessage(val id: String, val sender_id: String, val recipient_id: String, val content: String, val created_at: String, val read_at: String? = null)
+
+@Serializable
+data class ClanMessage(val id: String, val clan_id: String, val sender_id: String? = null, val content: String, val is_system: Boolean = false, val created_at: String)
+
+@Serializable
+private data class Friendship(val user_a: String, val user_b: String)
+
+@Serializable
+private data class SenderRow(val sender_id: String)
+
+@Serializable
+private data class NewDm(val sender_id: String, val recipient_id: String, val content: String)
+
+@Serializable
+private data class NewClanMsg(val clan_id: String, val sender_id: String, val content: String)
 
 @Serializable
 data class SboEvent(val id: String, val user_id: String, val ts: String)
@@ -100,6 +125,69 @@ object Supa {
         }.decodeList<IdRow>().firstOrNull() ?: return
         client.from("events").delete { filter { eq("id", last.id) } }
     }
+
+    // ------------------------------------------------ social
+
+    suspend fun friends(uid: String): List<Profile> {
+        val rows = client.from("friendships").select { filter { or { eq("user_a", uid); eq("user_b", uid) } } }.decodeList<Friendship>()
+        val ids = rows.map { if (it.user_a == uid) it.user_b else it.user_a }
+        if (ids.isEmpty()) return emptyList()
+        return client.from("profiles").select { filter { isIn("id", ids) } }.decodeList()
+    }
+
+    suspend fun eventsOf(id: String): List<SboEvent> = events(id)
+
+    /** Returns the friend's username, or throws with an Italian message. */
+    suspend fun addFriendByCode(uid: String, code: String): String {
+        val cleaned = code.trim().uppercase()
+        val target = client.from("profiles").select { filter { eq("friend_code", cleaned) } }.decodeList<Profile>().firstOrNull()
+            ?: throw IllegalArgumentException("Codice amico non trovato")
+        if (target.id == uid) throw IllegalArgumentException("Non puoi aggiungere te stesso")
+        val (a, b) = listOf(uid, target.id).sorted()
+        runCatching { client.from("friendships").insert(Friendship(a, b)) }.onFailure { if (it.message?.contains("duplicate") != true) throw it }
+        return target.username
+    }
+
+    suspend fun removeFriend(uid: String, other: String) {
+        val (a, b) = listOf(uid, other).sorted()
+        client.from("friendships").delete { filter { eq("user_a", a); eq("user_b", b) } }
+    }
+
+    suspend fun clan(id: String): Clan = client.from("clans").select { filter { eq("id", id) } }.decodeSingle()
+
+    suspend fun clanMembers(id: String): List<Profile> = client.from("profiles").select { filter { eq("clan_id", id) } }.decodeList()
+
+    suspend fun unreadCounts(uid: String): Map<String, Int> =
+        client.from("direct_messages").select(io.github.jan.supabase.postgrest.query.Columns.list("sender_id")) {
+            filter { eq("recipient_id", uid); filter("read_at", io.github.jan.supabase.postgrest.query.filter.FilterOperator.IS, "null") }
+        }.decodeList<SenderRow>().groupingBy { it.sender_id }.eachCount()
+
+    suspend fun dms(uid: String, other: String): List<DirectMessage> =
+        client.from("direct_messages").select {
+            filter {
+                or {
+                    and { eq("sender_id", uid); eq("recipient_id", other) }
+                    and { eq("sender_id", other); eq("recipient_id", uid) }
+                }
+            }
+            order("created_at", Order.ASCENDING)
+            limit(200)
+        }.decodeList()
+
+    suspend fun sendDm(uid: String, to: String, content: String) { client.from("direct_messages").insert(NewDm(uid, to, content)) }
+
+    suspend fun markDmsRead(other: String) {
+        client.postgrest.rpc("mark_dms_read", kotlinx.serialization.json.buildJsonObject { put("_other", kotlinx.serialization.json.JsonPrimitive(other)) })
+    }
+
+    suspend fun clanMessages(clanId: String): List<ClanMessage> =
+        client.from("clan_messages").select {
+            filter { eq("clan_id", clanId) }
+            order("created_at", Order.ASCENDING)
+            limit(200)
+        }.decodeList()
+
+    suspend fun sendClanMessage(uid: String, clanId: String, content: String) { client.from("clan_messages").insert(NewClanMsg(clanId, uid, content)) }
 
     suspend fun undoLast(uid: String) {
         val last = client.from("events").select {

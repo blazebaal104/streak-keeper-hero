@@ -72,7 +72,7 @@ private val CardShape = RoundedCornerShape(24.dp) // web: rounded-xl = 1.25rem +
 @Composable
 fun HomeScreen(vm: HomeViewModel) {
     val s by vm.state.collectAsState()
-    HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip, onDayAdd = vm::addOnDay, onDayRemove = vm::removeOnDay)
+    HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip, onDayAdd = vm::addOnDay, onDayRemove = vm::removeOnDay, onAddFriend = vm::addFriend, onRemoveFriend = vm::removeFriend)
 }
 
 @Composable
@@ -81,6 +81,8 @@ fun HomeContent(
     onEquip: (slot: Int, badgeId: String?) -> Unit = { _, _ -> },
     onDayAdd: (java.time.LocalDate) -> Unit = {},
     onDayRemove: (java.time.LocalDate) -> Unit = {},
+    onAddFriend: (String, (String) -> Unit) -> Unit = { _, _ -> },
+    onRemoveFriend: (String) -> Unit = {},
     rain: DropRain = remember { DropRain() },
     openInventory: Int? = null,
     startTab: Int = 0,
@@ -88,6 +90,11 @@ fun HomeContent(
 ) {
     var tab by rememberSaveable { mutableIntStateOf(startTab) }
     var dayEdit by remember { mutableStateOf<java.time.LocalDate?>(null) }
+    var addFriend by remember { mutableStateOf(false) }
+    var chatWith by remember { mutableStateOf<Profile?>(null) }
+    var clanChat by remember { mutableStateOf(false) }
+    var confirmRemove by remember { mutableStateOf<Profile?>(null) }
+    val toast = remember { ToastState() }
     var inventory by remember { mutableStateOf(openInventory) }
     val add = { rain.burst(); onAdd() }
     CompositionLocalProvider(LocalTextStyle provides TextStyle(fontFamily = Inter, color = Sbo.foreground)) {
@@ -113,12 +120,32 @@ fun HomeContent(
                         0 -> HomeTab(s, add, onUndo) { inventory = it }
                         1 -> CalendarTab(s.events, s.limit, today) { dayEdit = it }
                         2 -> TrendTab(s.events, today)
-                        else -> ComingSoon()
+                        else -> SocialTab(
+                            p, s.social, onToast = toast::show, onAddFriend = { addFriend = true },
+                            onChat = { chatWith = it }, onClanChat = { clanChat = true }, onRemove = { confirmRemove = it },
+                        )
                     }
                     Spacer(Modifier.height(96.dp))
                 }
             }
             DropRainOverlay(rain)
+            ToastHost(toast)
+            if (p != null && addFriend) AddFriendDialog(onClose = { addFriend = false }) { code ->
+                onAddFriend(code) { msg -> toast.show(msg) }; addFriend = false
+            }
+            if (p != null) chatWith?.let { DirectChatDialog(p, it) { chatWith = null } }
+            val clan = s.social.clan
+            if (p != null && clanChat && clan != null) ClanChatDialog(p, clan, s.social.members) { clanChat = false }
+            confirmRemove?.let { f ->
+                SboDialog({ confirmRemove = null }) {
+                    Text("Rimuovere ${f.username}?", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+                    Spacer(Modifier.height(16.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SmallButton("Annulla", modifier = Modifier.weight(1f), height = 36.dp, fontSize = 14) { confirmRemove = null }
+                        SmallButton("Rimuovi", variant = "default", modifier = Modifier.weight(1f), height = 36.dp, fontSize = 14) { onRemoveFriend(f.id); confirmRemove = null }
+                    }
+                }
+            }
             dayEdit?.let { d ->
                 val n = remember(s.events, d) { com.sbo.app.logic.Streaks.byDay(s.events)[d] ?: 0 }
                 DayEditDialog(d, n, onAdd = { onDayAdd(d) }, onRemove = { onDayRemove(d) }, onClose = { dayEdit = null })
@@ -190,13 +217,17 @@ private fun RoundIcon(icon: ImageVector, onClick: () -> Unit = {}) {
     ) { Icon(icon, null, tint = Sbo.foreground, modifier = Modifier.size(16.dp)) }
 }
 
+/** Avatars are stored as data URLs (base64 JPEG) in the profile. */
+@Composable
+internal fun rememberAvatarBitmap(url: String?) = remember(url) {
+    url?.substringAfter("base64,", "")?.takeIf { it.isNotEmpty() }?.let {
+        runCatching { val b = Base64.decode(it, Base64.DEFAULT); BitmapFactory.decodeByteArray(b, 0, b.size)?.asImageBitmap() }.getOrNull()
+    }
+}
+
 @Composable
 fun Avatar(p: Profile, sizeDp: Int) {
-    val bmp = remember(p.avatar_url) {
-        p.avatar_url?.substringAfter("base64,", "")?.takeIf { it.isNotEmpty() }?.let {
-            runCatching { val b = Base64.decode(it, Base64.DEFAULT); BitmapFactory.decodeByteArray(b, 0, b.size)?.asImageBitmap() }.getOrNull()
-        }
-    }
+    val bmp = rememberAvatarBitmap(p.avatar_url)
     Box(
         Modifier.size(sizeDp.dp).clip(CircleShape).background(Sbo.card).border(2.dp, Sbo.primary.copy(alpha = 0.4f), CircleShape),
         contentAlignment = Alignment.Center,

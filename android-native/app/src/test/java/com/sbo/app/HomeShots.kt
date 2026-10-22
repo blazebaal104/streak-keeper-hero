@@ -104,6 +104,19 @@ class HomeShots {
     @Test fun calendar() { render { HomeContent(state(0, 0).copy(events = history, limit = 2), {}, {}, startTab = 1, today = day) }; rule.mainClock.advanceTimeBy(700); cap("tab-cal") }
     @Test fun trend() { render { HomeContent(state(0, 0).copy(events = history, limit = 2), {}, {}, startTab = 2, today = day) }; rule.mainClock.advanceTimeBy(700); cap("tab-trend") }
 
+    @Test fun social() {
+        val robot = { id: String, name: String, role: String -> Profile(id = id, username = name, avatar = "🤖", friend_code = "AAAAAA", clan_id = "c1", clan_role = role) }
+        val soc = com.sbo.app.ui.Social(
+            loaded = true,
+            friends = listOf(com.sbo.app.ui.FriendRow(robot("f1", "amico_test", "leader"), 0, 3, 0), com.sbo.app.ui.FriendRow(robot("f2", "amica_test", "recruit"), 0, 5, 0)),
+            clan = com.sbo.app.data.Clan("c1", "Clan di Prova", "DEV"),
+            members = listOf(robot("f2", "amica_test", "recruit"), profile.copy(clan_id = "c1"), robot("f1", "amico_test", "leader")),
+            unread = mapOf("f1" to 2),
+        )
+        render { HomeContent(state(0, 0).copy(social = soc, profile = profile.copy(clan_id = "c1")), {}, {}, startTab = 3) }
+        rule.mainClock.advanceTimeBy(700); cap("tab-social")
+    }
+
     @Test fun fire2a() = shot("fire-2-1", 2, 0, R.drawable.fire_still_1)
     @Test fun fire2b() = shot("fire-2-2", 2, 0, R.drawable.fire_still_2)
     @Test fun fire2c() = shot("fire-2-3", 2, 0, R.drawable.fire_still_3)

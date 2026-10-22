@@ -25,6 +25,16 @@ data class HomeState(
     val limit: Int = 3,
     val tip: String = "",
     val badges: List<Badge> = emptyList(),
+    val social: Social = Social(),
+)
+
+data class FriendRow(val profile: Profile, val fire: Int, val ice: Int, val today: Int)
+data class Social(
+    val loaded: Boolean = false,
+    val friends: List<FriendRow> = emptyList(),
+    val clan: com.sbo.app.data.Clan? = null,
+    val members: List<Profile> = emptyList(),
+    val unread: Map<String, Int> = emptyMap(),
 )
 
 /** Optional preview override (used by the screenshot pipeline): "fire:12", "ice:9", "neutral". */
@@ -42,7 +52,8 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
             val p = Supa.profile(id)
             val ev = Supa.events(id)
             val b = runCatching { Supa.badges(id) }.getOrDefault(_s.value.badges)
-            _s.value = compute(p, ev).copy(badges = b)
+            _s.value = compute(p, ev).copy(badges = b, social = _s.value.social)
+            loadSocial(id, p)
         } catch (e: Exception) {
             _s.update { it.copy(loading = false, error = e.message ?: "Errore di rete") }
         }
@@ -70,6 +81,31 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
         val id = uid ?: return@launch
         runCatching { Supa.addEvent(id) }
         refresh()
+    }
+
+    private fun loadSocial(id: String, p: Profile) = viewModelScope.launch {
+        runCatching {
+            val friends = Supa.friends(id).map { f ->
+                val ev = runCatching { Supa.eventsOf(f.id) }.getOrDefault(emptyList())
+                FriendRow(f, Streaks.fire(ev), Streaks.ice(ev), Streaks.countToday(ev))
+            }.sortedBy { it.profile.username }
+            val clan = p.clan_id?.let { runCatching { Supa.clan(it) }.getOrNull() }
+            val members = p.clan_id?.let { runCatching { Supa.clanMembers(it) }.getOrDefault(emptyList()) } ?: emptyList()
+            val unread = runCatching { Supa.unreadCounts(id) }.getOrDefault(emptyMap())
+            Social(true, friends, clan, members, unread)
+        }.onSuccess { soc -> _s.update { it.copy(social = soc) } }
+    }
+
+    /** Add a friend by code; result message for the toast. */
+    fun addFriend(code: String, done: (String) -> Unit) = viewModelScope.launch {
+        val id = uid ?: return@launch
+        val msg = runCatching { "✅ ${Supa.addFriendByCode(id, code)} aggiunto!" }.getOrElse { it.message ?: "Errore" }
+        done(msg); refresh()
+    }
+
+    fun removeFriend(other: String) = viewModelScope.launch {
+        val id = uid ?: return@launch
+        runCatching { Supa.removeFriend(id, other) }; refresh()
     }
 
     /** Put a medal in slot 0..2 (null = empty it). The UI updates at once, then syncs. */
