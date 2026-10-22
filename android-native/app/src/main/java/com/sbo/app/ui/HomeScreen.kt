@@ -92,7 +92,7 @@ fun HomeContent(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit) {
                 ) {
                     Header(p, s.fire, s.ice)
                     TabsBar(tab) { tab = it }
-                    Spacer(Modifier.height(29.dp))
+                    Spacer(Modifier.height(32.dp))
                     if (tab == 0) HomeTab(s, onAdd, onUndo) else ComingSoon()
                     Spacer(Modifier.height(96.dp))
                 }
@@ -143,7 +143,7 @@ private fun Header(p: Profile, fire: Int, ice: Int) {
 @Composable
 private fun Chip(icon: ImageVector, tint: Color, n: Int) {
     Row(
-        Modifier.height(38.dp).clip(CircleShape).surface().border(1.dp, Sbo.border, CircleShape).padding(horizontal = 10.dp),
+        Modifier.height(38.dp).clip(CircleShape).surface().border(1.dp, Sbo.border, CircleShape).padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icon, null, tint = tint, modifier = Modifier.size(16.dp))
@@ -205,7 +205,7 @@ private fun HomeTab(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit) {
         Stat("Questo mese", s.month, modifier = Modifier.weight(1f).fillMaxHeight())
         Stat(if (p.use_adaptive_limit) "Limite adattivo" else "Limite", s.limit, icon = if (p.use_adaptive_limit) Lucide.TrendingUp else null, modifier = Modifier.weight(1f).fillMaxHeight())
     }
-    Spacer(Modifier.height(32.dp))
+    Spacer(Modifier.height(29.dp))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)) {
         repeat(3) { BadgeSlot() }
     }
