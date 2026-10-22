@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sbo.app.HomeShots" tests="14" skipped="0" failures="0" errors="0" timestamp="2026-10-22T23:34:48" hostname="runnervm8k3b6" time="28.602">
+  <properties/>
+  <testcase name="inventory" classname="com.sbo.app.HomeShots" time="15.97"/>
+  <testcase name="fire30" classname="com.sbo.app.HomeShots" time="0.985"/>
+  <testcase name="fire2a" classname="com.sbo.app.HomeShots" time="0.784"/>
+  <testcase name="fire2b" classname="com.sbo.app.HomeShots" time="0.95"/>
+  <testcase name="fire2c" classname="com.sbo.app.HomeShots" time="0.934"/>
+  <testcase name="social" classname="com.sbo.app.HomeShots" time="0.554"/>
+  <testcase name="preview" classname="com.sbo.app.HomeShots" time="1.154"/>
+  <testcase name="calendar" classname="com.sbo.app.HomeShots" time="0.631"/>
+  <testcase name="ice9" classname="com.sbo.app.HomeShots" time="0.846"/>
+  <testcase name="drops" classname="com.sbo.app.HomeShots" time="1.112"/>
+  <testcase name="press" classname="com.sbo.app.HomeShots" time="3.086"/>
+  <testcase name="trend" classname="com.sbo.app.HomeShots" time="0.497"/>
+  <testcase name="equipped" classname="com.sbo.app.HomeShots" time="0.689"/>
+  <testcase name="neutral" classname="com.sbo.app.HomeShots" time="0.401"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
