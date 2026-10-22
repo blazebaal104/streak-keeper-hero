@@ -38,6 +38,27 @@ jobs:
         with: { name: native, path: shots }
       - uses: actions/upload-artifact@v4
         with: { name: apk, path: android-native/app/build/outputs/apk/dev/debug/app-dev-debug.apk, if-no-files-found: ignore }
+  release:
+    needs: native
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: "8.10.2" }
+      - name: Signed SBO Dev (native) APK
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          VERSION_CODE: ${{ github.run_number }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          bash android-native/ci/prepare.sh
+          printf '%s' "${{ secrets.ANDROID_KEYSTORE_B64 }}" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/release.jks"
+          export KEYSTORE_PATH="$RUNNER_TEMP/release.jks"
+          gradle -p android-native assembleDevRelease --no-daemon -q
+          cp android-native/app/build/outputs/apk/dev/release/app-dev-release.apk SBO-Dev-native.apk
+          gh release create "native-dev-${{ github.run_number }}" SBO-Dev-native.apk --prerelease --title "SBO Dev nativa ${{ github.run_number }}" --notes "App nativa (Kotlin/Compose), versione di prova." --target "${{ github.sha }}"
   device:
     if: github.event_name == 'workflow_dispatch' && inputs.device
     needs: native
