@@ -20,6 +20,7 @@ android {
             dimension "env"
             def host = "sbo.perlospam696.workers.dev"
             resValue "string", "app_name", "SBO"
+            buildConfigField "boolean", "FORCE_HALLOWEEN", "false"
             resValue "string", "launchUrl", "https://" + host + "/"
             resValue "string", "asset_statements", statementsFor(host)
             manifestPlaceholders = [hostName: host]
@@ -30,6 +31,8 @@ android {
             applicationIdSuffix ".dev"
             def host = "sbo-dev.perlospam696.workers.dev"
             resValue "string", "app_name", "SBO Dev"
+            // Dev app shows the Halloween icon right away, to preview it.
+            buildConfigField "boolean", "FORCE_HALLOWEEN", "true"
             resValue "string", "launchUrl", "https://" + host + "/"
             resValue "string", "asset_statements", statementsFor(host)
             manifestPlaceholders = [hostName: host]
@@ -49,6 +52,7 @@ android {
             signingConfig signingConfigs.release
         }
     }
+    buildFeatures { buildConfig true }
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17

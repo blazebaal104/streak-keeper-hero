@@ -10,6 +10,8 @@ import {
 } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { IS_DEV_SITE } from "@/lib/sbo-env";
+import { HolidayLayer } from "@/components/sbo/halloween";
+import { getDevHolidayOverride, setDevHolidayOverride } from "@/lib/sbo-holiday";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -122,16 +124,29 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function DevStrip() {
   const [dev, setDev] = useState(false);
+  const [hol, setHol] = useState<"auto" | "halloween" | "none">("auto");
   useEffect(() => {
     if (!IS_DEV_SITE) return;
     setDev(true);
+    setHol(getDevHolidayOverride());
     if (!document.title.startsWith("[DEV]")) document.title = "[DEV] " + document.title;
   }, []);
   if (!dev) return null;
   return (
     <div className="pointer-events-none fixed inset-x-0 top-0 z-[100] flex justify-center">
-      <span className="rounded-b-md bg-amber-400 px-3 py-0.5 text-[10px] font-black uppercase tracking-[0.3em] text-black shadow">
+      <span className="flex items-center gap-2 rounded-b-md bg-amber-400 px-3 py-0.5 text-[10px] font-black uppercase tracking-[0.3em] text-black shadow">
         DEV · versione di prova
+        <button
+          type="button"
+          className="pointer-events-auto rounded bg-black/80 px-1.5 py-px tracking-normal text-amber-300"
+          onClick={() => {
+            const next = hol === "halloween" ? "none" : hol === "none" ? "auto" : "halloween";
+            setDevHolidayOverride(next);
+            setHol(next);
+          }}
+        >
+          🎃 {hol === "halloween" ? "on" : hol === "none" ? "off" : "auto"}
+        </button>
       </span>
     </div>
   );
@@ -143,6 +158,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <DevStrip />
+      <HolidayLayer />
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
     </QueryClientProvider>

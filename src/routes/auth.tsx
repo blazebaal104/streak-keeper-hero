@@ -10,6 +10,8 @@ import { Card } from "@/components/ui/card";
 import { Toaster } from "@/components/ui/sonner";
 import logo from "@/assets/sbo-logo.png";
 import { IS_DEV_SITE } from "@/lib/sbo-env";
+import { useHoliday } from "@/lib/sbo-holiday";
+import { HalloweenDrop } from "@/components/sbo/halloween";
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
@@ -57,6 +59,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const holiday = useHoliday();
 
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
@@ -133,7 +136,7 @@ function AuthPage() {
       <Toaster position="top-center" theme="dark" />
       <Card className="w-full max-w-md border-border/50 bg-card/60 backdrop-blur p-8">
         <div className="flex flex-col items-center mb-6">
-          <img src={logo} alt="SBO" width={72} height={72} className="drop-shadow-glow" />
+          {holiday === "halloween" ? <HalloweenDrop size={72} /> : <img src={logo} alt="SBO" width={72} height={72} className="drop-shadow-glow" />}
           <h1 className="mt-4 text-3xl font-bold tracking-tight">SBO</h1>
           <p className="mt-1 text-sm text-muted-foreground text-center">
             {mode === "signup" ? "Crea il tuo account" : mode === "login" ? "Bentornato" : "Recupera la password"}

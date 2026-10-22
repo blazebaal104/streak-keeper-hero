@@ -52,6 +52,8 @@ import { ensureServiceWorker, subscribeToPush, schedulePush, isPushSupported } f
 import { BadgeArt } from "@/components/sbo/badge-art";
 import { StreakButton } from "@/components/sbo/streak-button";
 import { AmbientMood } from "@/components/sbo/ambient-mood";
+import { HalloweenBanner } from "@/components/sbo/halloween";
+import { useHoliday } from "@/lib/sbo-holiday";
 
 
 const AVATAR_CHOICES = ["💧","🌊","⚡","🌟","🔥","🌙","⚔️","👑","🐉","🦁","🐺","🦅","🌸","🍀","🎯","🧊","☄️","🌈"];
@@ -168,6 +170,7 @@ function SboApp() {
   const tickFn = useServerFn(agentTick);
   const chatFn = useServerFn(coachChat);
   const qc = useQueryClient();
+  const holiday = useHoliday();
   const [showQuiz, setShowQuiz] = useState<false | "start" | "reassess" | "redo">(false);
   const [showPlanOverlay, setShowPlanOverlay] = useState(false);
   const [showCustom, setShowCustom] = useState(false);
@@ -482,6 +485,7 @@ function SboApp() {
 
           {/* HOME */}
           <TabsContent value="home" className="mt-8 space-y-8">
+            {holiday === "halloween" && <HalloweenBanner />}
             {pzActive && pz && todayPlan ? (
               <>
                 <ZeroBanner day={pzDay} league={pz.league} weekCount={weekCount} limit={weeklyLimit} workoutsWeek={workoutsWeek} />
@@ -522,7 +526,7 @@ function SboApp() {
               ))}
             </div>
 
-            <div className="relative flex flex-col items-center justify-center py-6">
+            <div className={`relative flex flex-col items-center justify-center pb-6 ${fireStreak > 0 ? "pt-20" : "pt-6"}`}>
               <StreakButton fireStreak={fireStreak} iceStreak={iceStreak} onPress={handleAdd} melting={melting} />
               <p className="mt-4 text-center text-sm text-muted-foreground">
                 {fireStreak > 0

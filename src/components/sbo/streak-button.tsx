@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
-// The fire has one source and is rendered only inside the central disc.
+// Fire footage: full size inside the disc, a lighter copy for the flames around it.
 const fireMp4 = { url: "/fire-loop.mp4" };
 const fireWebm = { url: "/fire-loop.webm" };
 import shardsSheet from "@/assets/sbo/ice-shards.png.asset.json";
@@ -83,6 +83,9 @@ export function StreakButton({
           transition={{ duration: 3.6, repeat: Infinity, ease: "easeInOut" }}
         />
       )}
+
+      {/* Fire: the disc itself is ablaze, flames lick up from its rim (behind the disc, so they emerge from the edge) */}
+      {mode === "fire" && <OuterFlames level={fire} />}
 
       <motion.button
         onClick={onPress}
@@ -181,7 +184,7 @@ export function StreakButton({
   );
 }
 
-function FireVideo({ className, style }: { className?: string; style?: React.CSSProperties }) {
+function FireVideo({ className, style, small, rate = 1, offset = 0 }: { className?: string; style?: React.CSSProperties; small?: boolean; rate?: number; offset?: number }) {
   return (
     <video
       className={className}
@@ -193,10 +196,65 @@ function FireVideo({ className, style }: { className?: string; style?: React.CSS
       preload="auto"
       disablePictureInPicture
       aria-hidden
+      onLoadedMetadata={(e) => {
+        const v = e.currentTarget;
+        v.playbackRate = rate;
+        if (offset) v.currentTime = offset % (v.duration || 3.75);
+      }}
     >
-      <source src={fireWebm.url} type="video/webm" />
-      <source src={fireMp4.url} type="video/mp4" />
+      <source src={small ? "/fire-loop-360.webm" : fireWebm.url} type="video/webm" />
+      <source src={small ? "/fire-loop-360.mp4" : fireMp4.url} type="video/mp4" />
     </video>
+  );
+}
+
+/**
+ * Flames burning OUTSIDE the disc, like a block of wood soaked in petrol: two real-fire
+ * loops (one mirrored, out of phase) sit behind the button with their base just inside
+ * the rim, so the tongues start at the edge and climb upwards. The black background of
+ * the footage disappears with `screen` blending. Height and fury grow with the streak.
+ */
+function OuterFlames({ level }: { level: number }) {
+  const height = 120 + level * 110; // px above the base line
+  const embers = useMemo(
+    () => Array.from({ length: 12 }, (_, i) => ({
+      i, x: (Math.random() - 0.5) * 170, drift: (Math.random() - 0.5) * 50,
+      size: 2 + Math.random() * 3, delay: Math.random() * 2.4, dur: 1.4 + Math.random() * 1.2,
+    })),
+    [],
+  );
+  return (
+    <>
+      <motion.div
+        aria-hidden
+        className="pointer-events-none absolute z-10"
+        style={{
+          left: "50%", width: 300, marginLeft: -150, bottom: 92, height,
+          transformOrigin: "50% 100%", mixBlendMode: "screen",
+          WebkitMaskImage: "radial-gradient(ellipse 50% 100% at 50% 100%, #000 52%, rgba(0,0,0,0.6) 70%, transparent 100%)",
+          maskImage: "radial-gradient(ellipse 50% 100% at 50% 100%, #000 52%, rgba(0,0,0,0.6) 70%, transparent 100%)",
+          filter: `saturate(${1.25 + level * 0.6}) contrast(${1.15 + level * 0.2}) hue-rotate(${-level * 12}deg)`,
+        }}
+        initial={{ opacity: 0, scaleY: 0.1 }}
+        animate={{ opacity: 1, scaleY: [1, 1.06, 0.97, 1.03, 1] }}
+        transition={{ opacity: { duration: 1.2 }, scaleY: { duration: 1.6, repeat: Infinity, ease: "easeInOut" } }}
+      >
+        <FireVideo small rate={0.95} className="absolute bottom-0 left-0 h-full w-[62%] object-cover" style={{ objectPosition: "50% 100%" }} />
+        <FireVideo small rate={1.12} offset={1.8} className="absolute bottom-0 right-0 h-full w-[62%] object-cover" style={{ objectPosition: "50% 100%", transform: "scaleX(-1)" }} />
+      </motion.div>
+      {/* Sparks flying off the burning rim */}
+      <div aria-hidden className="pointer-events-none absolute inset-0 z-30">
+        {embers.map((e) => (
+          <motion.span
+            key={e.i}
+            className="absolute rounded-full"
+            style={{ left: `calc(50% + ${e.x}px)`, top: 56, width: e.size, height: e.size, background: "#ffd27a", boxShadow: "0 0 6px 2px rgba(255,140,30,0.9)" }}
+            animate={{ y: [0, -90 - level * 70], x: [0, e.drift], opacity: [0, 1, 0] }}
+            transition={{ duration: e.dur, delay: e.delay, repeat: Infinity, ease: "easeOut" }}
+          />
+        ))}
+      </div>
+    </>
   );
 }
 
