@@ -34,6 +34,8 @@ import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material.icons.rounded.TrendingUp
 import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -97,12 +99,16 @@ private fun Header(p: Profile, fire: Int, ice: Int) {
         Avatar(p, 44)
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
-            Text(p.username, color = Sbo.foreground, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Text(p.username, color = Sbo.foreground, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
             Text(p.friend_code, color = Sbo.mutedFg, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
         }
         Chip(Icons.Rounded.LocalFireDepartment, Sbo.orange, fire)
         Spacer(Modifier.width(8.dp))
         Chip(Icons.Rounded.AcUnit, Sbo.sky, ice)
+        Spacer(Modifier.width(8.dp))
+        RoundIcon(Icons.Outlined.Notifications)
+        Spacer(Modifier.width(8.dp))
+        RoundIcon(Icons.Outlined.Settings)
     }
 }
 
@@ -116,6 +122,14 @@ private fun Chip(icon: ImageVector, tint: Color, n: Int) {
         Spacer(Modifier.width(6.dp))
         Text("$n", color = Sbo.foreground, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     }
+}
+
+@Composable
+private fun RoundIcon(icon: ImageVector, onClick: () -> Unit = {}) {
+    Box(
+        Modifier.size(36.dp).clip(CircleShape).background(Sbo.card.copy(alpha = 0.9f)).border(1.dp, Sbo.border, CircleShape).clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Icon(icon, null, tint = Sbo.foreground, modifier = Modifier.size(18.dp)) }
 }
 
 @Composable
@@ -229,12 +243,12 @@ private fun Stat(label: String, value: Int, modifier: Modifier = Modifier, accen
 
 @Composable
 private fun BadgeSlot() {
-    val shape = RoundedCornerShape(16.dp)
     Column(
-        Modifier.size(64.dp).clip(shape).background(Sbo.card.copy(alpha = 0.7f)).drawBehind {
-            drawRoundRect(
-                Sbo.primary.copy(alpha = 0.5f), style = Stroke(width = 2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f))),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx()),
+        Modifier.size(64.dp).clip(CircleShape).background(Sbo.card.copy(alpha = 0.7f)).drawBehind {
+            val w = 2.dp.toPx()
+            drawCircle(
+                Sbo.primary.copy(alpha = 0.5f), radius = size.minDimension / 2f - w / 2f,
+                style = Stroke(width = w, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))),
             )
         },
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
