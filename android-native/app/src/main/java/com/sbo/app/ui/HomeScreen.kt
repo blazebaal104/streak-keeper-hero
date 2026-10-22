@@ -92,7 +92,7 @@ fun HomeContent(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit) {
                 ) {
                     Header(p, s.fire, s.ice)
                     TabsBar(tab) { tab = it }
-                    Spacer(Modifier.height(32.dp))
+                    Spacer(Modifier.height(29.dp))
                     if (tab == 0) HomeTab(s, onAdd, onUndo) else ComingSoon()
                     Spacer(Modifier.height(96.dp))
                 }
@@ -180,13 +180,13 @@ fun Avatar(p: Profile, sizeDp: Int) {
 private fun TabsBar(selected: Int, onSelect: (Int) -> Unit) {
     val tabs = listOf("Home" to Lucide.Droplets, "Cal" to Lucide.CalendarDays, "Trend" to Lucide.ChartLine, "Social" to Lucide.Users)
     Row(
-        Modifier.fillMaxWidth().height(40.dp).clip(CircleShape).surface().padding(horizontal = 4.dp, vertical = 6.dp),
+        Modifier.fillMaxWidth().height(35.dp).clip(CircleShape).surface().padding(horizontal = 4.dp, vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         tabs.forEachIndexed { i, (label, icon) ->
             val on = i == selected
             Row(
-                Modifier.weight(1f).fillMaxHeight().clip(CircleShape).background(if (on) Sbo.background else Color.Transparent).clickable { onSelect(i) },
+                Modifier.weight(1f).fillMaxHeight().clip(CircleShape).background(if (on) Sbo.background.copy(alpha = 0.55f) else Color.Transparent).clickable { onSelect(i) },
                 horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(icon, null, tint = if (on) Sbo.foreground else Sbo.mutedFg, modifier = Modifier.size(14.dp))
