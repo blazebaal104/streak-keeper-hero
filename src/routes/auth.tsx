@@ -134,7 +134,7 @@ function AuthPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-10">
       <Toaster position="top-center" theme="dark" />
-      <Card className="w-full max-w-md border-border/50 bg-card/60 backdrop-blur p-8">
+      <Card className="w-full max-w-md border-border/50 bg-card/90 p-8">
         <div className="flex flex-col items-center mb-6">
           {holiday === "halloween" ? <HalloweenDrop size={72} /> : <img src={logo} alt="SBO" width={72} height={72} className="drop-shadow-glow" />}
           <h1 className="mt-4 text-3xl font-bold tracking-tight">SBO</h1>

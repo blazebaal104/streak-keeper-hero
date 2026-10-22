@@ -186,7 +186,7 @@ export function ZeroBanner({ day, league, weekCount, limit, workoutsWeek }: { da
   const status = weekCount > limit ? "over" : weekCount === limit ? "limit" : "ok";
   return (
     <motion.div initial={{ y: -10, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
-      className="relative overflow-hidden rounded-2xl border border-primary/30 bg-card/70 p-4 backdrop-blur">
+      className="relative overflow-hidden rounded-2xl border border-primary/30 bg-card/90 p-4">
       <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-primary/20 blur-2xl" />
       <div className="flex items-center justify-between gap-3">
         <div>
@@ -307,7 +307,7 @@ export function TodayPlanCard({ plan, wd, onToggle, onSkip, onCustom, onExpand }
 }) {
   const doneN = plan.exercises.filter((e) => wd?.done_ids.includes(e.id)).length;
   return (
-    <Card className="border-primary/25 bg-card/70 p-4 backdrop-blur">
+    <Card className="border-primary/25 bg-card/90 p-4">
       <div className="mb-3 flex items-center justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">Obiettivi di oggi</p>
@@ -342,7 +342,7 @@ export function PlanOverlay({ open, plan, wd, name, day, onToggle, onSkip, onCus
   return (
     <AnimatePresence>
       {open && (
-        <motion.div className="fixed inset-0 z-50 overflow-y-auto bg-background/95 backdrop-blur-xl"
+        <motion.div className="fixed inset-0 z-50 overflow-y-auto bg-background/95"
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
           <motion.div initial={{ y: 40, scale: 0.97 }} animate={{ y: 0, scale: 1 }} exit={{ y: 40, scale: 0.97 }} transition={{ type: "spring", stiffness: 220, damping: 24 }}
             className="mx-auto max-w-lg px-6 pb-16 pt-10">
@@ -410,7 +410,7 @@ export function AgentRow({ messages, onOpen }: { messages: AgentMessage[]; onOpe
   const last = messages[messages.length - 1];
   const unread = messages.filter((m) => !m.read_at).length;
   return (
-    <button onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-primary/30 bg-card/70 p-3 text-left backdrop-blur transition hover:border-primary/60">
+    <button onClick={onOpen} className="flex w-full items-center gap-3 rounded-2xl border border-primary/30 bg-card/90 p-3 text-left transition hover:border-primary/60">
       <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground">
         <img src={coachImg} alt="Coach Zero" className="h-11 w-11 rounded-full object-cover" loading="lazy" />
         <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card" style={{ background: "var(--zero-ok)" }} />

@@ -1,6 +1,11 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+/* Fonts ship with the app (no Google Fonts round-trip on every launch) */
+@import "@fontsource-variable/inter";
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/600.css";
+@import "@fontsource/space-grotesk/700.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -33,7 +38,7 @@
   --color-drop: var(--drop);
   --color-drop-glow: var(--drop-glow);
   --font-display: "Space Grotesk", system-ui, sans-serif;
-  --font-sans: "Inter", system-ui, sans-serif;
+  --font-sans: "Inter Variable", "Inter", system-ui, sans-serif;
   --gradient-surface: var(--gradient-surface);
   --gradient-drop: var(--gradient-drop);
   --shadow-drop: var(--shadow-drop);
@@ -73,12 +78,33 @@
   * {
     border-color: var(--color-border);
   }
+  html, body {
+    /* Nothing may ever be wider than the screen: a stray overflow makes the browser zoom out. */
+    overflow-x: hidden;
+    overflow-x: clip;
+  }
   body {
-    background: var(--gradient-surface);
-    background-attachment: fixed;
+    background: var(--background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* App feel: no double-tap zoom / 300ms delay, no grey tap flash, no pull-to-refresh bounce. */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: none;
+  }
+  /* The gradient lives on its own fixed layer: background-attachment: fixed repaints the whole
+     page on every scroll frame on Android, this is painted once and only composited. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -20;
+    background: var(--gradient-surface);
+    pointer-events: none;
+    transform: translateZ(0);
   }
   h1, h2, h3, h4 {
     font-family: var(--font-display);
@@ -149,7 +175,7 @@
   --zero-limit: oklch(0.8 0.16 80);
   --zero-over: oklch(0.63 0.24 25);
 }
-html[data-pz-theme] body { transition: background 0.6s ease; }
+
 html[data-pz-theme="obsidian"] {
   --background: oklch(0.13 0.005 80); --card: oklch(0.18 0.008 80); --popover: oklch(0.18 0.008 80);
   --secondary: oklch(0.24 0.01 80); --muted: oklch(0.22 0.01 80); --muted-foreground: oklch(0.68 0.02 80);
@@ -206,4 +232,9 @@ html[data-holiday="halloween"] {
   --ring: oklch(0.74 0.18 52); --border: oklch(0.8 0.1 300 / 14%);
   --gradient-surface: radial-gradient(ellipse at 85% 0%, oklch(0.3 0.08 300) 0%, oklch(0.16 0.05 295) 40%, oklch(0.1 0.02 290) 75%);
 }
-html[data-holiday="halloween"] body { transition: background 0.8s ease; }
+
+
+/* Respect "reduce motion" in system settings: keep the app usable, drop the eye candy. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
+}

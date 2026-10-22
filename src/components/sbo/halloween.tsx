@@ -36,7 +36,7 @@ function HalloweenNight() {
       {/* bats crossing the sky */}
       {bats.map((b) => (
         <motion.svg key={b.i} viewBox="0 0 34 16" className="absolute"
-          style={{ top: `${b.top}%`, width: b.size, left: b.dir > 0 ? "-10%" : "110%", fill: "#120a1c", filter: "drop-shadow(0 0 2px rgba(180,120,255,0.35))" }}
+          style={{ top: `${b.top}%`, width: b.size, left: b.dir > 0 ? "-10%" : "110%", fill: "#120a1c" }}
           animate={{ x: b.dir > 0 ? ["0vw", "125vw"] : ["0vw", "-125vw"], y: [0, -b.bob, b.bob, 0], scaleY: [1, 0.55, 1] }}
           transition={{
             x: { duration: b.dur, delay: b.delay, repeat: Infinity, ease: "linear" },
@@ -198,7 +198,7 @@ export function HalloweenDrop({ size = 72 }: { size?: number }) {
 
 export function HalloweenBanner() {
   return (
-    <div className="flex items-center gap-4 rounded-2xl border border-primary/40 bg-card/70 p-4 backdrop-blur"
+    <div className="flex items-center gap-4 rounded-2xl border border-primary/40 bg-card/90 p-4"
       style={{ boxShadow: "0 0 40px -12px rgba(249,115,22,0.55)" }}>
       <HalloweenDrop size={64} />
       <div>

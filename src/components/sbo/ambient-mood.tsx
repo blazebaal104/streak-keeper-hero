@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "motion/react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 
 /**
  * Full-page mood layer.
@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
  *   burning).
  * - ice: a permanent, slowly breathing frost haze so the whole page reads frozen.
  */
-export function AmbientMood({ mode }: { mode: "fire" | "ice" | "neutral" }) {
+export const AmbientMood = memo(function AmbientMood({ mode }: { mode: "fire" | "ice" | "neutral" }) {
   const [ignite, setIgnite] = useState(false);
 
   useEffect(() => {
@@ -83,4 +83,4 @@ export function AmbientMood({ mode }: { mode: "fire" | "ice" | "neutral" }) {
       </AnimatePresence>
     </div>
   );
-}
+});

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
@@ -402,6 +402,10 @@ function SboApp() {
     nav({ to: "/auth" });
   };
 
+  const addRef = useRef(handleAdd);
+  addRef.current = handleAdd;
+  const onPressAdd = useCallback(() => { addRef.current(); }, []);
+
   if (authLoading || profileQ.isLoading || !profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -446,29 +450,29 @@ function SboApp() {
         </button>
         <div className="flex items-center gap-2">
           {pzActive ? (<>
-          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-2 backdrop-blur" title="Questa settimana / limite">
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/90 px-2.5 py-2" title="Questa settimana / limite">
             <Droplets className="h-4 w-4" style={{ color: `var(--zero-${weekCount > weeklyLimit ? "over" : weekCount === weeklyLimit ? "limit" : "ok"})` }} />
             <span className="text-sm font-semibold">{weekCount}/{weeklyLimit}</span>
           </div>
-          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-2 backdrop-blur" title="Allenamenti questa settimana">
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/90 px-2.5 py-2" title="Allenamenti questa settimana">
             <Dumbbell className="h-4 w-4 text-primary" />
             <span className="text-sm font-semibold">{workoutsWeek}</span>
           </div>
           </>) : (<>
-          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-2 backdrop-blur" title="Streak di fuoco (giorni consecutivi con almeno un evento)">
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/90 px-2.5 py-2" title="Streak di fuoco (giorni consecutivi con almeno un evento)">
             <Flame className="h-4 w-4 text-orange-400" />
             <span className="text-sm font-semibold">{fireStreak}</span>
           </div>
-          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-2.5 py-2 backdrop-blur" title="Streak di ghiaccio (giorni consecutivi senza eventi)">
+          <div className="flex items-center gap-1.5 rounded-full border border-border bg-card/90 px-2.5 py-2" title="Streak di ghiaccio (giorni consecutivi senza eventi)">
             <Snowflake className="h-4 w-4 text-sky-300" />
             <span className="text-sm font-semibold">{iceStreak}</span>
           </div>
           </>)}
-          <Button variant="ghost" size="icon" className="relative rounded-full border border-border bg-card/60 backdrop-blur" onClick={() => setShowInvites(true)} aria-label="Notifiche">
+          <Button variant="ghost" size="icon" className="relative rounded-full border border-border bg-card/90" onClick={() => setShowInvites(true)} aria-label="Notifiche">
             <Bell className="h-4 w-4" />
             {invites.length > 0 && <span className="absolute -top-0.5 -right-0.5 h-4 min-w-4 rounded-full bg-destructive text-[10px] font-bold text-white grid place-items-center px-1">{invites.length}</span>}
           </Button>
-          <Button variant="ghost" size="icon" className="rounded-full border border-border bg-card/60 backdrop-blur" onClick={() => setShowSettings(true)} aria-label="Impostazioni">
+          <Button variant="ghost" size="icon" className="rounded-full border border-border bg-card/90" onClick={() => setShowSettings(true)} aria-label="Impostazioni">
             <Settings className="h-4 w-4" />
           </Button>
         </div>
@@ -476,7 +480,7 @@ function SboApp() {
 
       <main className="mx-auto max-w-3xl px-6 pb-24">
         <Tabs value={tab} onValueChange={setTab} className="w-full">
-          <TabsList className="mx-auto grid w-full max-w-md grid-cols-4 rounded-full bg-card/60 backdrop-blur">
+          <TabsList className="mx-auto grid w-full max-w-md grid-cols-4 rounded-full bg-card/90">
             <TabsTrigger value="home" className="rounded-full text-xs"><Droplets className="mr-1 h-3.5 w-3.5" /> Home</TabsTrigger>
             <TabsTrigger value="calendar" className="rounded-full text-xs"><CalendarDays className="mr-1 h-3.5 w-3.5" /> Cal</TabsTrigger>
             <TabsTrigger value="chart" className="rounded-full text-xs"><LineChartIcon className="mr-1 h-3.5 w-3.5" /> Trend</TabsTrigger>
@@ -527,7 +531,7 @@ function SboApp() {
             </div>
 
             <div className={`relative flex flex-col items-center justify-center pb-6 ${fireStreak > 0 ? "pt-20" : "pt-6"}`}>
-              <StreakButton fireStreak={fireStreak} iceStreak={iceStreak} onPress={handleAdd} melting={melting} />
+              <StreakButton fireStreak={fireStreak} iceStreak={iceStreak} onPress={onPressAdd} melting={melting} />
               <p className="mt-4 text-center text-sm text-muted-foreground">
                 {fireStreak > 0
                   ? `🔥 La tua fiamma cresce: ${fireStreak} giorni di fila.`
@@ -543,7 +547,7 @@ function SboApp() {
             </div>
 
 
-            <Card className="border-border/50 bg-card/60 p-5 backdrop-blur">
+            <Card className="border-border/50 bg-card/90 p-5">
               <div className="flex items-start gap-3">
                 <Sparkles className="mt-1 h-5 w-5 shrink-0 text-accent" />
                 <div>
@@ -561,7 +565,7 @@ function SboApp() {
 
           {/* CALENDAR */}
           <TabsContent value="calendar" className="mt-8">
-            <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
+            <Card className="border-border/50 bg-card/90 p-4">
               <p className="mb-3 px-2 text-sm text-muted-foreground">Registro personale — solo per uso medico e di monitoraggio.</p>
               <Calendar mode="single" className="pointer-events-auto mx-auto"
                 selected={dayEdit ?? undefined}
@@ -597,7 +601,7 @@ function SboApp() {
 
           {/* ANALYTICS */}
           <TabsContent value="chart" className="mt-8 space-y-4">
-            <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
+            <Card className="border-border/50 bg-card/90 p-4">
               <div className="mb-3 flex items-center justify-between px-1">
                 <p className="text-sm font-semibold">Andamento — ultimi 30 giorni</p>
                 
@@ -627,9 +631,9 @@ function SboApp() {
                       <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
                       <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} domain={[0, (max: number) => Math.max(3, Math.ceil(max))]} />
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
-                      {pzActive && <Area type="monotone" dataKey="workouts" stroke="#ef4444" fill="url(#gWork)" strokeWidth={2} name="Allenamenti" />}
-                      <Area type="monotone" dataKey="count" stroke="#fb923c" fill="url(#gCount)" strokeWidth={2} name="Al giorno" />
-                      {pzActive && <Area type="monotone" dataKey="over" stroke="#ff2a00" fill="url(#gOver)" strokeWidth={2.5} name="Oltre il limite" />}
+                      {pzActive && <Area isAnimationActive={false} type="monotone" dataKey="workouts" stroke="#ef4444" fill="url(#gWork)" strokeWidth={2} name="Allenamenti" />}
+                      <Area isAnimationActive={false} type="monotone" dataKey="count" stroke="#fb923c" fill="url(#gCount)" strokeWidth={2} name="Al giorno" />
+                      {pzActive && <Area isAnimationActive={false} type="monotone" dataKey="over" stroke="#ff2a00" fill="url(#gOver)" strokeWidth={2.5} name="Oltre il limite" />}
                     </ComposedChart>
                   </ResponsiveContainer>
                 </div>
@@ -642,7 +646,7 @@ function SboApp() {
                 </div>
               )}
             </Card>
-            <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
+            <Card className="border-border/50 bg-card/90 p-4">
               <p className="mb-3 text-sm font-semibold px-1">Trend a 90 giorni</p>
               {chart90.every((d) => d.count === 0 && d.workouts === 0) ? (
                 <p className="py-8 text-center text-xs text-muted-foreground">Nessun dato ancora.</p>
@@ -654,8 +658,8 @@ function SboApp() {
                       <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
                       <YAxis fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} domain={[0, (max: number) => Math.max(3, Math.ceil(max))]} allowDecimals={false} />
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
-                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2.5} dot={false} name="Media" />
-                      {pzActive && <Line type="monotone" dataKey="wma7" stroke="#ef4444" strokeWidth={2} dot={false} name="Allenamenti (media 7gg)" />}
+                      <Line isAnimationActive={false} type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2.5} dot={false} name="Media" />
+                      {pzActive && <Line isAnimationActive={false} type="monotone" dataKey="wma7" stroke="#ef4444" strokeWidth={2} dot={false} name="Allenamenti (media 7gg)" />}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
@@ -669,7 +673,7 @@ function SboApp() {
             {(pzActive || agentMsgs.length > 0) && (
               <AgentRow messages={agentMsgs} onOpen={() => { setShowAgent(true); markAgentRead.mutate(); }} />
             )}
-            <Card className="border-border/50 bg-card/60 p-5 backdrop-blur">
+            <Card className="border-border/50 bg-card/90 p-5">
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Il tuo codice amico</p>
               <div className="mt-2 flex items-center gap-2">
                 <p className="flex-1 font-mono text-2xl font-bold tracking-widest">{profile.friend_code}</p>
@@ -1019,7 +1023,7 @@ function SboApp() {
 
 function AvatarView({ profile, size = 44, className = "" }: { profile: { avatar: string; avatar_url: string | null }; size?: number; className?: string }) {
   return (
-    <div className={`relative flex items-center justify-center overflow-hidden rounded-full bg-card/60 backdrop-blur ${className}`} style={{ width: size, height: size, fontSize: size * 0.55 }}>
+    <div className={`relative flex items-center justify-center overflow-hidden rounded-full bg-card/90 ${className}`} style={{ width: size, height: size, fontSize: size * 0.55 }}>
       {profile.avatar_url ? (
         <img src={profile.avatar_url} alt="" className="h-full w-full object-cover" />
       ) : (
@@ -1031,7 +1035,7 @@ function AvatarView({ profile, size = 44, className = "" }: { profile: { avatar:
 
 function Stat({ label, value, accent, icon }: { label: string; value: number; accent?: boolean; icon?: React.ReactNode }) {
   return (
-    <Card className={`border-border/50 bg-card/60 p-4 backdrop-blur ${accent ? "ring-2 ring-destructive/50" : ""}`}>
+    <Card className={`border-border/50 bg-card/90 p-4 ${accent ? "ring-2 ring-destructive/50" : ""}`}>
       <p className="flex items-center gap-1 text-xs text-muted-foreground">{icon} {label}</p>
       <p className={`mt-1 text-3xl font-bold ${accent ? "text-destructive" : ""}`}>{value}</p>
     </Card>
@@ -1042,7 +1046,7 @@ function BadgeSlot({ def, onClick }: { def: BadgeDef | null; onClick?: () => voi
   if (!def) {
     return (
       <button onClick={onClick}
-        className="flex h-16 w-16 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-primary/50 text-primary/70 bg-card/40 backdrop-blur transition hover:bg-card/80 hover:scale-105">
+        className="flex h-16 w-16 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-primary/50 text-primary/70 bg-card/70 transition hover:bg-card/80 hover:scale-105">
         <Plus className="h-5 w-5" />
         <span className="text-[9px] mt-0.5 font-semibold">slot</span>
       </button>
@@ -1063,7 +1067,7 @@ function FriendRowCard({ row, unread = 0, onOpenProfile, onChat, onRemove }: { r
   const ice = computeIceStreak(evs);
   const todayCount = countToday(evs);
   return (
-    <Card className="border-border/50 bg-card/60 p-4 backdrop-blur">
+    <Card className="border-border/50 bg-card/90 p-4">
       <div className="flex items-center gap-3">
         <button onClick={onOpenProfile} className="flex items-center gap-3 flex-1 min-w-0 text-left">
           <AvatarView profile={row.profile} size={40} />
@@ -1108,7 +1112,7 @@ function ClanCard({ clan, members, meId, myRole, onOpenChat, onInvite }: {
   });
 
   return (
-    <Card className="border-border/50 bg-card/60 p-5 backdrop-blur">
+    <Card className="border-border/50 bg-card/90 p-5">
       <div className="flex items-center gap-3">
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-accent to-primary">
           <Shield className="h-5 w-5 text-primary-foreground" />
@@ -1315,7 +1319,7 @@ function InventoryDialog({ slot, profile, badges, totalEvents, totalCleanDays, o
           <DialogDescription>Le medaglie che non hai sono in grigio. Toccale per vedere come sbloccarle.</DialogDescription>
         </DialogHeader>
 
-        <button onClick={() => onEquip(null)} className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-3 text-muted-foreground text-xs hover:bg-card/50">
+        <button onClick={() => onEquip(null)} className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-3 text-muted-foreground text-xs hover:bg-card/85">
           <X className="h-4 w-4" /> Rimuovi da questo slot
         </button>
 
@@ -1396,7 +1400,7 @@ function TitlesSection({ totalEvents, totalCleanDays, equippedTitle, onEquipTitl
                 onClick={() => onEquipTitle(isOn ? null : titleId(t))}
                 className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${
                   isOn ? "border-primary bg-primary/10" : "border-border"
-                } ${owned ? "hover:bg-card/70" : "opacity-50"}`}
+                } ${owned ? "hover:bg-card/90" : "opacity-50"}`}
               >
                 <span className="text-base" style={owned ? undefined : { filter: "grayscale(1)" }}>{t.emoji}</span>
                 <div className="min-w-0 flex-1">
@@ -1647,26 +1651,26 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
-            <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
+            <Card className="border-border/50 bg-card/90 p-3">
               <p className="text-xs text-muted-foreground flex items-center gap-1"><Flame className="h-3 w-3 text-orange-400" /> Fuoco</p>
               <p className="mt-1 text-2xl font-bold">{fire}</p>
             </Card>
-            <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
+            <Card className="border-border/50 bg-card/90 p-3">
               <p className="text-xs text-muted-foreground flex items-center gap-1"><Snowflake className="h-3 w-3 text-sky-300" /> Ghiaccio</p>
               <p className="mt-1 text-2xl font-bold">{ice}</p>
             </Card>
-            <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
+            <Card className="border-border/50 bg-card/90 p-3">
               <p className="text-xs text-muted-foreground">Mese</p>
               <p className="mt-1 text-2xl font-bold">{month}</p>
             </Card>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
+            <Card className="border-border/50 bg-card/90 p-3">
               <p className="text-xs text-muted-foreground">🔥 Record fuoco</p>
               <p className="mt-1 text-xl font-bold">{maxFireStreak(events)} gg</p>
             </Card>
-            <Card className="border-border/50 bg-card/60 p-3 backdrop-blur">
+            <Card className="border-border/50 bg-card/90 p-3">
               <p className="text-xs text-muted-foreground">❄️ Record ghiaccio</p>
               <p className="mt-1 text-xl font-bold">{maxIceStreak(events)} gg</p>
             </Card>
@@ -1716,8 +1720,8 @@ function FriendProfileDialog({ friend, onClose, onChat }: { friend: Profile; onC
                       <XAxis dataKey="date" tickFormatter={(s: string) => s.slice(5)} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} />
                       <YAxis allowDecimals={false} fontSize={10} stroke="#ffffff" tick={{ fill: "#ffffff" }} width={28} domain={[0, (max: number) => Math.max(3, Math.ceil(max))]} />
                       <RTooltip contentStyle={{ background: "#0f172a", border: "1px solid #334155", borderRadius: 8, fontSize: 12, color: "#fff" }} labelStyle={{ color: "#fff" }} />
-                      <Area type="monotone" dataKey="count" stroke="#fb923c" fill={`url(#gFriend-${friend.id})`} strokeWidth={2} name="Al giorno" />
-                      <Line type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media" />
+                      <Area isAnimationActive={false} type="monotone" dataKey="count" stroke="#fb923c" fill={`url(#gFriend-${friend.id})`} strokeWidth={2} name="Al giorno" />
+                      <Line isAnimationActive={false} type="monotone" dataKey="ma7" stroke="#38bdf8" strokeWidth={2} dot={false} name="Media" />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>

@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "motion/react";
 import { Plus } from "lucide-react";
-import { useMemo } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 // Fire footage: full size inside the disc, a lighter copy for the flames around it.
 const fireMp4 = { url: "/fire-loop.mp4" };
 const fireWebm = { url: "/fire-loop.webm" };
@@ -42,7 +42,7 @@ function iceBlend(streak: number) {
  * - ice streak  → real photographic ice whose density grows every single day.
  * - neutral     → the plain water-drop look.
  */
-export function StreakButton({
+export const StreakButton = memo(function StreakButton({
   fireStreak,
   iceStreak,
   onPress,
@@ -182,11 +182,31 @@ export function StreakButton({
       <AnimatePresence>{melting && <IceShatter key="shatter" />}</AnimatePresence>
     </div>
   );
+});
+
+/** Plays only while visible on screen and while the app is in the foreground (saves GPU/battery). */
+function useAutoPause(ref: React.RefObject<HTMLVideoElement | null>) {
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    let onScreen = true;
+    const sync = () => {
+      if (onScreen && document.visibilityState === "visible") v.play().catch(() => {});
+      else v.pause();
+    };
+    const io = new IntersectionObserver(([e]) => { onScreen = e.isIntersecting; sync(); });
+    io.observe(v);
+    document.addEventListener("visibilitychange", sync);
+    return () => { io.disconnect(); document.removeEventListener("visibilitychange", sync); };
+  }, [ref]);
 }
 
 function FireVideo({ className, style, small, rate = 1, offset = 0 }: { className?: string; style?: React.CSSProperties; small?: boolean; rate?: number; offset?: number }) {
+  const ref = useRef<HTMLVideoElement>(null);
+  useAutoPause(ref);
   return (
     <video
+      ref={ref}
       className={className}
       style={style}
       autoPlay

@@ -12,6 +12,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { IS_DEV_SITE } from "@/lib/sbo-env";
 import { HolidayLayer } from "@/components/sbo/halloween";
 import { getDevHolidayOverride, setDevHolidayOverride } from "@/lib/sbo-holiday";
+import { ensureServiceWorker } from "@/lib/sbo-push";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -80,7 +81,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content" },
+      { name: "theme-color", content: "#0b1220" },
       { title: "SBO — Il tuo contatore personale" },
       { name: "description", content: "SBO ti aiuta a monitorare, capire e migliorare le tue abitudini con calendario, streak e incoraggiamenti personalizzati." },
       { property: "og:title", content: "SBO — Il tuo contatore personale" },
@@ -94,9 +96,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" },
       { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "manifest", href: "/manifest.webmanifest" },
       { rel: "apple-touch-icon", href: "/favicon.png" },
@@ -154,6 +153,8 @@ function DevStrip() {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+  // Install the service worker on first launch so the interface is kept on the phone.
+  useEffect(() => { ensureServiceWorker().catch(() => {}); }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
