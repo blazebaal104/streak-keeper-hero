@@ -173,28 +173,6 @@ object Phrases {
         for ((k, v) in extras) s = s.replace("{$k}", v.toString())
         return s
     }
-    private val RESTART = listOf(
-        "Ok {name}, si ricomincia da capo. Domani è un nuovo giorno.",
-        "{name}, cadere fa parte del percorso. Rialzati.",
-        "Nuovo tentativo, {name}. Le migliori streak nascono dopo un reset.",
-        "{name}, non è una sconfitta se impari qualcosa.",
-        "Reset. Respira. Riparti, {name}.",
-        "{name}, i campioni cadono e si rialzano. Fallo.",
-        "Zero giorni, mille possibilità, {name}.",
-        "{name}, il passato è passato. Focus su ora.",
-        "Ogni maestro è stato un principiante, {name}.",
-        "{name}, la prossima streak sarà più forte. Promesso.",
-        "Non giudicarti, {name}. Riprova.",
-        "{name}, siamo umani. Domani è un altro giorno.",
-        "Un piccolo scivolone non ti definisce, {name}.",
-        "{name}, prendi appunti mentali su cos'è successo. Poi avanti.",
-        "Nuova pagina, {name}. Scrivi meglio.",
-        "{name}, il coraggio è ricominciare senza drammi.",
-        "Zero è un ottimo punto di partenza, {name}.",
-        "{name}, obiettivo domani: un giorno pulito. Uno solo.",
-        "Ogni ricaduta è un dato, {name}. Impara.",
-        "{name}, sei ancora nel gioco. Continua a giocare.",
-    )
     fun restart(n: String) = pick(RESTART, n)
     fun encourage(n: String) = pick(ENCOURAGE, n)
     fun slowdown(n: String) = pick(SLOWDOWN, n)
