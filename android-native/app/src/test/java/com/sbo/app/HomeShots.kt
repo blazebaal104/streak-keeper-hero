@@ -91,6 +91,19 @@ class HomeShots {
         rule.mainClock.advanceTimeBy(400); cap("press-740")
     }
 
+    /** 90 days of varied activity ending on 2026-10-22 (for the calendar and the charts). */
+    private val history: List<SboEvent> = buildList {
+        val end = java.time.LocalDate.of(2026, 10, 22)
+        for (i in 0 until 90) {
+            val d = end.minusDays(i.toLong())
+            val n = listOf(0, 1, 2, 0, 3, 1, 0, 4, 2, 1, 0, 0, 2, 5, 1)[(i * 7 + i / 9) % 15] - if (i < 20) 1 else 0
+            repeat(n.coerceAtLeast(0)) { k -> add(SboEvent("h$i-$k", "d0", "${d}T1${k}:00:00+00:00")) }
+        }
+    }
+    private val day = java.time.LocalDate.of(2026, 10, 22)
+    @Test fun calendar() { render { HomeContent(state(0, 0).copy(events = history, limit = 2), {}, {}, startTab = 1, today = day) }; rule.mainClock.advanceTimeBy(700); cap("tab-cal") }
+    @Test fun trend() { render { HomeContent(state(0, 0).copy(events = history, limit = 2), {}, {}, startTab = 2, today = day) }; rule.mainClock.advanceTimeBy(700); cap("tab-trend") }
+
     @Test fun fire2a() = shot("fire-2-1", 2, 0, R.drawable.fire_still_1)
     @Test fun fire2b() = shot("fire-2-2", 2, 0, R.drawable.fire_still_2)
     @Test fun fire2c() = shot("fire-2-3", 2, 0, R.drawable.fire_still_3)

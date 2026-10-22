@@ -30,4 +30,13 @@ await step("drops", async () => {
   await page.getByText("Annulla ultimo").first().click();
   await page.waitForTimeout(1500);
 });
+// the other tabs
+for (const [name, file] of [["Cal", "cal"], ["Trend", "trend"], ["Social", "social"]]) {
+  await step(file, async () => {
+    await page.getByRole("tab", { name }).click();
+    await page.waitForTimeout(1200);
+    await page.screenshot({ path: `shots/web-tab-${file}.png` });
+    await page.screenshot({ path: `shots/web-tab-${file}-full.png`, fullPage: true });
+  });
+}
 await browser.close();

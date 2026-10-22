@@ -35,6 +35,9 @@ data class Badge(val id: String, val user_id: String, val category: String, val 
 private data class NewEvent(val user_id: String)
 
 @Serializable
+private data class NewEventAt(val user_id: String, val ts: String)
+
+@Serializable
 private data class IdRow(val id: String)
 
 /** One Supabase client for the whole app (same backend as the website). */
@@ -81,6 +84,21 @@ object Supa {
 
     suspend fun addEvent(uid: String) {
         client.from("events").insert(NewEvent(uid))
+    }
+
+    /** Log an event at a given moment (retro-log from the calendar). */
+    suspend fun addEventAt(uid: String, tsIso: String) {
+        client.from("events").insert(NewEventAt(uid, tsIso))
+    }
+
+    /** Remove the most recent event between two instants (one local day). */
+    suspend fun removeBetween(uid: String, fromIso: String, toIso: String) {
+        val last = client.from("events").select {
+            filter { eq("user_id", uid); gte("ts", fromIso); lt("ts", toIso) }
+            order("ts", Order.DESCENDING)
+            limit(1)
+        }.decodeList<IdRow>().firstOrNull() ?: return
+        client.from("events").delete { filter { eq("id", last.id) } }
     }
 
     suspend fun undoLast(uid: String) {

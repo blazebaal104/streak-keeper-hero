@@ -14,6 +14,7 @@ object Sbo {
     val muted = Color(0xFF14212A)
     val mutedFg = Color(0xFF85919A)
     val accent = Color(0xFF00B9C3)
+    val accentFg = Color(0xFF040C13)
     val destructive = Color(0xFFF94144)
     val border = Color(0x0FFFFFFF)
     val dropA = Color(0xFFD9F4FD)

@@ -83,6 +83,22 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
         refresh()
     }
 
+    fun addOnDay(day: java.time.LocalDate) = viewModelScope.launch {
+        val id = uid ?: return@launch
+        val zone = java.time.ZoneId.systemDefault()
+        val at = if (day == java.time.LocalDate.now(zone)) java.time.Instant.now() else day.atTime(21, 0).atZone(zone).toInstant()
+        runCatching { Supa.addEventAt(id, at.toString()) }
+        refresh()
+    }
+
+    fun removeOnDay(day: java.time.LocalDate) = viewModelScope.launch {
+        val id = uid ?: return@launch
+        val zone = java.time.ZoneId.systemDefault()
+        val from = day.atStartOfDay(zone).toInstant(); val to = day.plusDays(1).atStartOfDay(zone).toInstant()
+        runCatching { Supa.removeBetween(id, from.toString(), to.toString()) }
+        refresh()
+    }
+
     fun undo() = viewModelScope.launch {
         val id = uid ?: return@launch
         runCatching { Supa.undoLast(id) }

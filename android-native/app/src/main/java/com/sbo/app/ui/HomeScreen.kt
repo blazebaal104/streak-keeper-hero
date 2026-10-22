@@ -72,17 +72,22 @@ private val CardShape = RoundedCornerShape(24.dp) // web: rounded-xl = 1.25rem +
 @Composable
 fun HomeScreen(vm: HomeViewModel) {
     val s by vm.state.collectAsState()
-    HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip)
+    HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip, onDayAdd = vm::addOnDay, onDayRemove = vm::removeOnDay)
 }
 
 @Composable
 fun HomeContent(
     s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit,
     onEquip: (slot: Int, badgeId: String?) -> Unit = { _, _ -> },
+    onDayAdd: (java.time.LocalDate) -> Unit = {},
+    onDayRemove: (java.time.LocalDate) -> Unit = {},
     rain: DropRain = remember { DropRain() },
     openInventory: Int? = null,
+    startTab: Int = 0,
+    today: java.time.LocalDate = java.time.LocalDate.now(),
 ) {
-    var tab by rememberSaveable { mutableIntStateOf(0) }
+    var tab by rememberSaveable { mutableIntStateOf(startTab) }
+    var dayEdit by remember { mutableStateOf<java.time.LocalDate?>(null) }
     var inventory by remember { mutableStateOf(openInventory) }
     val add = { rain.burst(); onAdd() }
     CompositionLocalProvider(LocalTextStyle provides TextStyle(fontFamily = Inter, color = Sbo.foreground)) {
@@ -104,11 +109,20 @@ fun HomeContent(
                     Header(p, s.fire, s.ice)
                     TabsBar(tab) { tab = it }
                     Spacer(Modifier.height(32.dp))
-                    if (tab == 0) HomeTab(s, add, onUndo) { inventory = it } else ComingSoon()
+                    when (tab) {
+                        0 -> HomeTab(s, add, onUndo) { inventory = it }
+                        1 -> CalendarTab(s.events, s.limit, today) { dayEdit = it }
+                        2 -> TrendTab(s.events, today)
+                        else -> ComingSoon()
+                    }
                     Spacer(Modifier.height(96.dp))
                 }
             }
             DropRainOverlay(rain)
+            dayEdit?.let { d ->
+                val n = remember(s.events, d) { com.sbo.app.logic.Streaks.byDay(s.events)[d] ?: 0 }
+                DayEditDialog(d, n, onAdd = { onDayAdd(d) }, onRemove = { onDayRemove(d) }, onClose = { dayEdit = null })
+            }
             val slot = inventory
             if (p != null && slot != null) InventoryDialog(slot, p, s.badges, onClose = { inventory = null }) { id ->
                 onEquip(slot, id); inventory = null
@@ -264,17 +278,17 @@ private fun HomeTab(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit, onSlot:
 }
 
 /** Card look of the web (bg-card/90 over the page gradient, very faint border). */
-private fun Modifier.sboCard(borderColor: Color = Sbo.border, borderWidth: Float = 1f) =
+internal fun Modifier.sboCard(borderColor: Color = Sbo.border, borderWidth: Float = 1f) =
     this.clip(CardShape).surface().border(borderWidth.dp, borderColor, CardShape)
 
 /** Translucent surface like the web (card colour at ~75% + a faint light from the top), so the page tint shows through. */
-private fun Modifier.surface() = this.background(
+internal fun Modifier.surface() = this.background(
     Brush.verticalGradient(listOf(Color(0xFF1A2A35).copy(alpha = 0.72f), Sbo.card.copy(alpha = 0.66f))),
 )
 
 @Composable
-private fun Card(content: @Composable () -> Unit) {
-    Box(Modifier.fillMaxWidth().sboCard(Sbo.border.copy(alpha = 0.04f)).padding(20.dp)) { content() }
+internal fun Card(padding: androidx.compose.ui.unit.Dp = 20.dp, content: @Composable () -> Unit) {
+    Box(Modifier.fillMaxWidth().sboCard(Sbo.border.copy(alpha = 0.04f)).padding(padding)) { content() }
 }
 
 @Composable
