@@ -9,6 +9,17 @@ import org.junit.Rule
 import com.sbo.app.data.Profile
 import com.sbo.app.data.SboEvent
 import com.sbo.app.ui.HomeContent
+import com.sbo.app.ui.DropRain
+import com.sbo.app.ui.InventoryDialog
+import com.sbo.app.ui.Sbo
+import com.sbo.app.data.Badge
+import com.sbo.app.logic.Badges
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.performTouchInput
 import com.sbo.app.ui.HomeState
 import com.sbo.app.ui.LocalFireStill
 import org.junit.Test
@@ -24,8 +35,10 @@ class HomeShots {
     @get:Rule val rule = createComposeRule()
     private val profile = Profile(id = "d0", username = "tester_dev", avatar = "🧪", friend_code = "XSSZ8F", daily_limit = 3, use_adaptive_limit = true)
     private val ev = listOf(SboEvent("e1", "d0", "2026-10-22T10:00:00+00:00"))
-    private fun state(fire: Int, ice: Int) = HomeState(
-        loading = false, profile = profile, events = ev, today = 1, month = 23, fire = fire, ice = ice, limit = 1,
+    private val brina = Badge("b1", "d0", "ice", "rare", 1)
+    private fun state(fire: Int, ice: Int, equipped: Boolean = false) = HomeState(
+        badges = listOf(brina),
+        loading = false, profile = if (equipped) profile.copy(slot_1 = "b1") else profile, events = ev, today = 1, month = 23, fire = fire, ice = ice, limit = 1,
         tip = "Fermati, tester_dev. Non sei obbligato a premere ogni volta che hai un impulso.",
     )
 
@@ -39,6 +52,43 @@ class HomeShots {
         }
         rule.mainClock.advanceTimeBy(700)
         rule.onRoot().captureRoboImage("build/shots/native-$name.png")
+    }
+
+    private fun render(still: Int = R.drawable.fire_still_1, body: @androidx.compose.runtime.Composable () -> Unit) {
+        rule.mainClock.autoAdvance = false
+        rule.setContent { CompositionLocalProvider(LocalFireStill provides still) { body() } }
+    }
+    private fun cap(name: String) = rule.onRoot().captureRoboImage("build/shots/native-$name.png")
+
+    @Test fun equipped() { render { HomeContent(state(0, 9, equipped = true), {}, {}) }; rule.mainClock.advanceTimeBy(700); cap("equipped") }
+    @Test fun inventory() { render { HomeContent(state(0, 9, equipped = true), {}, {}, openInventory = 0) }; rule.mainClock.advanceTimeBy(700); cap("inventory") }
+    @Test fun preview() {
+        render {
+            Box(Modifier.fillMaxSize().background(Sbo.background)) {
+                InventoryDialog(0, profile, listOf(brina), onClose = {}, initialPreview = Badges.def("ice", 3)) {}
+            }
+        }
+        rule.mainClock.advanceTimeBy(900); cap("preview")
+    }
+    @Test fun drops() {
+        val rain = DropRain()
+        render { HomeContent(state(0, 0), {}, {}, rain = rain) }
+        rain.burst(seed = 7)
+        rule.mainClock.advanceTimeBy(300); cap("drops-300")
+        rule.mainClock.advanceTimeBy(300); cap("drops-600")
+        rule.mainClock.advanceTimeBy(400); cap("drops-1000")
+    }
+    /** Frames of a quick tap: finger down at 0, up at 60 ms (the dip still completes, then the spring release). */
+    @Test fun press() {
+        render(R.drawable.fire_still_2) { HomeContent(state(12, 0), {}, {}) }
+        rule.mainClock.advanceTimeBy(500)
+        rule.onRoot().performTouchInput { down(Offset(width / 2f, height * 0.555f)) }
+        rule.mainClock.advanceTimeBy(60); cap("press-060")
+        rule.onRoot().performTouchInput { up() }
+        rule.mainClock.advanceTimeBy(60); cap("press-120")
+        rule.mainClock.advanceTimeBy(100); cap("press-220")
+        rule.mainClock.advanceTimeBy(120); cap("press-340")
+        rule.mainClock.advanceTimeBy(400); cap("press-740")
     }
 
     @Test fun fire2a() = shot("fire-2-1", 2, 0, R.drawable.fire_still_1)

@@ -83,29 +83,27 @@ val LocalFireStill = staticCompositionLocalOf<Int?> { null }
 fun StreakButton(fire: Int, ice: Int, onPress: () -> Unit, modifier: Modifier = Modifier) {
     val level = min(fire / 30f, 1f)
     val iceLevel = min(ice / 30f, 1f)
-    val interaction = remember { MutableInteractionSource() }
-    val pressed by interaction.collectIsPressedAsState()
-    val scale by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.42f, stiffness = 700f), label = "press")
+    val press = rememberPressScale()
     val base = 28.dp // room for the glow under the disc
     // Same footprint in every state: the flames overflow upwards without pushing the layout.
     Box(modifier.size(width = 340.dp, height = DISC + base * 2), contentAlignment = Alignment.BottomCenter) {
         when {
-            fire > 0 -> FireButton(level, base, scale, interaction, onPress)
-            ice > 0 -> Disc(base, scale, interaction, onPress, glow = Color(0xFF38BDF8), glowAlpha = 0.3f + iceLevel * 0.4f, iceAura = true) { IceSurface(ice, iceLevel) }
-            else -> Disc(base, scale, interaction, onPress, glow = Sbo.dropGlow, glowAlpha = 0.45f) { NeutralSurface() }
+            fire > 0 -> FireButton(level, base, press, onPress)
+            ice > 0 -> Disc(base, press, onPress, glow = Color(0xFF38BDF8), glowAlpha = 0.3f + iceLevel * 0.4f, iceAura = true) { IceSurface(ice, iceLevel) }
+            else -> Disc(base, press, onPress, glow = Sbo.dropGlow, glowAlpha = 0.45f) { NeutralSurface() }
         }
     }
 }
 
 @Composable
 private fun Disc(
-    base: Dp, scale: Float, interaction: MutableInteractionSource, onPress: () -> Unit,
+    base: Dp, press: PressScale, onPress: () -> Unit,
     glow: Color, glowAlpha: Float, iceAura: Boolean = false, surface: @Composable () -> Unit,
 ) {
-    Box(Modifier.padding(bottom = base).size(DISC).scale(scale), contentAlignment = Alignment.Center) {
+    Box(Modifier.padding(bottom = base).size(DISC).graphicsLayer { scaleX = press.value; scaleY = press.value }, contentAlignment = Alignment.Center) {
         Glow(glow, glowAlpha, reach = 1.55f, flicker = if (iceAura) 0.25f else 0f, speed = 3600)
         Box(
-            Modifier.size(DISC).clip(CircleShape).clickable(interaction, indication = null, onClick = onPress),
+            Modifier.size(DISC).clip(CircleShape).pressable(press, "Aggiungi 1 al contatore", onPress),
             contentAlignment = Alignment.Center,
         ) {
             surface()
@@ -148,7 +146,7 @@ private fun GlassDome(strong: Boolean) {
 
 @Composable
 private fun PlusMark() {
-    Icon(Lucide.PlusBold, contentDescription = "Aggiungi 1 al contatore", tint = Color.White, modifier = Modifier.size(64.dp))
+    Icon(Lucide.PlusBold, contentDescription = null, tint = Color.White, modifier = Modifier.size(64.dp))
 }
 
 @Composable
@@ -185,7 +183,7 @@ private fun IcePlate(@DrawableRes res: Int, alpha: Float) {
  * exactly on the rim where the fire breaks out, so inside and outside read as one burning body.
  */
 @Composable
-private fun FireButton(level: Float, base: Dp, scale: Float, interaction: MutableInteractionSource, onPress: () -> Unit) {
+private fun FireButton(level: Float, base: Dp, press: PressScale, onPress: () -> Unit) {
     val overflow = DISC * (0.2f + 0.035f * level)
     val layerW = DISC * 1.5f
     val layerH = DISC + overflow
@@ -199,7 +197,7 @@ private fun FireButton(level: Float, base: Dp, scale: Float, interaction: Mutabl
                 }
             }
             .graphicsLayer {
-                scaleX = scale; scaleY = scale
+                scaleX = press.value; scaleY = press.value
                 transformOrigin = TransformOrigin(0.5f, 1f - (DISC / 2) / layerH) // press around the disc centre
             },
         contentAlignment = Alignment.BottomCenter,
@@ -212,7 +210,7 @@ private fun FireButton(level: Float, base: Dp, scale: Float, interaction: Mutabl
         FlameLayer(level, overflow, Modifier.size(width = layerW, height = layerH))
         HotRim(level, Modifier.size(width = layerW, height = layerH))
         Box(
-            Modifier.size(DISC).clip(CircleShape).clickable(interaction, indication = null, onClick = onPress),
+            Modifier.size(DISC).clip(CircleShape).pressable(press, "Aggiungi 1 al contatore", onPress),
             contentAlignment = Alignment.Center,
         ) {
             PlusMark()

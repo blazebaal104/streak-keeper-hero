@@ -2,6 +2,7 @@ package com.sbo.app.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.sbo.app.data.Badge
 import com.sbo.app.data.Profile
 import com.sbo.app.data.SboEvent
 import com.sbo.app.data.Supa
@@ -23,6 +24,7 @@ data class HomeState(
     val ice: Int = 0,
     val limit: Int = 3,
     val tip: String = "",
+    val badges: List<Badge> = emptyList(),
 )
 
 /** Optional preview override (used by the screenshot pipeline): "fire:12", "ice:9", "neutral". */
@@ -39,7 +41,8 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
             uid = id
             val p = Supa.profile(id)
             val ev = Supa.events(id)
-            _s.value = compute(p, ev)
+            val b = runCatching { Supa.badges(id) }.getOrDefault(_s.value.badges)
+            _s.value = compute(p, ev).copy(badges = b)
         } catch (e: Exception) {
             _s.update { it.copy(loading = false, error = e.message ?: "Errore di rete") }
         }
@@ -66,6 +69,17 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
     fun add() = viewModelScope.launch {
         val id = uid ?: return@launch
         runCatching { Supa.addEvent(id) }
+        refresh()
+    }
+
+    /** Put a medal in slot 0..2 (null = empty it). The UI updates at once, then syncs. */
+    fun equip(slot: Int, badgeId: String?) = viewModelScope.launch {
+        val id = uid ?: return@launch
+        _s.update { st ->
+            val p = st.profile ?: return@update st
+            st.copy(profile = when (slot) { 0 -> p.copy(slot_1 = badgeId); 1 -> p.copy(slot_2 = badgeId); else -> p.copy(slot_3 = badgeId) })
+        }
+        runCatching { Supa.setSlot(id, slot, badgeId) }
         refresh()
     }
 

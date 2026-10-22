@@ -29,6 +29,9 @@ data class Profile(
 data class SboEvent(val id: String, val user_id: String, val ts: String)
 
 @Serializable
+data class Badge(val id: String, val user_id: String, val category: String, val tier: String = "", val threshold: Int, val awarded_at: String = "")
+
+@Serializable
 private data class NewEvent(val user_id: String)
 
 @Serializable
@@ -64,6 +67,17 @@ object Supa {
             order("ts", Order.DESCENDING)
             limit(1000)
         }.decodeList()
+
+    suspend fun badges(uid: String): List<Badge> =
+        client.from("badges").select {
+            filter { eq("user_id", uid) }
+            order("threshold", Order.ASCENDING)
+        }.decodeList()
+
+    /** slot = 0..2; badgeId null empties the slot. */
+    suspend fun setSlot(uid: String, slot: Int, badgeId: String?) {
+        client.from("profiles").update({ set("slot_${slot + 1}", badgeId) }) { filter { eq("id", uid) } }
+    }
 
     suspend fun addEvent(uid: String) {
         client.from("events").insert(NewEvent(uid))

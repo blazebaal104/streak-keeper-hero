@@ -62,18 +62,29 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbo.app.data.Profile
+import com.sbo.app.logic.BadgeDef
+import com.sbo.app.logic.Badges
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.graphicsLayer
 
 private val CardShape = RoundedCornerShape(24.dp) // web: rounded-xl = 1.25rem + 4px
 
 @Composable
 fun HomeScreen(vm: HomeViewModel) {
     val s by vm.state.collectAsState()
-    HomeContent(s, onAdd = vm::add, onUndo = vm::undo)
+    HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip)
 }
 
 @Composable
-fun HomeContent(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit) {
+fun HomeContent(
+    s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit,
+    onEquip: (slot: Int, badgeId: String?) -> Unit = { _, _ -> },
+    rain: DropRain = remember { DropRain() },
+    openInventory: Int? = null,
+) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
+    var inventory by remember { mutableStateOf(openInventory) }
+    val add = { rain.burst(); onAdd() }
     CompositionLocalProvider(LocalTextStyle provides TextStyle(fontFamily = Inter, color = Sbo.foreground)) {
         Box(
             Modifier.fillMaxSize().background(Sbo.background).drawBehind {
@@ -93,9 +104,14 @@ fun HomeContent(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit) {
                     Header(p, s.fire, s.ice)
                     TabsBar(tab) { tab = it }
                     Spacer(Modifier.height(32.dp))
-                    if (tab == 0) HomeTab(s, onAdd, onUndo) else ComingSoon()
+                    if (tab == 0) HomeTab(s, add, onUndo) { inventory = it } else ComingSoon()
                     Spacer(Modifier.height(96.dp))
                 }
+            }
+            DropRainOverlay(rain)
+            val slot = inventory
+            if (p != null && slot != null) InventoryDialog(slot, p, s.badges, onClose = { inventory = null }) { id ->
+                onEquip(slot, id); inventory = null
             }
         }
     }
@@ -198,7 +214,7 @@ private fun TabsBar(selected: Int, onSelect: (Int) -> Unit) {
 }
 
 @Composable
-private fun HomeTab(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit) {
+private fun HomeTab(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit, onSlot: (Int) -> Unit) {
     val p = s.profile ?: return
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Stat("Oggi", s.today, accent = s.today >= s.limit, modifier = Modifier.weight(1f).fillMaxHeight())
@@ -207,7 +223,10 @@ private fun HomeTab(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit) {
     }
     Spacer(Modifier.height(29.dp))
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)) {
-        repeat(3) { BadgeSlot() }
+        listOf(p.slot_1, p.slot_2, p.slot_3).forEachIndexed { i, id ->
+            val b = id?.let { bid -> s.badges.firstOrNull { it.id == bid } }
+            BadgeSlot(b?.let { Badges.def(it.category, it.threshold) }) { onSlot(i) }
+        }
     }
     Spacer(Modifier.height(24.dp))
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -272,9 +291,12 @@ private fun Stat(label: String, value: Int, modifier: Modifier = Modifier, accen
 }
 
 @Composable
-private fun BadgeSlot() {
+private fun BadgeSlot(def: BadgeDef?, onClick: () -> Unit) {
+    val press = rememberPressScale()
+    val m = Modifier.graphicsLayer { scaleX = press.value; scaleY = press.value }.pressable(press, def?.name ?: "Slot medaglia", onClick)
+    if (def != null) { Box(m) { BadgeArt(def, 64.dp) }; return }
     Column(
-        Modifier.size(64.dp).clip(CircleShape).background(Sbo.card.copy(alpha = 0.7f)).drawBehind {
+        m.size(64.dp).clip(CircleShape).background(Sbo.card.copy(alpha = 0.7f)).drawBehind {
             val w = 2.dp.toPx()
             drawCircle(
                 Sbo.primary.copy(alpha = 0.5f), radius = size.minDimension / 2f - w / 2f,
