@@ -6,6 +6,8 @@ OUT=shots
 mkdir -p $OUT
 adb install -r android-native/app/build/outputs/apk/dev/debug/app-dev-debug.apk
 adb shell settings put system screen_off_timeout 600000
+# 1080 px at 420 dpi = 411 dp wide, the same width the web screenshot uses (412 px)
+adb shell wm density 420
 for mode in fire:14 fire:2 ice:9 neutral; do
   name=${mode/:/-}
   adb shell am force-stop com.sbo.app.dev

@@ -23,32 +23,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.Paint
-import androidx.compose.ui.graphics.Shader
-import androidx.compose.ui.graphics.ShaderBrush
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -81,13 +82,12 @@ fun StreakButton(fire: Int, ice: Int, onPress: () -> Unit, modifier: Modifier = 
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val scale by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.42f, stiffness = 700f), label = "press")
-    val plume: Dp = if (fire > 0) DISC * (0.55f + 0.45f * level) else 0.dp
     val base = 28.dp // room for the glow under the disc
-
-    Box(modifier.size(width = 340.dp, height = DISC + plume + base * 2), contentAlignment = Alignment.BottomCenter) {
+    // Same footprint in every state: the flames overflow upwards without pushing the layout.
+    Box(modifier.size(width = 340.dp, height = DISC + base * 2), contentAlignment = Alignment.BottomCenter) {
         when {
-            fire > 0 -> FireButton(level, plume, base, scale, interaction, onPress)
-            ice > 0 -> Disc(base, scale, interaction, onPress, glow = Color(0xFF38BDF8), glowAlpha = 0.35f + iceLevel * 0.4f) { IceSurface(ice, iceLevel) }
+            fire > 0 -> FireButton(level, base, scale, interaction, onPress)
+            ice > 0 -> Disc(base, scale, interaction, onPress, glow = Color(0xFF38BDF8), glowAlpha = 0.3f + iceLevel * 0.4f, iceAura = true) { IceSurface(ice, iceLevel) }
             else -> Disc(base, scale, interaction, onPress, glow = Sbo.dropGlow, glowAlpha = 0.45f) { NeutralSurface() }
         }
     }
@@ -96,13 +96,12 @@ fun StreakButton(fire: Int, ice: Int, onPress: () -> Unit, modifier: Modifier = 
 @Composable
 private fun Disc(
     base: Dp, scale: Float, interaction: MutableInteractionSource, onPress: () -> Unit,
-    glow: Color, glowAlpha: Float, surface: @Composable () -> Unit,
+    glow: Color, glowAlpha: Float, iceAura: Boolean = false, surface: @Composable () -> Unit,
 ) {
     Box(Modifier.padding(bottom = base).size(DISC).scale(scale), contentAlignment = Alignment.Center) {
-        Glow(glow, glowAlpha)
+        Glow(glow, glowAlpha, reach = 1.55f, flicker = if (iceAura) 0.25f else 0f, speed = 3600)
         Box(
-            Modifier.size(DISC).clip(CircleShape)
-                .clickable(interaction, indication = null, onClick = onPress),
+            Modifier.size(DISC).clip(CircleShape).clickable(interaction, indication = null, onClick = onPress),
             contentAlignment = Alignment.Center,
         ) {
             surface()
@@ -112,17 +111,19 @@ private fun Disc(
     }
 }
 
+/** Light thrown around the disc. `reach` = outer radius in disc radii. */
 @Composable
-private fun Glow(color: Color, alpha: Float, pulse: Boolean = false) {
+private fun Glow(color: Color, alpha: Float, reach: Float, flicker: Float = 0f, speed: Int = 2200) {
     val t = rememberInfiniteTransition(label = "glow")
-    val p by t.animateFloat(0.85f, 1f, infiniteRepeatable(tween(2200), RepeatMode.Reverse), label = "p")
-    Canvas(Modifier.requiredSize(DISC * 1.9f)) {
+    val a by t.animateFloat(0f, 1f, infiniteRepeatable(tween(speed, easing = LinearEasing)), label = "a")
+    Canvas(Modifier.requiredSize(DISC * reach)) {
+        val k = if (flicker > 0f) 1f - flicker * (0.5f + 0.3f * sin(a * 2 * PI.toFloat()) + 0.2f * sin(a * 7 * PI.toFloat())) else 1f
         val r = size.minDimension / 2
+        val inner = (1f / reach) * 0.92f
         drawCircle(
             Brush.radialGradient(
-                0f to color.copy(alpha = alpha * (if (pulse) p else 1f)),
-                0.52f to color.copy(alpha = alpha * 0.75f * (if (pulse) p else 1f)),
-                1f to Color.Transparent,
+                0f to color.copy(alpha = alpha * k), inner to color.copy(alpha = alpha * k),
+                (inner + 1f) / 2f to color.copy(alpha = alpha * 0.35f * k), 1f to Color.Transparent,
                 center = center, radius = r,
             ),
             radius = r,
@@ -143,10 +144,7 @@ private fun GlassDome(strong: Boolean) {
 
 @Composable
 private fun PlusMark() {
-    Icon(
-        Icons.Rounded.Add, contentDescription = "Aggiungi 1 al contatore", tint = Color.White,
-        modifier = Modifier.size(72.dp),
-    )
+    Icon(Lucide.PlusBold, contentDescription = "Aggiungi 1 al contatore", tint = Color.White, modifier = Modifier.size(64.dp))
 }
 
 @Composable
@@ -177,82 +175,117 @@ private fun IcePlate(@DrawableRes res: Int, alpha: Float) {
 
 // ---------------------------------------------------------------- fire
 
+/**
+ * One fire. Inside the disc it is cut round; at the top it is not: the same flames carry on past the
+ * rim, from roughly 10 to 2 o'clock, and die out 25-35% of a diameter above it. A white-hot band sits
+ * exactly on the rim where the fire breaks out, so inside and outside read as one burning body.
+ */
 @Composable
-private fun FireButton(level: Float, plume: Dp, base: Dp, scale: Float, interaction: MutableInteractionSource, onPress: () -> Unit) {
-    val layerW = DISC * 1.45f
-    val layerH = DISC + plume
-    Box(Modifier.padding(bottom = base).size(width = layerW, height = layerH).scale(scale), contentAlignment = Alignment.BottomCenter) {
-        // warm light thrown around the burning disc
-        Box(Modifier.size(DISC), contentAlignment = Alignment.Center) { Glow(Color(0xFFFF7A1A), 0.55f + level * 0.4f, pulse = true) }
-        // charred disc body
-        Box(
-            Modifier.size(DISC).clip(CircleShape).background(
-                Brush.radialGradient(listOf(Color(0xFF5A1600).copy(alpha = 0.85f), Color(0xFF1A0400))),
-            ),
-        )
-        // the fire: one continuous flame, round at the bottom and free at the top
-        FlameLayer(level, layerH, Modifier.size(width = layerW, height = layerH))
-        // inside the disc: soft vignette, glass, plus; also the touch target
+private fun FireButton(level: Float, base: Dp, scale: Float, interaction: MutableInteractionSource, onPress: () -> Unit) {
+    val overflow = DISC * (0.22f + 0.13f * level)
+    val layerW = DISC * 1.5f
+    val layerH = DISC + overflow
+    Box(
+        Modifier
+            .layout { measurable, constraints ->
+                // taller than the slot we get: anchor the disc at the bottom, let the flames spill upwards
+                val p = measurable.measure(Constraints.fixed(layerW.roundToPx(), layerH.roundToPx()))
+                layout(constraints.maxWidth, constraints.maxHeight) {
+                    p.place((constraints.maxWidth - p.width) / 2, constraints.maxHeight - base.roundToPx() - p.height)
+                }
+            }
+            .graphicsLayer {
+                scaleX = scale; scaleY = scale
+                transformOrigin = TransformOrigin(0.5f, 1f - (DISC / 2) / layerH) // press around the disc centre
+            },
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        Box(Modifier.size(DISC), contentAlignment = Alignment.Center) {
+            Glow(Color(0xFFFF7A1A), 0.5f + level * 0.35f, reach = 1.45f, flicker = 0.35f, speed = 1300)
+        }
+        // body of the disc: a hot red-orange core, never black
+        Box(Modifier.size(DISC).clip(CircleShape).background(Brush.radialGradient(0f to Color(0xFFB4410A), 0.65f to Color(0xFF7A2200), 1f to Color(0xFF3D0C00))))
+        FlameLayer(level, overflow, Modifier.size(width = layerW, height = layerH))
+        HotRim(level, Modifier.size(width = layerW, height = layerH))
         Box(
             Modifier.size(DISC).clip(CircleShape).clickable(interaction, indication = null, onClick = onPress),
             contentAlignment = Alignment.Center,
         ) {
-            Box(Modifier.fillMaxSize().background(Brush.radialGradient(0.62f to Color.Transparent, 1f to Color(0xFF7D0A00).copy(alpha = 0.18f + level * 0.22f))))
             GlassDome(strong = false)
             PlusMark()
         }
-        Embers(level, Modifier.size(width = layerW, height = layerH))
-    }
-}
-
-/** Ellipse-shaped radial alpha (Compose radial gradients are circles, so scale the shader). */
-private class EllipseBrush(val cx: Float, val cy: Float, val rx: Float, val ry: Float) : ShaderBrush() {
-    override fun createShader(size: Size): Shader {
-        val g = android.graphics.RadialGradient(
-            cx, cy, rx,
-            intArrayOf(0xFF000000.toInt(), 0xE6000000.toInt(), 0x80000000.toInt(), 0x00000000),
-            floatArrayOf(0f, 0.45f, 0.75f, 1f), android.graphics.Shader.TileMode.CLAMP,
-        )
-        g.setLocalMatrix(android.graphics.Matrix().apply { setScale(1f, ry / rx, cx, cy) })
-        return g
+        Sparks(level, overflow, Modifier.size(width = layerW, height = layerH))
     }
 }
 
 @Composable
-private fun FlameLayer(level: Float, layerH: Dp, modifier: Modifier) {
-    val saturation = 1.25f + level * 0.6f
+private fun FlameLayer(level: Float, overflow: Dp, modifier: Modifier) {
+    val saturation = 1.25f + level * 0.5f
     val layerPaint = remember(saturation) {
         Paint().apply {
-            blendMode = BlendMode.Screen // the footage's black background disappears
+            blendMode = BlendMode.Screen // the footage's black background disappears, flames add light
             colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) })
         }
     }
     Box(
-        modifier
-            .drawWithContent {
-                val r = size.width / 1.45f / 2f // disc radius
-                val c = Offset(size.width / 2f, size.height - r)
-                drawIntoCanvas { canvas ->
-                    canvas.saveLayer(Rect(Offset.Zero, size), layerPaint)
-                    drawContent()
-                    // alpha mask = circle ∪ (plume above the disc, fading upwards and to the sides)
-                    canvas.saveLayer(Rect(Offset.Zero, size), Paint().apply { blendMode = BlendMode.DstIn })
-                    val plumeCy = c.y - r * 0.35f
-                    drawRect(EllipseBrush(c.x, plumeCy, size.width * 0.5f, plumeCy))
-                    // the plume only exists above the disc's equator, with a soft fade (no hard line)
-                    drawRect(
-                        Brush.verticalGradient(0f to Color.Black, (c.y - r * 0.45f) / size.height to Color.Black, (c.y - r * 0.05f) / size.height to Color.Transparent, 1f to Color.Transparent),
-                        blendMode = BlendMode.DstIn,
-                    )
-                    drawCircle(Color.Black, r - 0.5f, c)
-                    canvas.restore()
-                    canvas.restore()
-                }
-            },
-        contentAlignment = Alignment.BottomCenter,
-    ) {
-        // square footage, as tall as the whole layer: flame base at the bottom of the disc
-        FireVideo(Modifier.requiredSize(layerH))
+        modifier.drawWithContent {
+            val r = DISC.toPx() / 2f
+            val c = Offset(size.width / 2f, size.height - r)
+            val reach = (r + overflow.toPx()) / r
+            drawIntoCanvas { canvas ->
+                canvas.saveLayer(Rect(Offset.Zero, size), layerPaint)
+                drawContent()
+                // mask = disc ∪ a band hugging the upper rim that fades out over `overflow`
+                canvas.saveLayer(Rect(Offset.Zero, size), Paint().apply { blendMode = BlendMode.DstIn })
+                drawRect(
+                    Brush.radialGradient(
+                        0f to Color.Black, (1f / reach) to Color.Black,
+                        (1f / reach + 1f) / 2f to Color.Black.copy(alpha = 0.55f), 1f to Color.Transparent,
+                        center = c, radius = r * reach,
+                    ),
+                )
+                // only the top of the disc breaks out: fade the band away from ~2/8 o'clock downwards
+                drawRect(
+                    Brush.verticalGradient(
+                        0f to Color.Black, (c.y - r * 0.35f) / size.height to Color.Black,
+                        (c.y + r * 0.1f) / size.height to Color.Transparent, 1f to Color.Transparent,
+                    ),
+                    blendMode = BlendMode.DstIn,
+                )
+                drawCircle(Color.Black, r - 0.5f, c)
+                canvas.restore()
+                canvas.restore()
+            }
+        },
+    ) { FireVideo(Modifier.fillMaxSize()) }
+}
+
+/** White-hot line exactly where the fire crosses the rim (upper half), screen-blended. */
+@Composable
+private fun HotRim(level: Float, modifier: Modifier) {
+    val t = rememberInfiniteTransition(label = "rim")
+    val a by t.animateFloat(0f, 1f, infiniteRepeatable(tween(900, easing = LinearEasing)), label = "a")
+    Canvas(modifier) {
+        val r = DISC.toPx() / 2f
+        val c = Offset(size.width / 2f, size.height - r)
+        val k = 0.8f + 0.2f * sin(a * 2 * PI.toFloat())
+        val band = r * 0.16f
+        val stops = arrayOf(
+            0f to Color.Transparent,
+            (r - band) / (r + band) to Color.Transparent,
+            (r - band * 0.25f) / (r + band) to Color(0xFFFFE6A8).copy(alpha = (0.55f + level * 0.3f) * k),
+            r / (r + band) to Color(0xFFFFB347).copy(alpha = 0.45f * k),
+            1f to Color.Transparent,
+        )
+        drawIntoCanvas { canvas ->
+            canvas.saveLayer(Rect(Offset.Zero, size), Paint().apply { blendMode = BlendMode.Screen })
+            drawCircle(Brush.radialGradient(*stops, center = c, radius = r + band), radius = r + band, center = c)
+            drawRect(
+                Brush.verticalGradient(0f to Color.Black, (c.y - r * 0.2f) / size.height to Color.Black, (c.y + r * 0.15f) / size.height to Color.Transparent, 1f to Color.Transparent),
+                blendMode = BlendMode.DstIn,
+            )
+            canvas.restore()
+        }
     }
 }
 
@@ -260,6 +293,7 @@ private fun FlameLayer(level: Float, layerH: Dp, modifier: Modifier) {
 private fun FireVideo(modifier: Modifier) {
     val context = LocalContext.current
     val owner = LocalLifecycleOwner.current
+    var ready by remember { mutableStateOf(false) }
     val player = remember {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(Uri.parse("android.resource://${context.packageName}/${R.raw.fire_loop}")))
@@ -270,32 +304,49 @@ private fun FireVideo(modifier: Modifier) {
         }
     }
     DisposableEffect(owner) {
+        val listener = object : Player.Listener { override fun onRenderedFirstFrame() { ready = true } }
+        player.addListener(listener)
         val obs = LifecycleEventObserver { _, e ->
             when (e) { Lifecycle.Event.ON_RESUME -> player.play(); Lifecycle.Event.ON_PAUSE -> player.pause(); else -> {} }
         }
         owner.lifecycle.addObserver(obs)
-        onDispose { owner.lifecycle.removeObserver(obs); player.release() }
+        onDispose { owner.lifecycle.removeObserver(obs); player.removeListener(listener); player.release() }
     }
-    AndroidView(factory = { TextureView(it).also { tv -> player.setVideoTextureView(tv) } }, modifier = modifier)
+    Box(modifier) {
+        // still frame of the same footage until the video has its first frame: the fire never blinks off
+        if (!ready) Image(painterResource(R.drawable.fire_poster), null, contentScale = ContentScale.FillBounds, modifier = Modifier.fillMaxSize())
+        AndroidView(factory = { TextureView(it).also { tv -> player.setVideoTextureView(tv) } }, modifier = Modifier.fillMaxSize())
+    }
 }
 
-/** Sparks thrown up from the rim. */
+/** Small sharp sparks born at random points of the upper rim, rising with jitter and fading. */
 @Composable
-private fun Embers(level: Float, modifier: Modifier) {
-    val t = rememberInfiniteTransition(label = "embers")
+private fun Sparks(level: Float, overflow: Dp, modifier: Modifier) {
+    val t = rememberInfiniteTransition(label = "sparks")
     val time by t.animateFloat(0f, 1000f, infiniteRepeatable(tween(1_000_000, easing = LinearEasing)), label = "t")
-    val seeds = remember { List(14) { i -> floatArrayOf(((i * 37) % 100) / 100f, 0.6f + ((i * 53) % 40) / 100f, ((i * 71) % 100) / 100f, 2f + (i % 3)) } }
+    val n = 16
     Canvas(modifier) {
-        val r = size.width / 1.45f / 2f
-        val rimY = size.height - 2 * r + r * 0.25f
-        for (s in seeds) {
-            val speed = s[1] * 0.75f
-            val ph = ((time * speed + s[2]) % 1f)
-            val x = size.width / 2f + (s[0] - 0.5f) * r * 1.5f + sin((ph * 2 * PI).toFloat()) * 10f
-            val y = rimY - ph * (r * (0.9f + level * 0.9f))
-            val a = sin((ph * PI).toFloat()).coerceAtLeast(0f)
-            drawCircle(Color(0xFFFF8C1E).copy(alpha = a * 0.35f), radius = s[3].dp.toPx() * 2.2f, center = Offset(x, y))
-            drawCircle(Color(0xFFFFD27A).copy(alpha = a), radius = s[3].dp.toPx() * 0.6f, center = Offset(x, y))
+        val r = DISC.toPx() / 2f
+        val c = Offset(size.width / 2f, size.height - r)
+        for (i in 0 until n) {
+            val life = 1.1f + hash(i, 0) * 0.9f
+            val local = (time + hash(i, 1) * life) / life
+            val cycle = local.toInt()
+            val ph = local - cycle
+            val ang = (-PI / 2 + (hash(i, cycle + 7) - 0.5f) * PI * 0.75).toFloat()
+            val start = Offset(c.x + r * kotlin.math.cos(ang), c.y + r * sin(ang))
+            val rise = (overflow.toPx() * 1.4f + r * 0.4f) * (0.6f + 0.4f * hash(i, cycle + 3))
+            val drift = (hash(i, cycle + 5) - 0.5f) * r * 0.5f
+            val p = Offset(start.x + drift * ph + sin(ph * 9f + i) * 3f, start.y - rise * ph)
+            val a = (1f - ph) * (if (ph < 0.12f) ph / 0.12f else 1f)
+            val sz = (1.2f + 1.6f * hash(i, cycle + 9)).dp.toPx()
+            drawCircle(Color(0xFFFFE1A0).copy(alpha = a), radius = sz * (1f - 0.5f * ph), center = p)
         }
     }
+}
+
+private fun hash(i: Int, j: Int): Float {
+    var h = i * 374761393 + j * 668265263
+    h = (h xor (h ushr 13)) * 1274126177
+    return ((h xor (h ushr 16)) and 0xFFFFFF) / 16777215f
 }

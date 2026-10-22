@@ -17,6 +17,8 @@ jobs:
         with: { distribution: temurin, java-version: "17" }
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: "8.10.2" }
+      - name: Fetch fonts and icons
+        run: bash android-native/ci/prepare.sh
       - name: Build dev app
         run: |
           set +e
