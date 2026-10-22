@@ -44,12 +44,10 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -223,18 +221,20 @@ private class EllipseBrush(val cx: Float, val cy: Float, val rx: Float, val ry: 
 @Composable
 private fun FlameLayer(level: Float, layerH: Dp, modifier: Modifier) {
     val saturation = 1.25f + level * 0.6f
+    val layerPaint = remember(saturation) {
+        Paint().apply {
+            blendMode = BlendMode.Screen // the footage's black background disappears
+            colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) })
+        }
+    }
     Box(
         modifier
-            .graphicsLayer {
-                compositingStrategy = CompositingStrategy.Offscreen
-                blendMode = BlendMode.Screen // the footage's black background disappears
-                colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) })
-            }
             .drawWithContent {
-                drawContent()
                 val r = size.width / 1.45f / 2f // disc radius
                 val c = Offset(size.width / 2f, size.height - r)
                 drawIntoCanvas { canvas ->
+                    canvas.saveLayer(Rect(Offset.Zero, size), layerPaint)
+                    drawContent()
                     // alpha mask = circle ∪ (plume above the disc, fading upwards and to the sides)
                     canvas.saveLayer(Rect(Offset.Zero, size), Paint().apply { blendMode = BlendMode.DstIn })
                     val plumeCy = c.y - r * 0.35f
@@ -245,6 +245,7 @@ private fun FlameLayer(level: Float, layerH: Dp, modifier: Modifier) {
                         blendMode = BlendMode.DstIn,
                     )
                     drawCircle(Color.Black, r - 0.5f, c)
+                    canvas.restore()
                     canvas.restore()
                 }
             },
