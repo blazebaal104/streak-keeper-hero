@@ -208,7 +208,7 @@ private fun FireButton(level: Float, base: Dp, scale: Float, interaction: Mutabl
             Glow(Color(0xFFFF7A1A), 0.5f + level * 0.35f, reach = 1.45f, flicker = 0.35f, speed = 1300)
         }
         // body of the disc: a hot red-orange core, never black
-        Box(Modifier.size(DISC).clip(CircleShape).background(Brush.radialGradient(0f to Color(0xFFD2560F), 0.6f to Color(0xFF9A3406), 1f to Color(0xFF7A2A08))))
+        Box(Modifier.size(DISC).clip(CircleShape).background(Brush.radialGradient(0f to Color(0xFFE0661A), 0.65f to Color(0xFFB8480C), 1f to Color(0xFFA03E0C))))
         FlameLayer(level, overflow, Modifier.size(width = layerW, height = layerH))
         HotRim(level, Modifier.size(width = layerW, height = layerH))
         Box(
@@ -224,10 +224,25 @@ private fun FireButton(level: Float, base: Dp, scale: Float, interaction: Mutabl
 @Composable
 private fun FlameLayer(level: Float, overflow: Dp, modifier: Modifier) {
     val saturation = 1.25f + level * 0.5f
-    val layerPaint = remember(saturation) {
+    // inside the disc: the footage as it is (screen-blended over the hot body)
+    val innerPaint = remember(saturation) {
         Paint().apply {
-            blendMode = BlendMode.Screen // the footage's black background disappears, flames add light
+            blendMode = BlendMode.Screen
             colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) })
+        }
+    }
+    // outside: the same footage with its dim haze crushed, so each tongue keeps its own tip
+    // instead of ending in a soft flat band
+    val outerPaint = remember(saturation) {
+        Paint().apply {
+            blendMode = BlendMode.Screen
+            colorFilter = ColorFilter.colorMatrix(
+                ColorMatrix().apply {
+                    setToSaturation(saturation)
+                    val k = 1.9f; val off = -0.32f * 255f
+                    timesAssign(ColorMatrix(floatArrayOf(k, 0f, 0f, 0f, off, 0f, k, 0f, 0f, off, 0f, 0f, k, 0f, off, 0f, 0f, 0f, 1f, 0f)))
+                },
+            )
         }
     }
     Box(
@@ -235,30 +250,34 @@ private fun FlameLayer(level: Float, overflow: Dp, modifier: Modifier) {
             val r = DISC.toPx() / 2f
             val c = Offset(size.width / 2f, size.height - r)
             val reach = (r + overflow.toPx()) / r
+            val all = Rect(Offset.Zero, size)
             drawIntoCanvas { canvas ->
-                canvas.saveLayer(Rect(Offset.Zero, size), layerPaint)
+                // 1) inside the disc
+                canvas.saveLayer(all, innerPaint)
                 drawContent()
-                // mask = disc ∪ a band hugging the upper rim; it follows the arc (so the flame tops are
-                // shaped by the footage itself, not by a straight line) and dies out gently
-                canvas.saveLayer(Rect(Offset.Zero, size), Paint().apply { blendMode = BlendMode.DstIn })
+                canvas.saveLayer(all, Paint().apply { blendMode = BlendMode.DstIn })
+                drawCircle(Color.Black, r - 0.5f, c)
+                canvas.restore(); canvas.restore()
+                // 2) the flames breaking out over the rim, from ~9 to ~3 o'clock, hugging the arc
+                canvas.saveLayer(all, outerPaint)
+                drawContent()
+                canvas.saveLayer(all, Paint().apply { blendMode = BlendMode.DstIn })
                 drawRect(
                     Brush.radialGradient(
-                        0f to Color.Black, (1f / reach) to Color.Black,
-                        (0.35f / reach + 0.65f) to Color.Black.copy(alpha = 0.7f), 1f to Color.Transparent,
+                        0f to Color.Transparent, ((r - 6f) / (r * reach)) to Color.Transparent,
+                        (1f / reach) to Color.Black,
+                        (0.45f / reach + 0.55f) to Color.Black.copy(alpha = 0.85f), 1f to Color.Transparent,
                         center = c, radius = r * reach,
                     ),
                 )
-                // only the upper part breaks out: fade the band away towards the equator (no hard line)
                 drawRect(
                     Brush.verticalGradient(
-                        0f to Color.Black, (c.y - r * 0.35f) / size.height to Color.Black,
-                        (c.y + r * 0.1f) / size.height to Color.Transparent, 1f to Color.Transparent,
+                        0f to Color.Black, (c.y - r * 0.05f) / size.height to Color.Black,
+                        (c.y + r * 0.3f) / size.height to Color.Transparent, 1f to Color.Transparent,
                     ),
                     blendMode = BlendMode.DstIn,
                 )
-                drawCircle(Color.Black, r - 0.5f, c)
-                canvas.restore()
-                canvas.restore()
+                canvas.restore(); canvas.restore()
             }
         },
     ) { FireVideo(Modifier.fillMaxSize()) }
@@ -273,11 +292,11 @@ private fun HotRim(level: Float, modifier: Modifier) {
         val r = DISC.toPx() / 2f
         val c = Offset(size.width / 2f, size.height - r)
         val k = 0.8f + 0.2f * sin(a * 2 * PI.toFloat())
-        val band = r * 0.16f
+        val band = r * 0.2f
         val stops = arrayOf(
             0f to Color.Transparent,
             (r - band) / (r + band) to Color.Transparent,
-            (r - band * 0.25f) / (r + band) to Color(0xFFFFE6A8).copy(alpha = (0.55f + level * 0.3f) * k),
+            (r - band * 0.25f) / (r + band) to Color(0xFFFFE6A8).copy(alpha = (0.7f + level * 0.25f) * k),
             r / (r + band) to Color(0xFFFFB347).copy(alpha = 0.45f * k),
             1f to Color.Transparent,
         )
@@ -285,7 +304,7 @@ private fun HotRim(level: Float, modifier: Modifier) {
             canvas.saveLayer(Rect(Offset.Zero, size), Paint().apply { blendMode = BlendMode.Screen })
             drawCircle(Brush.radialGradient(*stops, center = c, radius = r + band), radius = r + band, center = c)
             drawRect(
-                Brush.verticalGradient(0f to Color.Black, (c.y - r * 0.2f) / size.height to Color.Black, (c.y + r * 0.15f) / size.height to Color.Transparent, 1f to Color.Transparent),
+                Brush.verticalGradient(0f to Color.Black, (c.y + r * 0.05f) / size.height to Color.Black, (c.y + r * 0.45f) / size.height to Color.Transparent, 1f to Color.Transparent),
                 blendMode = BlendMode.DstIn,
             )
             canvas.restore()
@@ -341,9 +360,9 @@ private fun Sparks(level: Float, overflow: Dp, modifier: Modifier) {
             val local = (time + hash(i, 1) * life) / life
             val cycle = local.toInt()
             val ph = local - cycle
-            val sx = (hash(i, cycle + 7) - 0.5f) * 1.6f // -0.8r .. 0.8r, independent per spark and per life
-            val start = Offset(c.x + sx * r, c.y - r * kotlin.math.sqrt(1f - sx * sx) - overflow.toPx() * 0.4f * hash(i, cycle + 11))
-            val rise = (overflow.toPx() * 1.4f + r * 0.4f) * (0.6f + 0.4f * hash(i, cycle + 3))
+            val sx = (hash(i, cycle + 7) * hash(i, cycle + 13) * 2f - 0.5f * (1f + hash(i, 17))).coerceIn(-0.85f, 0.85f) // -0.8r .. 0.8r, independent per spark and per life
+            val start = Offset(c.x + sx * r, c.y - r * kotlin.math.sqrt(1f - sx * sx) - overflow.toPx() * 0.15f * hash(i, cycle + 11))
+            val rise = (overflow.toPx() * 0.95f) * (0.6f + 0.4f * hash(i, cycle + 3))
             val drift = (hash(i, cycle + 5) - 0.5f) * r * 0.5f
             val p = Offset(start.x + drift * ph + sin(ph * 9f + i) * 3f, start.y - rise * ph)
             val a = (1f - ph) * (if (ph < 0.12f) ph / 0.12f else 1f)
