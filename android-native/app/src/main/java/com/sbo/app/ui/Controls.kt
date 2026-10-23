@@ -87,7 +87,8 @@ fun SboSlider(value: Int, min: Int, max: Int, onChange: (Int) -> Unit, onCommit:
 @Composable
 fun SboButton(
     text: String, icon: androidx.compose.ui.graphics.vector.ImageVector? = null, variant: String = "default",
-    modifier: Modifier = Modifier.fillMaxWidth(), enabled: Boolean = true, fontSize: Int = 14, onClick: () -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(), enabled: Boolean = true, fontSize: Int = 14,
+    trailing: androidx.compose.ui.graphics.vector.ImageVector? = null, onClick: () -> Unit,
 ) {
     val press = rememberPressScale()
     val bg = when (variant) { "default" -> Sbo.primary; "secondary" -> Sbo.secondary; "destructive" -> Sbo.destructive; else -> Color.Transparent }
@@ -99,6 +100,7 @@ fun SboButton(
     ) {
         if (icon != null) { androidx.compose.material3.Icon(icon, null, tint = fg, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(8.dp)) }
         Text(text, color = fg.copy(alpha = if (enabled) 1f else 0.5f), fontSize = fontSize.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium)
+        if (trailing != null) { Spacer(Modifier.width(12.dp)); androidx.compose.material3.Icon(trailing, null, tint = fg, modifier = Modifier.size(16.dp)) }
     }
 }
 

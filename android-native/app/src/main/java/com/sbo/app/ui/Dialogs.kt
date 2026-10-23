@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -225,7 +227,9 @@ fun SettingsDialog(p: Profile, onClose: () -> Unit, onUpdate: (Profile, JsonObje
         DialogTitle("Impostazioni")
         DialogDesc("Personalizza SBO come vuoi tu.")
         Spacer(Modifier.height(24.dp))
-        Column(Modifier.padding(end = 5.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        // web: the options scroll inside a max-h-[65vh] box, "Fatto" stays visible under it
+        val maxH = androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp.dp * 0.65f
+        Column(Modifier.heightIn(max = maxH).verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(end = 5.dp, top = 8.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
             pzCard()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

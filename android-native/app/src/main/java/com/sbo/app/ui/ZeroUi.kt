@@ -20,6 +20,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -128,7 +129,7 @@ fun ZeroBanner(day: Int, league: League, weekCount: Int, limit: Int, workoutsWee
                 val c = Offset(size.width - 24.dp.toPx(), 24.dp.toPx())
                 drawCircle(Brush.radialGradient(0f to Sbo.primary.copy(alpha = 0.2f), 1f to Color.Transparent, center = c, radius = 104.dp.toPx()), 104.dp.toPx(), c)
             }
-            .border(1.dp, Sbo.primary.copy(alpha = 0.3f), RoundedCornerShape(28.dp)).padding(16.dp),
+            .border(1.dp, Sbo.primary.copy(alpha = 0.3f), RoundedCornerShape(28.dp)).padding(horizontal = 16.dp, vertical = 20.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -141,7 +142,7 @@ fun ZeroBanner(day: Int, league: League, weekCount: Int, limit: Int, workoutsWee
                     Spacer(Modifier.width(8.dp))
                     Text("PROGETTO ZERO IN CORSO", color = Sbo.primary, fontSize = 11.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 2.2.sp)
                 }
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(7.dp))
                 Text("Giorno $day", fontFamily = SpaceGrotesk, fontSize = 24.sp, lineHeight = 32.sp, fontWeight = FontWeight.Bold)
                 Text("${league.label} · $workoutsWeek allenamenti questa settimana", color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
             }
@@ -372,7 +373,7 @@ fun PlanOverlay(plan: DayPlan, wd: WorkoutDay?, name: String, day: Int, onToggle
                     Icon(Lucide.X, "Chiudi", tint = Sbo.foreground, modifier = Modifier.size(20.dp))
                 }
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(34.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(80.dp), contentAlignment = Alignment.Center) {
                     Canvas(Modifier.size(80.dp)) {
@@ -509,7 +510,7 @@ fun AgentChatDialog(messages: List<AgentMessage>, onClose: () -> Unit, onPoll: (
             Box(Modifier.fillMaxWidth().height(1.dp).background(Sbo.border))
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 if (messages.isEmpty()) Text("Nessun messaggio ancora.", color = Sbo.mutedFg, fontSize = 14.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp))
-                LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(state = list, modifier = Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 33.dp, bottom = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(rows.size) { i ->
                         val (label, m) = rows[i]
                         if (label != null) Text(label.uppercase(), color = Sbo.mutedFg, fontSize = 10.sp, lineHeight = 14.sp, letterSpacing = 0.5.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = if (i > 0) 8.dp else 0.dp))
@@ -519,7 +520,7 @@ fun AgentChatDialog(messages: List<AgentMessage>, onClose: () -> Unit, onPoll: (
                             val shape = if (mine) RoundedCornerShape(28.dp, 4.dp, 28.dp, 28.dp) else RoundedCornerShape(4.dp, 28.dp, 28.dp, 28.dp)
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start) {
                                 Column(
-                                    Modifier.widthIn(max = ((LocalConfiguration.current.screenWidthDp - 32) * 0.85f).dp).clip(shape)
+                                    Modifier.fillMaxWidth(0.85f).clip(shape)
                                         .background(if (mine) Sbo.primary else if (angry) Sbo.destructive.copy(alpha = 0.15f) else if (m.kind == "tip") Sbo.primary.copy(alpha = 0.10f) else Sbo.secondary)
                                         .then(if (angry) Modifier.border(1.dp, Sbo.destructive.copy(alpha = 0.5f), shape) else if (m.kind == "tip") Modifier.border(1.dp, Sbo.primary.copy(alpha = 0.3f), shape) else Modifier)
                                         .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -527,7 +528,7 @@ fun AgentChatDialog(messages: List<AgentMessage>, onClose: () -> Unit, onPoll: (
                                     Text(m.content, color = if (mine) Sbo.primaryFg else Sbo.foreground, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = if (angry) FontWeight.SemiBold else FontWeight.Normal)
                                     Text(
                                         com.sbo.app.logic.Streaks.instant(m.created_at).atZone(zone).format(HM), color = if (mine) Sbo.primaryFg.copy(alpha = 0.7f) else Sbo.mutedFg,
-                                        fontSize = 10.sp, lineHeight = 14.sp, textAlign = TextAlign.End, modifier = Modifier.align(Alignment.End).padding(top = 4.dp),
+                                        fontSize = 10.sp, lineHeight = 14.sp, textAlign = TextAlign.End, modifier = Modifier.align(Alignment.End).padding(top = 8.dp, bottom = 2.dp),
                                     )
                                 }
                             }
@@ -543,9 +544,12 @@ fun AgentChatDialog(messages: List<AgentMessage>, onClose: () -> Unit, onPoll: (
             }
             Box(Modifier.fillMaxWidth().height(1.dp).background(Sbo.border))
             Row(Modifier.fillMaxWidth().padding(12.dp), verticalAlignment = Alignment.Bottom) {
+                val focus = remember { MutableInteractionSource() }
+                val focused by focus.collectIsFocusedAsState()
                 BasicTextField(
                     draft, { draft = it.take(1000) }, textStyle = TextStyle(fontFamily = Inter, fontSize = 14.sp, color = Sbo.foreground), cursorBrush = SolidColor(Sbo.primary), maxLines = 4,
-                    modifier = Modifier.weight(1f).heightIn(min = 40.dp).clip(RoundedCornerShape(28.dp)).background(Sbo.background).border(1.dp, Sbo.border, RoundedCornerShape(28.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
+                    interactionSource = focus,
+                    modifier = Modifier.weight(1f).heightIn(min = 40.dp).clip(RoundedCornerShape(28.dp)).background(Sbo.background).border(1.dp, if (focused) Sbo.primary else Sbo.border, RoundedCornerShape(28.dp)).padding(horizontal = 14.dp, vertical = 10.dp),
                     decorationBox = { inner -> Box { if (draft.isEmpty()) Text("Scrivi al coach…", color = Sbo.mutedFg, fontSize = 14.sp); inner() } },
                 )
                 Spacer(Modifier.width(8.dp))
@@ -572,7 +576,7 @@ fun ThemePicker(value: String, onChange: (String) -> Unit) {
                 val on = value == t.id
                 Column(
                     Modifier.weight(1f).then(if (on) Modifier.border(4.dp, Sbo.primary.copy(alpha = 0.4f), RoundedCornerShape(26.dp)).padding(2.dp) else Modifier)
-                        .clip(RoundedCornerShape(24.dp)).border(1.dp, if (on) Sbo.primary else Sbo.border, RoundedCornerShape(24.dp)).clickable { onChange(t.id) }.padding(12.dp),
+                        .clip(RoundedCornerShape(24.dp)).border(1.dp, if (on) Sbo.primary else Sbo.border, RoundedCornerShape(24.dp)).clickable { onChange(t.id) }.padding(horizontal = 12.dp, vertical = 14.dp),
                 ) {
                     Row(Modifier.fillMaxWidth().height(32.dp).clip(RoundedCornerShape(18.dp))) { t.colors.forEach { c -> Box(Modifier.weight(1f).fillMaxHeight().background(Color(c))) } }
                     Spacer(Modifier.height(8.dp))
@@ -708,7 +712,7 @@ fun ZeroQuestionnaire(reassess: Boolean, redo: Boolean, initial: ZeroAnswers?, i
             if (step > 0) Box(Modifier.size(36.dp).clip(RoundedCornerShape(18.dp)).background(Sbo.secondary).clickable { step-- }, contentAlignment = Alignment.Center) {
                 Icon(Lucide.ChevronLeft, null, tint = Sbo.foreground, modifier = Modifier.size(16.dp))
             }
-            if (step < total - 1) SboButton(if (step == 0) "Iniziamo" else "Avanti", modifier = Modifier.weight(1f)) { step++ }
+            if (step < total - 1) SboButton(if (step == 0) "Iniziamo" else "Avanti", modifier = Modifier.weight(1f), trailing = Lucide.ChevronRight) { step++ }
             else SboButton(if (reassess && !redo) "Aggiorna il piano" else "Attiva il Progetto Zero", modifier = Modifier.weight(1f)) { onSubmit(ans, theme, league, limit) }
         }
     }
@@ -766,11 +770,10 @@ fun ZeroSettingsCard(zv: ZeroView, onStart: () -> Unit, onQuit: () -> Unit, onLi
                     Text("$draft", fontFamily = FontFamily.Monospace, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 }
                 SboSlider(draft, 0, 5, onChange = { draft = it }, onCommit = onLimit)
-                Spacer(Modifier.height(4.dp))
                 Text("Da 0 a 5 a settimana. Vale da subito e resta fisso finché non lo cambi.", color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp)
             }
             UpperLabel("Tema")
-            Column { ThemePicker(zv.pz?.theme ?: "obsidian", onTheme) }
+            Column(Modifier.padding(top = 7.dp)) { ThemePicker(zv.pz?.theme ?: "obsidian", onTheme) }
             SmallButton("Rifai il questionario", modifier = Modifier.fillMaxWidth(), onClick = onReassess)
         }
     }) { on -> if (on) onStart() else onQuit() }

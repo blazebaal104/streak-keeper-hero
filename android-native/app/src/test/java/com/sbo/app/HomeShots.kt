@@ -184,6 +184,8 @@ class HomeShots {
     }
     @Test fun pzHome() = pz("pz-home")
     @Test fun pzPlan() = pz("pz-plan", "plan")
+    /** A training day (2026-10-21 is a Wednesday, a "mid" league training day) for the exercise rows. */
+    @Test fun pzPlanWork() { render(theme = "obsidian") { HomeContent(zeroState(), {}, {}, open = "plan", today = java.time.LocalDate.of(2026, 10, 21)) }; rule.mainClock.advanceTimeBy(900); cap("pz-plan-work") }
     @Test fun pzSettings() = pz("pz-settings", "settings")
     @Test fun pzCoach() = pz("pz-coach", "agent")
     @Test fun pzCal() = pz("pz-cal", tab = 1)

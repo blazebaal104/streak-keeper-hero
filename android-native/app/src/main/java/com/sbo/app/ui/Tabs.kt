@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+
 package com.sbo.app.ui
 
 import androidx.compose.foundation.Canvas
@@ -76,19 +78,14 @@ fun CalendarTab(events: List<SboEvent>, limit: Int, today: LocalDate = LocalDate
                 MonthGrid(month, today, byDay, limit, onPrev = { month = month.minusMonths(1) }, onNext = { month = month.plusMonths(1) }, onDay = onDay, mark = zero?.let { z -> { d: LocalDate -> z.workoutStatus(d) } })
             }
             Spacer(Modifier.height(16.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(6.dp).clip(CircleShape).background(Sbo.accent)); Spacer(Modifier.width(6.dp))
-                Text("attività", color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
-                Spacer(Modifier.width(16.dp))
-                Box(Modifier.size(8.dp).clip(CircleShape).background(Sbo.destructive)); Spacer(Modifier.width(6.dp))
-                Text("sopra il limite", color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
-            }
-            if (zero != null) Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Text("✓", color = Sbo.zeroOk, fontSize = 12.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.width(6.dp))
-                Text("allenamento fatto", color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
-                Spacer(Modifier.width(16.dp))
-                Text("✕", color = Sbo.zeroOver, fontSize = 12.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.width(6.dp))
-                Text("allenamento saltato", color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
+            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                @Composable fun Item(mark: @Composable () -> Unit, t: String) = Row(verticalAlignment = Alignment.CenterVertically) { mark(); Spacer(Modifier.width(6.dp)); Text(t, color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp) }
+                Item({ Box(Modifier.size(6.dp).clip(CircleShape).background(Sbo.accent)) }, "attività")
+                Item({ Box(Modifier.size(8.dp).clip(CircleShape).background(Sbo.destructive)) }, "sopra il limite")
+                if (zero != null) {
+                    Item({ Text("✓", color = Sbo.zeroOk, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Bold) }, "allenamento fatto")
+                    Item({ Text("✕", color = Sbo.zeroOver, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Bold) }, "allenamento saltato")
+                }
             }
             Spacer(Modifier.height(12.dp))
             Text("Tocca un giorno degli ultimi 7 per aggiungere o togliere eventi dimenticati.", color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -169,7 +166,7 @@ private fun DayCell(d: LocalDate, inMonth: Boolean, today: LocalDate, count: Int
             )
         }
         if (mark != null) Text(
-            if (mark == "done") "✓" else "✕", color = if (mark == "done") Sbo.zeroOk else Sbo.zeroOver, fontSize = 9.sp, lineHeight = 10.sp, fontWeight = FontWeight.Bold,
+            if (mark == "done") "✓" else "✕", color = if (mark == "done") Sbo.zeroOk else Sbo.zeroOver, fontSize = 9.sp, lineHeight = 10.sp, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 2.dp),
         )
     }
