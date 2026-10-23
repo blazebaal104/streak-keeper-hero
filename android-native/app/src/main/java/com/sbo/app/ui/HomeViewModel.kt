@@ -88,6 +88,17 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
     /** Toasts raised by background checks (web: realtime notifications for DMs, invites, new friends). */
     val notices = kotlinx.coroutines.flow.MutableSharedFlow<Pair<String, String?>>(extraBufferCapacity = 8)
     @Volatile var foreground = true
+    /** Deep link from a tapped notification ("dm:<id>", "clan", ...). */
+    val deepLink = MutableStateFlow<String?>(null)
+    /** Settings → "Attiva notifiche del sistema": the activity asks Android for the permission. */
+    val enableNotifications = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    var onTestPushQueued: () -> Unit = {}
+
+    fun testPush() = viewModelScope.launch {
+        val id = uid ?: return@launch
+        runCatching { Supa.scheduleTestPush(id) }
+        onTestPushQueued()
+    }
     var openChatWith: String? = null
 
     init {
@@ -158,8 +169,17 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
         return HomeState(false, null, p, ev, today, Streaks.countThisMonth(ev), fire, ice, limit, tip)
     }
 
+    private var prevOverLimit = false
+
     fun add() = viewModelScope.launch {
         val id = uid ?: return@launch
+        // web handleAdd: crossing the daily limit for the first time today schedules a "shame" push 10 minutes later
+        val st = _s.value
+        val p = st.profile
+        if (p != null && p.notifications_enabled && !ZeroView(st.zero, id, st.events).active && st.today + 1 >= st.limit && st.today < st.limit && !prevOverLimit) {
+            prevOverLimit = true
+            runCatching { Supa.schedulePush(id, java.time.Instant.now().plusSeconds(600), "💧 SBO", Phrases.overLimitShame(p.username), "over-limit-shame") }
+        }
         runCatching { Supa.addEvent(id) }
         refresh()
     }

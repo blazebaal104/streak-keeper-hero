@@ -174,6 +174,7 @@ object Phrases {
         return s
     }
     fun restart(n: String) = pick(RESTART, n)
+    fun overLimitShame(n: String) = pick(OVER_LIMIT_SHAME, n)
     fun encourage(n: String) = pick(ENCOURAGE, n)
     fun slowdown(n: String) = pick(SLOWDOWN, n)
     fun fireEncourage(n: String, fire: Int) = pick(FIRE_ENCOURAGE, n, mapOf("fire" to fire))

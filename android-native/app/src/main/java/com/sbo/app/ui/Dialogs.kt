@@ -222,7 +222,7 @@ private fun StreakProgress(badges: List<Badge>) {
 
 /** Settings (web: limits + notifications; Progetto Zero lives on top once enabled). */
 @Composable
-fun SettingsDialog(p: Profile, onClose: () -> Unit, onUpdate: (Profile, JsonObject) -> Unit, onToast: (String) -> Unit, pzCard: @Composable () -> Unit = { PzCard(false, "Trasforma SBO nel tuo personal trainer. Minimo 7 giorni.") { onToast("Progetto Zero arriva nella prossima versione nativa.") } }) {
+fun SettingsDialog(p: Profile, onClose: () -> Unit, onUpdate: (Profile, JsonObject) -> Unit, onToast: (String) -> Unit, onEnableNotifications: () -> Unit = {}, onTestPush: () -> Unit = {}, pzCard: @Composable () -> Unit = { PzCard(false, "Trasforma SBO nel tuo personal trainer. Minimo 7 giorni.") { onToast("Progetto Zero arriva nella prossima versione nativa.") } }) {
     SboDialog(onClose) {
         DialogTitle("Impostazioni")
         DialogDesc("Personalizza SBO come vuoi tu.")
@@ -267,12 +267,8 @@ fun SettingsDialog(p: Profile, onClose: () -> Unit, onUpdate: (Profile, JsonObje
                 Line("🔥 Streak a rischio", p.notif_streak, "notif_streak") { p.copy(notif_streak = it) }
                 Line("🛡️ Amici e clan", p.notif_social, "notif_social") { p.copy(notif_social = it) }
             }
-            SboButton("Attiva notifiche del sistema", Lucide.Bell, variant = "secondary") {
-                onToast("Le notifiche push dell'app nativa arrivano con la prossima versione (serve Firebase).")
-            }
-            SboButton("Invia notifica di prova", variant = "ghost", fontSize = 12) {
-                onToast("Disponibile insieme alle notifiche push native.")
-            }
+            SboButton("Attiva notifiche del sistema", Lucide.Bell, variant = "secondary", onClick = onEnableNotifications)
+            SboButton("Invia notifica di prova", variant = "ghost", fontSize = 12, onClick = onTestPush)
         }
         Spacer(Modifier.height(16.dp))
         SboButton("Fatto", onClick = onClose)

@@ -191,6 +191,7 @@ class HomeShots {
     @Test fun pzCal() = pz("pz-cal", tab = 1)
     @Test fun pzTrend() = pz("pz-trend", tab = 2)
     @Test fun pzSocial() = pz("pz-social", tab = 3)
+    @Test fun auth() { render { HomeContent(HomeState(loading = false, error = "login"), {}, {}) }; rule.mainClock.advanceTimeBy(700); cap("auth-signup") }
     @Test fun quiz1() { render { HomeContent(state(0, 0), {}, {}, open = "quiz") }; rule.mainClock.advanceTimeBy(900); cap("quiz-1") }
 
     @Test fun fire2a() = shot("fire-2-1", 2, 0, R.drawable.fire_still_1)

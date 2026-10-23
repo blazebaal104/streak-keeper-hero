@@ -87,7 +87,9 @@ fun HomeScreen(vm: HomeViewModel) {
     HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip, onDayAdd = vm::addOnDay, onDayRemove = vm::removeOnDay, onAddFriend = vm::addFriend, onRemoveFriend = vm::removeFriend, onLeaveClan = vm::leaveClan,
         onUpdateProfile = { p, j -> vm.updateProfile({ p }, j) }, onSignOut = vm::signOut, onSetRole = vm::setRole,
         clan = ClanActions(vm::createClan, vm::joinClan, vm::acceptInvite, vm::declineInvite, vm::inviteToClan, vm::kick),
-        notices = vm.notices, onChatOpen = { vm.openChatWith = it },
+        notices = vm.notices, onChatOpen = { vm.openChatWith = it }, onSignedIn = { vm.refresh() },
+        deepLink = vm.deepLink.collectAsState().value, onDeepLinkHandled = { vm.deepLink.value = null },
+        onEnableNotifications = { vm.enableNotifications.tryEmit(Unit) }, onTestPush = { vm.testPush() },
         zero = ZeroActions(
             save = { j, after -> vm.savePz(j) { after() } }, tick = { vm.tick(it) }, send = vm::sendCoach, poll = { vm.reloadAgent() }, markRead = { vm.markAgentRead() },
             saveToday = { ids, cus, done -> vm.saveToday(ids, cus, done) },
@@ -141,6 +143,9 @@ fun HomeContent(
     friendPreload: Pair<List<com.sbo.app.data.SboEvent>, List<com.sbo.app.data.Badge>>? = null,
     zero: ZeroActions = ZeroActions(),
     notices: kotlinx.coroutines.flow.Flow<Pair<String, String?>>? = null,
+    onSignedIn: () -> Unit = {},
+    deepLink: String? = null, onDeepLinkHandled: () -> Unit = {},
+    onEnableNotifications: () -> Unit = {}, onTestPush: () -> Unit = {},
     onChatOpen: (String?) -> Unit = {},
     rain: DropRain = remember { DropRain() },
     openInventory: Int? = null,
@@ -173,6 +178,22 @@ fun HomeContent(
     var showCustom by remember { mutableStateOf(false) }
     var showAgent by remember { mutableStateOf(open == "agent") }
     var confirmQuit by remember { mutableStateOf(false) }
+    // notification taps: same deep links as the web push (/?open=dm:<id> | friend:<id> | clan | invites | agent)
+    LaunchedEffect(deepLink, s.social.loaded) {
+        val link = deepLink ?: return@LaunchedEffect
+        val kind = link.substringBefore(":"); val id = link.substringAfter(":", "")
+        when (kind) {
+            "dm", "friend" -> {
+                if (!s.social.loaded) return@LaunchedEffect
+                tab = 3
+                s.social.friends.firstOrNull { it.profile.id == id }?.profile?.let { if (kind == "dm") chatWith = it else viewFriend = it }
+            }
+            "clan" -> { tab = 3; clanChat = true }
+            "invites" -> showInvites = true
+            "agent" -> { showAgent = true; zero.markRead() }
+        }
+        onDeepLinkHandled()
+    }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     // big plan on the first open of the day (web: localStorage sbo:pzPlanSeen:<key>)
     LaunchedEffect(zv.active, zv.plan?.key) {
@@ -239,8 +260,9 @@ fun HomeContent(
             val p = s.profile
             when {
                 p == null && s.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Sbo.primary) }
+                p == null && s.error == "login" -> AuthScreen(onSignedIn)
                 p == null -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                    Text(if (s.error == "login") "Accesso non ancora disponibile in questa versione." else "Errore: ${s.error}", color = Sbo.mutedFg, textAlign = TextAlign.Center)
+                    Text("Errore: ${s.error}", color = Sbo.mutedFg, textAlign = TextAlign.Center)
                 }
                 else -> Column(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp),
@@ -270,7 +292,7 @@ fun HomeContent(
             val me = p
             if (me != null) {
                 if (showProfile) ProfileDialog(me, s.badges, onClose = { showProfile = false }, onUpdate = onUpdateProfile, onSlot = { showProfile = false; inventory = it }, onSignOut = { showProfile = false; onSignOut() }, onToast = { toast.show(it) })
-                if (showSettings) SettingsDialog(me, onClose = { showSettings = false }, onUpdate = onUpdateProfile, onToast = { toast.show(it) }, pzCard = {
+                if (showSettings) SettingsDialog(me, onClose = { showSettings = false }, onUpdate = onUpdateProfile, onToast = { toast.show(it) }, onEnableNotifications = onEnableNotifications, onTestPush = { onTestPush(); toast.show("Notifica di prova inviata: arriva entro un minuto. Puoi anche chiudere l'app.") }, pzCard = {
                     ZeroSettingsCard(zv, onStart = { quiz = "start" }, onQuit = {
                         if (zv.day <= 7) toast.show("Il Progetto Zero dura almeno 7 giorni. Potrai disattivarlo tra ${8 - zv.day} giorni.") else confirmQuit = true
                     }, onLimit = { v -> zero.save(patch("start_limit" to v, "limit_set_at" to java.time.Instant.now().toString())) { toast.show("Limite settimanale: $v") } },

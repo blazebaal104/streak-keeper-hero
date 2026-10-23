@@ -125,6 +125,17 @@ await step("quiz", async () => {
   await page.screenshot({ path: "shots/web-quiz-2.png" });
   await page.keyboard.press("Escape"); await page.waitForTimeout(400);
 });
+// login screen (fresh context, nobody signed in)
+await step("auth", async () => {
+  const a = await browser.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2.625, isMobile: true, hasTouch: true });
+  const pg = await a.newPage();
+  await pg.goto("https://sbo-dev.perlospam696.workers.dev/auth?login=1", { waitUntil: "networkidle" });
+  await pg.waitForTimeout(2500);
+  await pg.screenshot({ path: "shots/web-auth-signup.png" });
+  await pg.getByRole("button", { name: "Accedi" }).last().click(); await pg.waitForTimeout(500);
+  await pg.screenshot({ path: "shots/web-auth-login.png" });
+  await a.close();
+});
 // the native app's coach API on the dev worker: without a token it must answer 401 JSON
 await step("api", async () => {
   const fs = await import("node:fs");

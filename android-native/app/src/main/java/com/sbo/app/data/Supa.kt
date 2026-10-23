@@ -53,6 +53,12 @@ data class WorkoutDay(
 data class AgentMessage(val id: String, val user_id: String, val content: String, val kind: String, val created_at: String, val read_at: String? = null)
 
 @Serializable
+data class ScheduledNotification(val id: String, val title: String, val body: String, val tag: String? = null, val url: String? = null, val deliver_at: String)
+
+@Serializable
+private data class NewScheduled(val user_id: String, val deliver_at: String, val title: String, val body: String, val tag: String, val url: String)
+
+@Serializable
 data class ClanInvite(val id: String, val clan_id: String, val from_user_id: String, val to_user_id: String, val status: String = "pending")
 
 @Serializable
@@ -269,6 +275,48 @@ object Supa {
             kotlinx.serialization.json.Json.parseToJsonElement(txt) as? kotlinx.serialization.json.JsonObject
         }
     }.getOrNull()
+
+    // ------------------------------------------------ notifications (same queue the web push uses)
+
+    suspend fun dueNotifications(uid: String, afterIso: String, nowIso: String): List<ScheduledNotification> =
+        client.from("scheduled_notifications").select {
+            filter { eq("user_id", uid); gt("deliver_at", afterIso); lte("deliver_at", nowIso) }
+            order("deliver_at", Order.ASCENDING)
+            limit(20)
+        }.decodeList()
+
+    /** Queue a push for later (web schedulePush): delivered by the server to web push and by the app's notification job. */
+    suspend fun schedulePush(uid: String, deliverAt: java.time.Instant, title: String, body: String, tag: String, url: String = "/") {
+        client.from("scheduled_notifications").insert(NewScheduled(uid, deliverAt.toString(), title, body, tag, url))
+    }
+
+    suspend fun scheduleTestPush(uid: String) {
+        client.from("scheduled_notifications").insert(NewScheduled(uid, java.time.Instant.now().toString(), "SBO 🔔", "Notifica di prova: se la vedi, funziona tutto!", "test", "/"))
+    }
+
+    // ------------------------------------------------ email + password (official app)
+
+    suspend fun signIn(email: String, password: String) { client.auth.signInWith(Email) { this.email = email; this.password = password } }
+
+    suspend fun usernameTaken(username: String): Boolean =
+        client.from("profiles").select(io.github.jan.supabase.postgrest.query.Columns.list("id")) { filter { eq("username", username) } }.decodeList<IdRow>().isNotEmpty()
+
+    suspend fun signUp(email: String, password: String, username: String) {
+        client.auth.signUpWith(Email) {
+            this.email = email; this.password = password
+            data = kotlinx.serialization.json.buildJsonObject { put("username", kotlinx.serialization.json.JsonPrimitive(username)) }
+        }
+    }
+
+    suspend fun sendRecovery(email: String) { client.auth.resetPasswordForEmail(email) }
+
+    suspend fun verifyRecovery(email: String, code: String) {
+        client.auth.verifyEmailOtp(type = io.github.jan.supabase.auth.OtpType.Email.RECOVERY, email = email, token = code)
+    }
+
+    suspend fun updatePassword(pw: String) { client.auth.updateUser { password = pw } }
+
+    fun signedIn() = client.auth.currentUserOrNull() != null
 
     suspend fun signOut() { client.auth.signOut() }
 
