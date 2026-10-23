@@ -87,11 +87,21 @@ fun HomeScreen(vm: HomeViewModel) {
     HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip, onDayAdd = vm::addOnDay, onDayRemove = vm::removeOnDay, onAddFriend = vm::addFriend, onRemoveFriend = vm::removeFriend, onLeaveClan = vm::leaveClan,
         onUpdateProfile = { p, j -> vm.updateProfile({ p }, j) }, onSignOut = vm::signOut, onSetRole = vm::setRole,
         clan = ClanActions(vm::createClan, vm::joinClan, vm::acceptInvite, vm::declineInvite, vm::inviteToClan, vm::kick),
+        notices = vm.notices, onChatOpen = { vm.openChatWith = it },
         zero = ZeroActions(
             save = { j, after -> vm.savePz(j) { after() } }, tick = { vm.tick(it) }, send = vm::sendCoach, poll = { vm.reloadAgent() }, markRead = { vm.markAgentRead() },
             saveToday = { ids, cus, done -> vm.saveToday(ids, cus, done) },
         ),
     )
+    // pause background checks when the app is not visible; refresh when it comes back
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(owner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            when (e) { androidx.lifecycle.Lifecycle.Event.ON_RESUME -> { vm.foreground = true; vm.refresh() }; androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> vm.foreground = false; else -> {} }
+        }
+        owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
+    }
     // Coach check-in once a day on open (web: localStorage sbo:pzTick:<day>)
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val zv = ZeroView(s.zero, s.profile?.id, s.events)
@@ -130,6 +140,8 @@ fun HomeContent(
     tip30: Int? = null, tip90: Int? = null,
     friendPreload: Pair<List<com.sbo.app.data.SboEvent>, List<com.sbo.app.data.Badge>>? = null,
     zero: ZeroActions = ZeroActions(),
+    notices: kotlinx.coroutines.flow.Flow<Pair<String, String?>>? = null,
+    onChatOpen: (String?) -> Unit = {},
     rain: DropRain = remember { DropRain() },
     openInventory: Int? = null,
     startTab: Int = 0,
@@ -144,6 +156,7 @@ fun HomeContent(
     var confirmRemove by remember { mutableStateOf<Profile?>(null) }
     val toast = remember { ToastState() }
     toastRef.value = toast
+    LaunchedEffect(notices) { notices?.collect { (t, d) -> toast.show(t, d) } }
     var confirmLeave by remember { mutableStateOf(false) }
     var showProfile by remember { mutableStateOf(open == "profile") }
     var showSettings by remember { mutableStateOf(open == "settings") }
@@ -307,6 +320,7 @@ fun HomeContent(
             if (p != null && addFriend) AddFriendDialog(onClose = { addFriend = false }) { code ->
                 onAddFriend(code) { msg -> toast.show(msg) }; addFriend = false
             }
+            LaunchedEffect(chatWith) { onChatOpen(chatWith?.id) }
             if (p != null) chatWith?.let { DirectChatDialog(p, it) { chatWith = null } }
             val clan = s.social.clan
             if (p != null && clanChat && clan != null) ClanChatDialog(p, clan, s.social.members) { clanChat = false }

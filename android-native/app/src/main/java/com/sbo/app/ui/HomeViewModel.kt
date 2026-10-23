@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.rpc
 
 data class HomeState(
     val loading: Boolean = true,
@@ -83,7 +85,45 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
     val state: StateFlow<HomeState> = _s
     private var uid: String? = null
 
-    init { refresh() }
+    /** Toasts raised by background checks (web: realtime notifications for DMs, invites, new friends). */
+    val notices = kotlinx.coroutines.flow.MutableSharedFlow<Pair<String, String?>>(extraBufferCapacity = 8)
+    @Volatile var foreground = true
+    var openChatWith: String? = null
+
+    init {
+        refresh()
+        viewModelScope.launch {
+            var badgesChecked = false
+            while (true) {
+                // web: checkStreakBadges on open (DB trigger also runs it)
+                if (!badgesChecked && uid != null) {
+                    badgesChecked = true
+                    runCatching { Supa.client.postgrest.rpc("check_streak_badges", kotlinx.serialization.json.buildJsonObject { put("_user_id", kotlinx.serialization.json.JsonPrimitive(uid!!)) }) }
+                }
+                kotlinx.coroutines.delay(15_000)
+                if (foreground) poll()
+            }
+        }
+    }
+
+    private suspend fun poll() {
+        val id = uid ?: return
+        val st = _s.value
+        val unread = runCatching { Supa.unreadCounts(id) }.getOrNull() ?: return
+        for ((from, n) in unread) {
+            if (n > (st.social.unread[from] ?: 0) && from != openChatWith) {
+                val name = st.social.friends.firstOrNull { it.profile.id == from }?.profile?.username ?: runCatching { Supa.usernameOf(from) }.getOrDefault("Un amico")
+                val last = runCatching { Supa.dms(id, from).lastOrNull { it.sender_id == from }?.content }.getOrNull()
+                notices.tryEmit("💬 $name" to last)
+            }
+        }
+        val inv = runCatching { Supa.incomingInvites(id) }.getOrNull()
+        if (inv != null && inv.size > st.social.invites.size) notices.tryEmit("🛡️ Nuovo invito al clan!" to "Apri gli inviti per rispondere.")
+        val friends = runCatching { Supa.friends(id) }.getOrNull()
+        if (friends != null && st.social.loaded && friends.size > st.social.friends.size) notices.tryEmit("👥 Nuovo amico aggiunto!" to null)
+        if (unread != st.social.unread || (inv?.size ?: 0) != st.social.invites.size || (friends?.size ?: 0) != st.social.friends.size) refresh()
+        else if (ZeroView(st.zero, id, st.events).active) reloadAgent()
+    }
 
     fun refresh() = viewModelScope.launch {
         try {

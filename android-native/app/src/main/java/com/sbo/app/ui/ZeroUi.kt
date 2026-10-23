@@ -272,7 +272,7 @@ private fun PlanList(plan: DayPlan, wd: WorkoutDay?, onToggle: (String) -> Unit,
                     Modifier.weight(1f).clip(RoundedCornerShape(24.dp))
                         .background(if (ok) Sbo.zeroOk.copy(alpha = 0.15f) else Sbo.secondary.copy(alpha = 0.3f))
                         .border(1.dp, if (ok) Color.Transparent else Sbo.border, RoundedCornerShape(24.dp))
-                        .clickable { onToggle(e.id) }.padding(12.dp),
+                        .clickable { onToggle(e.id) }.padding(horizontal = 12.dp, vertical = 15.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(
@@ -283,6 +283,7 @@ private fun PlanList(plan: DayPlan, wd: WorkoutDay?, onToggle: (String) -> Unit,
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text(e.name, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, color = Sbo.foreground.copy(alpha = if (ok) 0.6f else 1f), textDecoration = if (ok) TextDecoration.LineThrough else null)
+                        Spacer(Modifier.height(2.dp))
                         Text(e.tip, color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                     Spacer(Modifier.width(12.dp))
@@ -773,7 +774,7 @@ fun ZeroSettingsCard(zv: ZeroView, onStart: () -> Unit, onQuit: () -> Unit, onLi
                 Text("Da 0 a 5 a settimana. Vale da subito e resta fisso finché non lo cambi.", color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp)
             }
             UpperLabel("Tema")
-            Column(Modifier.padding(top = 7.dp)) { ThemePicker(zv.pz?.theme ?: "obsidian", onTheme) }
+            Column(Modifier.padding(top = 0.dp)) { ThemePicker(zv.pz?.theme ?: "obsidian", onTheme) }
             SmallButton("Rifai il questionario", modifier = Modifier.fillMaxWidth(), onClick = onReassess)
         }
     }) { on -> if (on) onStart() else onQuit() }
