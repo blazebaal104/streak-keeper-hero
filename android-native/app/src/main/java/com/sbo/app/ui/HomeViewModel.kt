@@ -92,12 +92,15 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
     val deepLink = MutableStateFlow<String?>(null)
     /** Settings → "Attiva notifiche del sistema": the activity asks Android for the permission. */
     val enableNotifications = kotlinx.coroutines.flow.MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    var onTestPushQueued: () -> Unit = {}
+    /** set by MainActivity: shows the queued row on the phone right away; returns false if notifications are blocked */
+    var onTestPushQueued: (String, com.sbo.app.data.ScheduledNotification) -> Boolean = { _, _ -> true }
 
     fun testPush() = viewModelScope.launch {
         val id = uid ?: return@launch
-        runCatching { Supa.scheduleTestPush(id) }
-        onTestPushQueued()
+        runCatching { Supa.scheduleTestPush(id) }.fold(
+            { n -> if (!onTestPushQueued(id, n)) notices.tryEmit("🔕 Notifiche bloccate" to "Abilitale nelle impostazioni del telefono per SBO, poi riprova.") },
+            { e -> notices.tryEmit("Errore notifica di prova" to (e.message ?: "rete").take(120)) },
+        )
     }
     var openChatWith: String? = null
 
@@ -143,7 +146,7 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
             val p = Supa.profile(id)
             val ev = Supa.events(id)
             val b = runCatching { Supa.badges(id) }.getOrDefault(_s.value.badges)
-            _s.value = compute(p, ev).copy(badges = b, social = _s.value.social)
+            _s.value = compute(p, ev).copy(badges = b, social = _s.value.social, zero = _s.value.zero)
             loadSocial(id, p)
             loadZero(id)
         } catch (e: Exception) {

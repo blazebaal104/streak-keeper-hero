@@ -39,7 +39,10 @@ class MainActivity : ComponentActivity() {
             override fun <T : ViewModel> create(modelClass: Class<T>): T = HomeViewModel(preview) as T
         })[HomeViewModel::class.java]
         vm.deepLink.value = intent.getStringExtra("open")
-        vm.onTestPushQueued = { Notifier.pollSoon(this, 8) }
+        vm.onTestPushQueued = { uid, n ->
+            Notifier.ensureChannel(this)
+            if (Notifier.allowed(this)) { Notifier.showNow(this, uid, n); true } else { explicitAsk = true; ask(); false }
+        }
         lifecycleScope.launch { vm.enableNotifications.collect { explicitAsk = true; ask() } }
         // like the web: ask for notifications once, then keep the background check running
         Notifier.ensureChannel(this)

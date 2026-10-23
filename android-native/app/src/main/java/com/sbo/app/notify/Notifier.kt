@@ -46,8 +46,9 @@ object Notifier {
         }
     }
 
-    fun allowed(ctx: Context) = android.os.Build.VERSION.SDK_INT < 33 ||
-        ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+    fun allowed(ctx: Context) = (android.os.Build.VERSION.SDK_INT < 33 ||
+        ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) &&
+        NotificationManagerCompat.from(ctx).areNotificationsEnabled()
 
     fun schedule(ctx: Context) {
         val req = PeriodicWorkRequestBuilder<PollWorker>(15, TimeUnit.MINUTES)
@@ -79,13 +80,24 @@ object Notifier {
     /** "/?open=dm:<id>" → "dm:<id>" (same deep links as the web push). */
     fun openOf(url: String?): String? = url?.substringAfter("open=", "")?.substringBefore("&")?.takeIf { it.isNotEmpty() }
 
+    /** Show a queue row right away (test push) and move the cursor so the background job won't repeat it. */
+    fun showNow(ctx: Context, uid: String, n: com.sbo.app.data.ScheduledNotification) {
+        show(ctx, n.id.hashCode(), n.title, n.body, openOf(n.url))
+        val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val cur = prefs.getString("after:$uid", null)
+        if (cur == null || Instant.parse(normIso(n.deliver_at)) > Instant.parse(normIso(cur))) prefs.edit().putString("after:$uid", n.deliver_at).apply()
+    }
+
+    /** Postgres "2026-10-23 09:00:42.18+00" → ISO-8601 Instant text. */
+    private fun normIso(t: String): String = runCatching { java.time.OffsetDateTime.parse(t.replace(' ', 'T').replace(Regex("([+-]\\d\\d)$"), "$1:00")).toInstant().toString() }.getOrDefault(t)
+
     suspend fun poll(ctx: Context) {
         val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         Supa.client.auth.awaitInitialization()
         val uid = Supa.client.auth.currentUserOrNull()?.id ?: return
         val now = Instant.now()
         // 1) the server's notification queue
-        val after = prefs.getString("after:$uid", null) ?: now.toString().also { prefs.edit().putString("after:$uid", it).apply() }
+        val after = prefs.getString("after:$uid", null) ?: now.minusSeconds(3600).toString().also { prefs.edit().putString("after:$uid", it).apply() }
         val due = runCatching { Supa.dueNotifications(uid, after, now.toString()) }.getOrNull() ?: return
         due.forEach { n -> show(ctx, n.id.hashCode(), n.title, n.body, openOf(n.url)) }
         due.lastOrNull()?.let { prefs.edit().putString("after:$uid", it.deliver_at).apply() }

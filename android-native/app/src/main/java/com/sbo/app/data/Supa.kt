@@ -290,9 +290,9 @@ object Supa {
         client.from("scheduled_notifications").insert(NewScheduled(uid, deliverAt.toString(), title, body, tag, url))
     }
 
-    suspend fun scheduleTestPush(uid: String) {
-        client.from("scheduled_notifications").insert(NewScheduled(uid, java.time.Instant.now().toString(), "SBO 🔔", "Notifica di prova: se la vedi, funziona tutto!", "test", "/"))
-    }
+    suspend fun scheduleTestPush(uid: String): ScheduledNotification =
+        client.from("scheduled_notifications").insert(NewScheduled(uid, java.time.Instant.now().toString(), "SBO 🔔", "Notifica di prova: se la vedi, funziona tutto!", "test", "/")) { select() }
+            .decodeSingle<ScheduledNotification>()
 
     // ------------------------------------------------ email + password (official app)
 

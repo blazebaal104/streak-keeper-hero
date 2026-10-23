@@ -205,12 +205,15 @@ fun HomeContent(
     // "redo" questionnaire flagged by the server
     LaunchedEffect(zv.pz) { val pz = zv.pz; if (pz != null && !pz.active && pz.answers._redo == true) quiz = "redo" }
     // toast when the coach writes
-    val seenAgent = remember { mutableStateOf<Int?>(null) }
-    LaunchedEffect(s.zero.agent.size) {
-        val n = s.zero.agent.size
+    // toast only a coach message that arrives while the app is open: newer than the newest one already seen,
+    // not written by the user and still unread (reloads that rebuild the list never re-announce old messages)
+    val seenAgent = remember { mutableStateOf<String?>(null) }
+    val newestAgent = s.zero.agent.maxByOrNull { it.created_at }
+    LaunchedEffect(newestAgent?.id) {
+        val m = newestAgent ?: return@LaunchedEffect
         val seen = seenAgent.value
-        if (seen != null && n > seen && !showAgent) s.zero.agent.lastOrNull()?.let { toastRef.value?.show("🏋️ Coach Zero", it.content.take(140)) }
-        seenAgent.value = n
+        if (seen != null && m.created_at > seen && m.kind != "user" && m.read_at == null && !showAgent) toastRef.value?.show("🏋️ Coach Zero", m.content.take(140))
+        if (seen == null || m.created_at > seen) seenAgent.value = m.created_at
     }
     val saveToday: (List<String>?, List<com.sbo.app.data.CustomWorkout>?) -> Unit = { ids, cus ->
         zero.saveToday(ids, cus) { toastRef.value?.show("💪 Allenamento completato!", "Spunta verde sul calendario. Il coach approva."); rain.burst() }
