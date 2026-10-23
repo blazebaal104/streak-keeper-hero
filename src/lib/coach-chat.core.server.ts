@@ -54,8 +54,11 @@ export async function coachChatCore(context: { supabase: unknown; userId: string
       const planText = plan.rest ? "oggi è giorno di riposo" : `oggi: ${plan.title} (${plan.exercises.map((e) => `${e.name} ${e.sets}x${e.amount}${e.unit === "rip" ? "" : " " + e.unit}`).join(", ")})${todayDone ? ", già completato" : ", non ancora fatto"}`;
       ctx += ` Giorno ${days} del Progetto Zero. ${LEAGUE_LABEL[league]}. Eventi questa settimana: ${count} su limite ${limit}. Allenamenti fatti questa settimana: ${workoutsWeek}. Piano: ${planText}.`;
     } else {
-      ctx += " Il Progetto Zero non è attivo: invitalo ad attivarlo dalle impostazioni se ha senso.";
+      ctx += " Il Progetto Zero NON è attivo in questo momento (vedi DATI REALI): se dice di averlo acceso non è vero; invitalo ad attivarlo dalle impostazioni se ha senso.";
     }
+    // the real numbers, fresh from the database: the coach trusts these over what the user says
+    const { coachFacts, TRUTH_RULE } = await import("./coach-facts.server");
+    ctx += `\n\n${TRUTH_RULE}\n${await coachFacts(admin, userId, data.tzOffset)}\n`;
     const hhmm = now.toISOString().slice(11, 16);
     ctx += ` Ora locale: ${hhmm}, ${now.toLocaleDateString("it-IT", { weekday: "long", timeZone: "UTC" })}.`;
 

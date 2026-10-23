@@ -88,7 +88,8 @@ export async function agentTickCore(context: { supabase: unknown; userId: string
       if (pauseMs) await admin.from("ai_budget").update({ paused_until: new Date(Date.now() + pauseMs).toISOString() }).eq("id", 1);
       return null;
     }
-    const facts = `Utente: ${name}. Giorno ${days} del Progetto Zero. ${LEAGUE_LABEL[league]}. Limite settimanale attuale: ${limit}. Questa settimana: ${count}. Settimane consecutive sopra il limite prima di questa: ${ctx.overStreak}.`;
+    const { coachFacts } = await import("./coach-facts.server");
+    const facts = `Utente: ${name}. Giorno ${days} del Progetto Zero. ${LEAGUE_LABEL[league]}. Limite settimanale attuale: ${limit}. Questa settimana: ${count}. Settimane consecutive sopra il limite prima di questa: ${ctx.overStreak}.\nDati reali dal database (usali, sono la verità):\n${await coachFacts(admin, userId, data.tzOffset)}`;
 
     if (data.reason === "workout") {
       out.push({ kind: "praise", content: phrases.praise(used, ctx) });
