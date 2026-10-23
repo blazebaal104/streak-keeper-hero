@@ -294,7 +294,7 @@ fun HalloweenBanner() {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         HalloweenDrop(64)
-        Spacer(Modifier.width(4.dp))
+        Spacer(Modifier.width(14.dp))
         Column {
             Text("Notte di Halloween 🦇", fontFamily = SpaceGrotesk, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.45).sp)
             Text("Solo per oggi SBO si è travestito. A mezzanotte torna tutto normale.", color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
