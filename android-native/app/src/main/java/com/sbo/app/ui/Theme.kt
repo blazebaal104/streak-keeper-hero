@@ -18,7 +18,7 @@ object Palettes {
     )
     /** Halloween (html[data-holiday="halloween"]): night purple + pumpkin; overrides every other theme. */
     val halloween = Palette(
-        Color(0xFF0B0615), Color(0xFF2C1D45), Color(0xFF170E25), Color(0xFFFF8421), Color(0xFF0F0A18),
+        Color(0xFF0B0615), Color(0xFF34234F), Color(0xFF170E25), Color(0xFFFF8421), Color(0xFF0F0A18),
         Color(0xFF251C36), Color(0xFF20182F), Color(0xFFAE9CBD), Color(0xFFAE6DEE), Color(0xFFF9F4EE),
     )
     /** Progetto Zero themes (html[data-pz-theme=...]). */

@@ -119,9 +119,10 @@ fun AuthScreen(onSignedIn: () -> Unit, holiday: String? = null) {
 
     Box(
         Modifier.fillMaxSize().background(Sbo.background).drawBehind {
-            drawRect(Brush.radialGradient(0f to Sbo.surfaceTop, 0.7f to Sbo.background, center = Offset(size.width / 2f, 0f), radius = size.height * 0.75f))
+            drawRect(Brush.radialGradient(0f to Sbo.surfaceTop, 0.7f to Sbo.background, center = Offset(size.width * (if (Sbo.holiday == "halloween") 0.85f else 0.5f), 0f), radius = size.height * 0.75f))
         },
     ) {
+        if (holiday == "halloween") HalloweenNight()
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().padding(horizontal = 16.dp, vertical = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
