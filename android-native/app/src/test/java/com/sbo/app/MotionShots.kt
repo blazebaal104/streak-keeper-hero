@@ -71,7 +71,7 @@ class MotionShots {
         rule.onRoot().performTouchInput { down(Offset(width / 2f, height * 0.555f)) }
         rule.mainClock.advanceTimeBy(70)
         rule.onRoot().performTouchInput { up() }
-        frames("fire", 40, 110, 200, 300, 420, 600, 900, 1300)
+        frames("fire", 40, 120, 200, 270, 420, 600, 900, 1300)
     }
 
     @Test fun neutralPress() {
