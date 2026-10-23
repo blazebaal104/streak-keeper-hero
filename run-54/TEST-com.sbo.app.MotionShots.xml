@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sbo.app.MotionShots" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-23T19:52:03" hostname="runnervm8k3b6" time="16.701">
+  <properties/>
+  <testcase name="halloween" classname="com.sbo.app.MotionShots" time="1.215"/>
+  <testcase name="halloweenAuth" classname="com.sbo.app.MotionShots" time="0.378"/>
+  <testcase name="halloweenFire" classname="com.sbo.app.MotionShots" time="0.709"/>
+  <testcase name="neutralPress" classname="com.sbo.app.MotionShots" time="0.918"/>
+  <testcase name="firePress" classname="com.sbo.app.MotionShots" time="4.401"/>
+  <testcase name="rain" classname="com.sbo.app.MotionShots" time="1.926"/>
+  <testcase name="tabs" classname="com.sbo.app.MotionShots" time="3.913"/>
+  <testcase name="panel" classname="com.sbo.app.MotionShots" time="3.241"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
