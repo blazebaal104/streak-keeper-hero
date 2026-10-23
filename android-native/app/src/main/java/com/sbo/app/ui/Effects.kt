@@ -60,11 +60,11 @@ fun ShockWave(trigger: Int, color: Color, disc: Dp, core: Color = Color(0xFFFFF4
             radius = r0 * 1.35f, blendMode = BlendMode.Screen,
         )
         ring(a.value, 1f)
-        // second wave: glow only, so a single crisp ring reads at a time
+        // trailing soft halo on the same radius as the ring (one ring, not two)
         val tb = b.value
         if (tb > 0f && tb < 1f) {
-            val r = r0 * (1f + 0.62f * tb)
-            drawCircle(color.copy(alpha = 0.06f * (1f - tb)), r, style = Stroke(20.dp.toPx() * (1f - tb * 0.5f)), blendMode = BlendMode.Screen)
+            val r = r0 * (1f + 0.62f * a.value)
+            drawCircle(color.copy(alpha = 0.07f * (1f - tb)), r, style = Stroke(10.dp.toPx() * (1f - tb * 0.5f)), blendMode = BlendMode.Screen)
         }
     }
 }
@@ -87,7 +87,7 @@ fun FirePulse(trigger: Int, duck: Animatable<Float, androidx.compose.animation.c
                 0f at 0 using CubicBezierEasing(0.2f, 0.8f, 0.3f, 1f)
                 1f at 120 using CubicBezierEasing(0.4f, 0f, 0.6f, 1f)
                 0.22f at 270 using CubicBezierEasing(0.2f, 0.8f, 0.3f, 1f)
-                0.82f at 420 using CubicBezierEasing(0.33f, 0f, 0.2f, 1f)
+                0.7f at 420 using CubicBezierEasing(0.33f, 0f, 0.2f, 1f)
                 0f at 1250
             })
         }
