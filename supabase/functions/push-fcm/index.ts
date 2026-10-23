@@ -67,9 +67,11 @@ Deno.serve(async () => {
         }),
       });
       if (res.ok) sent++;
-      else if (res.status === 404 || res.status === 400) {
+      else {
+        // a phone that uninstalled the app or reset its token: forget it
         const txt = await res.text();
-        if (/UNREGISTERED|INVALID_ARGUMENT|not a valid FCM/i.test(txt)) await admin.from("fcm_tokens").delete().eq("token", t.token);
+        if (res.status === 404 || /UNREGISTERED/.test(txt)) await admin.from("fcm_tokens").delete().eq("token", t.token);
+        else console.warn("fcm", res.status, txt.slice(0, 300));
       }
     }
   }
