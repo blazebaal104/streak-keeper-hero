@@ -358,7 +358,7 @@ private fun ChatShell(onClose: () -> Unit, header: @Composable () -> Unit, input
     val pop = rememberPanelProgress()
     val h = LocalConfiguration.current.screenHeightDp.dp * 0.8f
     Box(
-        Modifier.fillMaxSize().scrim(pop).background(Color.Black.copy(alpha = 0.72f))
+        Modifier.fillMaxSize().scrim(pop, 0.72f)
             .clickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, onClick = onClose)
             .imePadding(),
         contentAlignment = Alignment.Center,

@@ -19,6 +19,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -151,8 +152,10 @@ fun rememberPanelProgress(): () -> Float {
     return read
 }
 
-/** The dark scrim behind a panel. */
-fun Modifier.scrim(p: () -> Float) = this.graphicsLayer { alpha = p().coerceIn(0f, 1f) }
+/** The dark scrim behind a panel (drawn behind only: the panel itself is never faded by it). */
+fun Modifier.scrim(p: () -> Float, alpha: Float) = this.drawBehind {
+    drawRect(androidx.compose.ui.graphics.Color.Black.copy(alpha = alpha * p().coerceIn(0f, 1f)))
+}
 
 /** The panel itself: pops from 90% with a small lift, fades in quickly. */
 fun Modifier.panel(p: () -> Float, lift: Float = 28f, from: Float = 0.9f) = this.graphicsLayer {

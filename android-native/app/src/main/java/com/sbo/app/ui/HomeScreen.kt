@@ -285,9 +285,9 @@ fun HomeContent(
                         transitionSpec = {
                             // iOS-style push: the new tab slides in from the side you tapped, the old one drifts away and fades
                             val dir = if (targetState > initialState) 1 else -1
-                            val inSpring = androidx.compose.animation.core.spring(0.85f, 380f, androidx.compose.ui.unit.IntOffset.VisibilityThreshold)
+                            val inSpring = androidx.compose.animation.core.spring(0.85f, 280f, androidx.compose.ui.unit.IntOffset.VisibilityThreshold)
                             (androidx.compose.animation.slideInHorizontally(inSpring) { it * dir / 4 } +
-                                androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180, delayMillis = 70, easing = androidx.compose.animation.core.LinearOutSlowInEasing)) +
+                                androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(130, delayMillis = 40, easing = androidx.compose.animation.core.LinearOutSlowInEasing)) +
                                 androidx.compose.animation.scaleIn(androidx.compose.animation.core.spring(0.86f, 360f), initialScale = 0.965f)) togetherWith
                                 (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(180, easing = Motion.EXIT)) { -it * dir / 7 } +
                                     androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(90, easing = androidx.compose.animation.core.LinearEasing)) +
@@ -512,14 +512,14 @@ private fun TabsBar(selected: Int, onSelect: (Int) -> Unit) {
     val right = remember { Animatable(selected + 1f) }
     LaunchedEffect(selected) {
         val goingRight = selected > left.value
-        launch { left.animateTo(selected.toFloat(), spring(dampingRatio = 0.75f, stiffness = if (goingRight) 260f else 560f)) }
-        right.animateTo(selected + 1f, spring(dampingRatio = 0.75f, stiffness = if (goingRight) 560f else 260f))
+        launch { left.animateTo(selected.toFloat(), spring(dampingRatio = 0.75f, stiffness = if (goingRight) 190f else 700f)) }
+        right.animateTo(selected + 1f, spring(dampingRatio = 0.75f, stiffness = if (goingRight) 700f else 190f))
     }
     val view = androidx.compose.ui.platform.LocalView.current
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().height(35.dp).clip(CircleShape).surface().padding(horizontal = 4.dp, vertical = 6.dp)) {
         val gap = 3.dp
         val w = (maxWidth - gap * 3) / 4
-        val pill = Sbo.background.copy(alpha = 0.55f)
+        val pill = Sbo.background.copy(alpha = 0.7f)
         Box(
             Modifier.fillMaxSize().drawBehind {
                 val step = (w + gap).toPx()

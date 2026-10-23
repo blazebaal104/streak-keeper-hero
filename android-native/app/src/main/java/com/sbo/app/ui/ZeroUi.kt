@@ -495,7 +495,7 @@ fun AgentChatDialog(messages: List<AgentMessage>, onClose: () -> Unit, onPoll: (
     LaunchedEffect(rows.size, sending) { if (rows.isNotEmpty()) list.animateScrollToItem(rows.size - 1 + if (sending) 1 else 0) }
     val h = LocalConfiguration.current.screenHeightDp.dp * 0.85f
     val pop = rememberPanelProgress()
-    Box(Modifier.fillMaxSize().scrim(pop).background(Color.Black.copy(alpha = 0.72f)).clickable(remember { MutableInteractionSource() }, indication = null, onClick = onClose).imePadding(), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().scrim(pop, 0.72f).clickable(remember { MutableInteractionSource() }, indication = null, onClick = onClose).imePadding(), contentAlignment = Alignment.Center) {
         Column(Modifier.fillMaxWidth().height(h).panel(pop).background(Sbo.card).border(1.dp, Sbo.border).clickable(remember { MutableInteractionSource() }, indication = null) {}) {
             Box(Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {

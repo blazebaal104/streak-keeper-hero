@@ -363,7 +363,7 @@ fun AvatarFullscreen(p: Profile, onClose: () -> Unit) {
     androidx.activity.compose.BackHandler(onBack = onClose)
     val pop = rememberPanelProgress()
     Box(
-        Modifier.fillMaxSize().scrim(pop).background(Color.Black.copy(alpha = 0.95f)).clickable(remember { MutableInteractionSource() }, indication = null, onClick = onClose),
+        Modifier.fillMaxSize().scrim(pop, 0.95f).clickable(remember { MutableInteractionSource() }, indication = null, onClick = onClose),
         contentAlignment = Alignment.Center,
     ) {
         val bmp = rememberAvatarBitmap(p.avatar_url)

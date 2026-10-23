@@ -35,9 +35,10 @@ fun ShockWave(trigger: Int, color: Color, disc: Dp, core: Color = Color(0xFFFFF4
     val a = remember(trigger) { Animatable(0f) }
     val b = remember(trigger) { Animatable(0f) }
     LaunchedEffect(trigger) {
-        launch { a.animateTo(1f, tween(620, easing = OUT)) }
+        val ease = CubicBezierEasing(0.25f, 0.8f, 0.35f, 1f)
+        launch { a.animateTo(1f, tween(560, easing = ease)) }
         delay(100)
-        b.animateTo(1f, tween(680, easing = OUT))
+        b.animateTo(1f, tween(620, easing = ease))
     }
     Canvas(Modifier.requiredSize(disc * 2.3f)) {
         val r0 = disc.toPx() / 2f
@@ -45,12 +46,12 @@ fun ShockWave(trigger: Int, color: Color, disc: Dp, core: Color = Color(0xFFFFF4
             if (t <= 0f || t >= 1f) return
             val r = r0 * (1f + 0.62f * t)
             val fade = (1f - t)
-            val thin = 1f - t * 0.75f
+            val thin = 1f - t * 0.67f
             // glow (stacked soft strokes) around a hot, thin core: reads as light, not paint
-            drawCircle(color.copy(alpha = 0.07f * fade * strength), r, style = Stroke(14.dp.toPx() * thin), blendMode = BlendMode.Screen)
-            drawCircle(color.copy(alpha = 0.14f * fade * strength), r, style = Stroke(8.dp.toPx() * thin), blendMode = BlendMode.Screen)
-            drawCircle(color.copy(alpha = 0.30f * fade * strength), r, style = Stroke(4.dp.toPx() * thin), blendMode = BlendMode.Screen)
-            drawCircle(core.copy(alpha = 0.9f * fade * fade * strength), r, style = Stroke(2.2.dp.toPx() * thin + 0.5f), blendMode = BlendMode.Screen)
+            listOf(18f to 0.035f, 13f to 0.05f, 8f to 0.08f, 4.5f to 0.16f).forEach { (sw, al) ->
+                drawCircle(color.copy(alpha = al * fade * strength), r, style = Stroke(sw.dp.toPx() * thin), blendMode = BlendMode.Screen)
+            }
+            drawCircle(core.copy(alpha = 0.9f * fade * strength), r, style = Stroke(3.dp.toPx() * thin), blendMode = BlendMode.Screen)
         }
         // bloom on the rim right after the tap
         val bloom = (1f - a.value * 2.2f).coerceIn(0f, 1f)
@@ -92,7 +93,7 @@ fun FirePulse(trigger: Int) {
         if (v <= 0.002f) return@Canvas
         val w = size.width; val h = size.height
         val core = Color(0xFFFF6A1A)
-        val hot = Color(0xFFFFB347)
+        val hot = Color(0xFFFFE3A0)
         val side = w * 0.1f
         drawRect(Brush.horizontalGradient(0f to core.copy(alpha = 0.45f * v), 1f to Color.Transparent, startX = 0f, endX = side), blendMode = BlendMode.Screen)
         drawRect(Brush.horizontalGradient(0f to Color.Transparent, 1f to core.copy(alpha = 0.45f * v), startX = w - side, endX = w), blendMode = BlendMode.Screen)

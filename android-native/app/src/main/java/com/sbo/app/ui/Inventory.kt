@@ -78,8 +78,7 @@ fun SboDialog(onClose: () -> Unit, content: @Composable () -> Unit) {
     val maxH = LocalConfiguration.current.screenHeightDp.dp * 0.9f
     Box(
         Modifier.fillMaxSize()
-            .scrim(pop)
-            .background(Color.Black.copy(alpha = 0.72f))
+            .scrim(pop, 0.72f)
             .clickable(remember { MutableInteractionSource() }, indication = null, onClick = onClose),
         contentAlignment = Alignment.Center,
     ) {

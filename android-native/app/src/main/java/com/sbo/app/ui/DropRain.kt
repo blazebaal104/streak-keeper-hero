@@ -158,7 +158,7 @@ private fun DrawScope.drawWaterDrop(path: Path, at: Offset, w: Float, stretch: F
     val unit = w / 20f
     // motion streak above fast drops
     if (v > 950f) {
-        val len = ((v - 950f) / 700f).coerceIn(0f, 1f) * w * 1.4f * 2.5f
+        val len = ((v - 950f) / 700f).coerceIn(0f, 1f) * w * 1.4f * 2f
         val sw = w * 0.2f
         // tapered streak: wide at the drop, a hair at the top
         val streak = Path().apply {
@@ -167,7 +167,7 @@ private fun DrawScope.drawWaterDrop(path: Path, at: Offset, w: Float, stretch: F
             lineTo(at.x - sw / 2f, at.y + w * 0.45f)
             close()
         }
-        drawPath(streak, Brush.verticalGradient(0f to Color.Transparent, 1f to Color.White.copy(alpha = 0.3f * a), startY = at.y - len, endY = at.y + w * 0.45f))
+        drawPath(streak, Brush.verticalGradient(0f to Color.Transparent, 1f to Color.White.copy(alpha = 0.22f * a), startY = at.y - len, endY = at.y + w * 0.45f))
     }
     // soft light around the bulb (the web's drop-shadow-glow), weaker for far drops
     drawCircle(
@@ -183,10 +183,11 @@ private fun DrawScope.drawWaterDrop(path: Path, at: Offset, w: Float, stretch: F
                 drawPath(
                     path,
                     Brush.radialGradient(
-                        0f to Color.White.copy(alpha = 0.03f * a), 0.4f to Color.White.copy(alpha = 0.06f * a),
-                        0.58f to Color.White.copy(alpha = 0.26f * a), 0.68f to Color.White.copy(alpha = 0.55f * a),
-                        1f to Color.White.copy(alpha = 0.22f * a),
-                        center = Offset(10.4f, 19.6f), radius = 12f,
+                        // centre pushed up-right: the rim lights up mostly at the bottom-left, fades towards the tip
+                        0f to Color.White.copy(alpha = 0.07f * a), 0.45f to Color.White.copy(alpha = 0.09f * a),
+                        0.62f to Color.White.copy(alpha = 0.22f * a), 0.74f to Color.White.copy(alpha = 0.5f * a),
+                        1f to Color.White.copy(alpha = 0.08f * a),
+                        center = Offset(11.6f, 18.2f), radius = 12.5f,
                     ),
                 )
                 // thin rim, brighter at the bottom where light gathers
@@ -215,7 +216,7 @@ private fun DrawScope.splash(d: DropRain.Drop, t: Float, x: Float, floor: Float,
     val a0 = d.alpha
     val big = ((d.w - 5f) / 33f).coerceIn(0f, 1f)
     // ripple
-    val u = (t / 0.42f).coerceIn(0f, 1f)
+    val u = (t / 0.35f).coerceIn(0f, 1f)
     if (u < 1f) {
         val ease = 1f - (1f - u) * (1f - u) * (1f - u)
         val rx = d.w * dp * (0.4f + 1.2f * ease)
