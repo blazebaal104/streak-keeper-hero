@@ -177,6 +177,7 @@ fun HomeContent(
     var confirmKick by remember { mutableStateOf<Profile?>(null) }
     var shatter by remember { mutableIntStateOf(0) }
     var firePulse by remember { mutableIntStateOf(0) }
+    val moodDuck = remember { Animatable(0f) } // the ambient fire mood steps back while the pulse beats
     var inventory by remember { mutableStateOf(openInventory) }
     val zv = remember(s.zero, s.events, s.profile?.id, today) { ZeroView(s.zero, s.profile?.id, s.events, today) }
     var quiz by remember { mutableStateOf<String?>(if (open == "quiz") "start" else null) }
@@ -266,7 +267,7 @@ fun HomeContent(
                 drawRect(Brush.radialGradient(0f to Sbo.surfaceTop, 0.7f to Sbo.background, center = Offset(size.width / 2f, 0f), radius = size.height * 0.75f))
             },
         ) {
-            AmbientMood(if (zv.active) "neutral" else if (s.fire > 0) "fire" else if (s.ice > 0) "ice" else "neutral")
+            AmbientMood(if (zv.active) "neutral" else if (s.fire > 0) "fire" else if (s.ice > 0) "ice" else "neutral", duck = { moodDuck.value })
             val p = s.profile
             when {
                 p == null && s.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Sbo.primary) }
@@ -287,10 +288,10 @@ fun HomeContent(
                             val dir = if (targetState > initialState) 1 else -1
                             val inSpring = androidx.compose.animation.core.spring(0.85f, 280f, androidx.compose.ui.unit.IntOffset.VisibilityThreshold)
                             (androidx.compose.animation.slideInHorizontally(inSpring) { it * dir / 4 } +
-                                androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(130, delayMillis = 40, easing = androidx.compose.animation.core.LinearOutSlowInEasing)) +
+                                androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(130, delayMillis = 50, easing = androidx.compose.animation.core.LinearOutSlowInEasing)) +
                                 androidx.compose.animation.scaleIn(androidx.compose.animation.core.spring(0.86f, 360f), initialScale = 0.965f)) togetherWith
-                                (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(180, easing = Motion.EXIT)) { -it * dir / 7 } +
-                                    androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(90, easing = androidx.compose.animation.core.LinearEasing)) +
+                                (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(160, easing = Motion.EXIT)) { -it * dir / 12 } +
+                                    androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(60, easing = androidx.compose.animation.core.FastOutLinearInEasing)) +
                                     androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(200), targetScale = 0.965f)) using
                                 androidx.compose.animation.SizeTransform(clip = false) { _, _ -> androidx.compose.animation.core.snap() }
                         },
@@ -318,7 +319,7 @@ fun HomeContent(
                 }
             }
             DropRainOverlay(rain)
-            FirePulse(firePulse)
+            FirePulse(firePulse, moodDuck)
             val me = p
             if (me != null) {
                 Pop(showProfile) { ProfileDialog(me, s.badges, onClose = { showProfile = false }, onUpdate = onUpdateProfile, onSlot = { showProfile = false; inventory = it }, onSignOut = { showProfile = false; onSignOut() }, onToast = { toast.show(it) }) }
@@ -410,18 +411,19 @@ fun HomeContent(
 
 /** Page-wide mood, like the web AmbientMood: warm burning edges on fire, frozen haze on ice. */
 @Composable
-private fun AmbientMood(mode: String) {
+private fun AmbientMood(mode: String, duck: () -> Float = { 0f }) {
     if (mode == "neutral") return
     val t = rememberInfiniteTransition(label = "mood")
     val k by t.animateFloat(0.75f, 1f, infiniteRepeatable(tween(if (mode == "fire") 4200 else 6000), RepeatMode.Reverse), label = "k")
     Canvas(Modifier.fillMaxSize()) {
-        val edge = if (mode == "fire") Color(0xFFF97316).copy(alpha = 0.30f * k) else Color(0xFF38BDF8).copy(alpha = 0.24f * k)
+        val kk = k * (1f - 0.6f * duck())
+        val edge = if (mode == "fire") Color(0xFFF97316).copy(alpha = 0.30f * kk) else Color(0xFF38BDF8).copy(alpha = 0.24f * kk)
         val w = size.width * 0.32f
         drawRect(Brush.horizontalGradient(0f to edge, 1f to Color.Transparent, startX = 0f, endX = w))
         drawRect(Brush.horizontalGradient(0f to Color.Transparent, 1f to edge, startX = size.width - w, endX = size.width))
         drawRect(Brush.verticalGradient(0f to edge.copy(alpha = edge.alpha * 0.6f), 1f to Color.Transparent, startY = 0f, endY = size.height * 0.12f))
         if (mode == "fire") {
-            drawRect(Brush.radialGradient(0f to Color(0xFFFF7814).copy(alpha = 0.18f * k), 1f to Color.Transparent, center = Offset(size.width / 2f, size.height), radius = size.width * 0.9f))
+            drawRect(Brush.radialGradient(0f to Color(0xFFFF7814).copy(alpha = 0.18f * kk), 1f to Color.Transparent, center = Offset(size.width / 2f, size.height), radius = size.width * 0.9f))
         } else {
             drawRect(Brush.radialGradient(0f to Color(0xFF7DD3FC).copy(alpha = 0.14f * k), 1f to Color.Transparent, center = Offset(size.width / 2f, size.height * 0.4f), radius = size.width * 0.9f))
         }

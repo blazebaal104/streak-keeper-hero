@@ -60,7 +60,12 @@ fun ShockWave(trigger: Int, color: Color, disc: Dp, core: Color = Color(0xFFFFF4
             radius = r0 * 1.35f, blendMode = BlendMode.Screen,
         )
         ring(a.value, 1f)
-        ring(b.value, 0.6f)
+        // second wave: glow only, so a single crisp ring reads at a time
+        val tb = b.value
+        if (tb > 0f && tb < 1f) {
+            val r = r0 * (1f + 0.62f * tb)
+            drawCircle(color.copy(alpha = 0.06f * (1f - tb)), r, style = Stroke(20.dp.toPx() * (1f - tb * 0.5f)), blendMode = BlendMode.Screen)
+        }
     }
 }
 
@@ -69,11 +74,12 @@ fun ShockWave(trigger: Int, color: Color, disc: Dp, core: Color = Color(0xFFFFF4
  * strongest from the bottom where the flames are, with a glowing rounded border that follows the display corners.
  */
 @Composable
-fun FirePulse(trigger: Int) {
+fun FirePulse(trigger: Int, duck: Animatable<Float, androidx.compose.animation.core.AnimationVector1D>? = null) {
     if (trigger == 0) return
     val k = remember(trigger) { Animatable(0f) }
     val view = androidx.compose.ui.platform.LocalView.current
     LaunchedEffect(trigger) {
+        if (duck != null) launch { duck.animateTo(1f, tween(100)); delay(650); duck.animateTo(0f, tween(500)) }
         launch {
             k.animateTo(0f, keyframes {
                 durationMillis = 1250
@@ -94,7 +100,7 @@ fun FirePulse(trigger: Int) {
         val w = size.width; val h = size.height
         val core = Color(0xFFFF6A1A)
         val hot = Color(0xFFFFE3A0)
-        val side = w * 0.1f
+        val side = w * 0.12f
         drawRect(Brush.horizontalGradient(0f to core.copy(alpha = 0.45f * v), 1f to Color.Transparent, startX = 0f, endX = side), blendMode = BlendMode.Screen)
         drawRect(Brush.horizontalGradient(0f to Color.Transparent, 1f to core.copy(alpha = 0.45f * v), startX = w - side, endX = w), blendMode = BlendMode.Screen)
         drawRect(Brush.verticalGradient(0f to Color.Transparent, 1f to core.copy(alpha = 0.7f * v), startY = h * 0.86f, endY = h), blendMode = BlendMode.Screen)

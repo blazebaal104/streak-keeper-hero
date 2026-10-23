@@ -187,14 +187,14 @@ private fun DrawScope.drawWaterDrop(path: Path, at: Offset, w: Float, stretch: F
                         0f to Color.White.copy(alpha = 0.07f * a), 0.45f to Color.White.copy(alpha = 0.09f * a),
                         0.62f to Color.White.copy(alpha = 0.22f * a), 0.74f to Color.White.copy(alpha = 0.5f * a),
                         1f to Color.White.copy(alpha = 0.08f * a),
-                        center = Offset(11.6f, 18.2f), radius = 12.5f,
+                        center = Offset(12.6f, 16.8f), radius = 13f,
                     ),
                 )
                 // thin rim, brighter at the bottom where light gathers
                 drawPath(
                     path,
                     Brush.verticalGradient(0f to Color.White.copy(alpha = 0.04f * a), 0.5f to Color.White.copy(alpha = 0.18f * a), 1f to Color.White.copy(alpha = 0.45f * a), startY = 1f, endY = 28f),
-                    style = Stroke(0.5f),
+                    style = Stroke(0.3f),
                 )
                 // specular highlight (light from top-left) + caustic glint
                 rotate(-28f, pivot = Offset(7f, 17.5f)) {
@@ -219,7 +219,7 @@ private fun DrawScope.splash(d: DropRain.Drop, t: Float, x: Float, floor: Float,
     val u = (t / 0.35f).coerceIn(0f, 1f)
     if (u < 1f) {
         val ease = 1f - (1f - u) * (1f - u) * (1f - u)
-        val rx = d.w * dp * (0.4f + 1.2f * ease)
+        val rx = d.w * dp * (0.3f + 1.0f * ease)
         val ry = rx * 0.18f
         drawOval(
             Color.White.copy(alpha = 0.08f * a0 * (1f - u)), topLeft = Offset(x - rx, floor - ry), size = Size(rx * 2f, ry * 2f),
