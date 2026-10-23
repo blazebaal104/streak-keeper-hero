@@ -294,6 +294,8 @@ fun HomeContent(
                                 androidx.compose.animation.SizeTransform(clip = false) { _, _ -> androidx.compose.animation.core.snap() }
                         },
                     ) { t ->
+                    // AnimatedContent lays children out in a Box: tabs emit several siblings, keep them stacked
+                    Column(Modifier.fillMaxWidth()) {
                     when (t) {
                         0 -> if (zv.active && zv.plan != null) ZeroHome(s, zv, add, onUndo, onReassess = { quiz = "reassess" },
                                 onWorkout = { if (zv.plan.rest || zv.todayWD?.completed == true) showCustom = true else showPlan = true },
@@ -308,6 +310,7 @@ fun HomeContent(
                             onSetRole = onSetRole, onKick = { confirmKick = it },
                             coach = if (zv.active || s.zero.agent.isNotEmpty()) ({ AgentRow(s.zero.agent) { showAgent = true; zero.markRead() } }) else null,
                         )
+                    }
                     }
                     }
                     Spacer(Modifier.height(96.dp))
