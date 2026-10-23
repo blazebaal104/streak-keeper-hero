@@ -350,15 +350,14 @@ private val CardShapeZ = RoundedCornerShape(24.dp)
 @Composable
 fun PlanOverlay(plan: DayPlan, wd: WorkoutDay?, name: String, day: Int, onToggle: (String) -> Unit, onSkip: (String) -> Unit, onCustom: () -> Unit, onClose: () -> Unit) {
     androidx.activity.compose.BackHandler(onBack = onClose)
-    val a = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { a.animateTo(1f, spring(dampingRatio = 0.81f, stiffness = 220f)) }
+    val a = rememberPanelProgress()
     val doneN = plan.exercises.count { it.id in (wd?.done_ids ?: emptyList()) }
     val pct = if (plan.rest) 100 else Math.round(doneN * 100f / maxOf(1, plan.exercises.size))
     val ring by animateFloatAsState(pct / 100f, tween(600), label = "ring")
-    Box(Modifier.fillMaxSize().graphicsLayer { alpha = a.value.coerceIn(0f, 1f) }.background(Sbo.background.copy(alpha = 0.95f)).clickable(remember { MutableInteractionSource() }, indication = null) {}) {
+    Box(Modifier.fillMaxSize().graphicsLayer { alpha = a().coerceIn(0f, 1f) }.background(Sbo.background.copy(alpha = 0.95f)).clickable(remember { MutableInteractionSource() }, indication = null) {}) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding()
-                .graphicsLayer { translationY = (1f - a.value) * 40.dp.toPx(); val k = 0.97f + 0.03f * a.value; scaleX = k; scaleY = k }
+                .graphicsLayer { val v = a(); translationY = (1f - v) * 48.dp.toPx(); val k = 0.96f + 0.04f * v; scaleX = k; scaleY = k }
                 .padding(start = 24.dp, end = 24.dp, top = 40.dp, bottom = 64.dp),
         ) {
             Row {
@@ -495,8 +494,9 @@ fun AgentChatDialog(messages: List<AgentMessage>, onClose: () -> Unit, onPoll: (
     }
     LaunchedEffect(rows.size, sending) { if (rows.isNotEmpty()) list.animateScrollToItem(rows.size - 1 + if (sending) 1 else 0) }
     val h = LocalConfiguration.current.screenHeightDp.dp * 0.85f
-    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.8f)).clickable(remember { MutableInteractionSource() }, indication = null, onClick = onClose).imePadding(), contentAlignment = Alignment.Center) {
-        Column(Modifier.fillMaxWidth().height(h).background(Sbo.card).border(1.dp, Sbo.border).clickable(remember { MutableInteractionSource() }, indication = null) {}) {
+    val pop = rememberPanelProgress()
+    Box(Modifier.fillMaxSize().scrim(pop).background(Color.Black.copy(alpha = 0.72f)).clickable(remember { MutableInteractionSource() }, indication = null, onClick = onClose).imePadding(), contentAlignment = Alignment.Center) {
+        Column(Modifier.fillMaxWidth().height(h).panel(pop).background(Sbo.card).border(1.dp, Sbo.border).clickable(remember { MutableInteractionSource() }, indication = null) {}) {
             Box(Modifier.fillMaxWidth()) {
                 Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     CoachAvatar(40); Spacer(Modifier.width(12.dp))

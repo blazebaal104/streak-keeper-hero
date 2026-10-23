@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -41,13 +42,16 @@ import kotlin.math.roundToInt
 /** shadcn Switch: 36 x 20, primary when on, input (white/10) when off, 16dp thumb in the background colour. */
 @Composable
 fun SboSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
-    val x by animateFloatAsState(if (checked) 1f else 0f, tween(150), label = "sw")
+    // iOS switch: the knob springs across (tiny overshoot) and the track colour cross-fades
+    val x by animateFloatAsState(if (checked) 1f else 0f, androidx.compose.animation.core.spring(dampingRatio = 0.62f, stiffness = 520f), label = "sw")
+    val track by androidx.compose.animation.animateColorAsState(if (checked) Sbo.primary else Color.White.copy(alpha = 0.10f), tween(200), label = "tr")
+    val view = androidx.compose.ui.platform.LocalView.current
     Box(
         Modifier.size(width = 36.dp, height = 20.dp).clip(CircleShape)
-            .background(if (checked) Sbo.primary else Color.White.copy(alpha = 0.10f))
-            .clickable { onChange(!checked) }.padding(2.dp),
+            .background(track)
+            .clickable { view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK); onChange(!checked) }.padding(2.dp),
     ) {
-        Box(Modifier.offset(x = 16.dp * x).size(16.dp).shadow(4.dp, CircleShape).clip(CircleShape).background(Sbo.background))
+        Box(Modifier.graphicsLayer { translationX = 16.dp.toPx() * x }.size(16.dp).shadow(4.dp, CircleShape).clip(CircleShape).background(Sbo.background))
     }
 }
 
@@ -107,15 +111,25 @@ fun SboButton(
 /** shadcn TabsList (h-9, muted, p-1) with equal triggers; the active one gets the background colour. */
 @Composable
 fun SegTabs(items: List<String>, selected: Int, onSelect: (Int) -> Unit) {
-    Row(Modifier.fillMaxWidth().height(36.dp).clip(RoundedCornerShape(20.dp)).background(Sbo.muted).padding(4.dp)) {
-        items.forEachIndexed { i, t ->
-            val on = i == selected
-            Box(
-                Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(18.dp))
-                    .then(if (on) Modifier.shadow(1.dp, RoundedCornerShape(18.dp)).background(Sbo.background) else Modifier)
-                    .clickable { onSelect(i) },
-                contentAlignment = Alignment.Center,
-            ) { Text(t, color = if (on) Sbo.foreground else Sbo.mutedFg, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium) }
+    val pos = androidx.compose.runtime.remember { androidx.compose.animation.core.Animatable(selected.toFloat()) }
+    androidx.compose.runtime.LaunchedEffect(selected) { pos.animateTo(selected.toFloat(), androidx.compose.animation.core.spring(dampingRatio = 0.72f, stiffness = 340f)) }
+    BoxWithConstraints(Modifier.fillMaxWidth().height(36.dp).clip(RoundedCornerShape(20.dp)).background(Sbo.muted).padding(4.dp)) {
+        val w = maxWidth / items.size.coerceAtLeast(1)
+        Box(
+            Modifier.fillMaxHeight().width(w).graphicsLayer {
+                val stretch = (kotlin.math.abs(pos.velocity) * 0.06f).coerceAtMost(0.25f)
+                translationX = pos.value * w.toPx(); scaleX = 1f + stretch
+            }.shadow(1.dp, RoundedCornerShape(18.dp)).clip(RoundedCornerShape(18.dp)).background(Sbo.background),
+        )
+        Row(Modifier.fillMaxSize()) {
+            items.forEachIndexed { i, t ->
+                val on = i == selected
+                val fg by androidx.compose.animation.animateColorAsState(if (on) Sbo.foreground else Sbo.mutedFg, tween(200), label = "seg")
+                Box(
+                    Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(18.dp)).clickable { onSelect(i) },
+                    contentAlignment = Alignment.Center,
+                ) { Text(t, color = fg, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium) }
+            }
         }
     }
 }

@@ -355,17 +355,16 @@ private fun dayLabel(d: LocalDate): String {
 @Composable
 private fun ChatShell(onClose: () -> Unit, header: @Composable () -> Unit, input: @Composable () -> Unit, body: @Composable BoxScope.() -> Unit) {
     androidx.activity.compose.BackHandler(onBack = onClose)
-    val anim = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { anim.animateTo(1f, tween(200)) }
+    val pop = rememberPanelProgress()
     val h = LocalConfiguration.current.screenHeightDp.dp * 0.8f
     Box(
-        Modifier.fillMaxSize().graphicsLayer { alpha = anim.value }.background(Color.Black.copy(alpha = 0.8f))
+        Modifier.fillMaxSize().scrim(pop).background(Color.Black.copy(alpha = 0.72f))
             .clickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, onClick = onClose)
             .imePadding(),
         contentAlignment = Alignment.Center,
     ) {
         Column(
-            Modifier.fillMaxWidth().height(h).graphicsLayer { val k = 0.95f + 0.05f * anim.value; scaleX = k; scaleY = k }
+            Modifier.fillMaxWidth().height(h).panel(pop)
                 .background(Sbo.card).border(1.dp, Sbo.border)
                 .clickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null) {}
                 .padding(24.dp),
@@ -517,11 +516,21 @@ class ToastState { var text by mutableStateOf<String?>(null); var desc by mutabl
 @Composable
 fun ToastHost(state: ToastState) {
     val t = state.text ?: return
+    // iOS banner: drops in from above on a spring (a touch of overshoot), slides back up and fades when done
     val a = remember(state.serial) { Animatable(0f) }
-    LaunchedEffect(state.serial) { a.animateTo(1f, tween(220)); delay(2600); a.animateTo(0f, tween(220)); state.text = null }
+    LaunchedEffect(state.serial) {
+        a.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.68f, stiffness = 260f)); delay(2600)
+        a.animateTo(0f, tween(260, easing = Motion.EXIT)); state.text = null
+    }
     Box(Modifier.fillMaxSize().statusBarsPadding().padding(top = 16.dp, start = 16.dp, end = 16.dp), contentAlignment = Alignment.TopCenter) {
         Column(
-            Modifier.graphicsLayer { alpha = a.value; translationY = (1f - a.value) * -16.dp.toPx() }
+            Modifier.graphicsLayer {
+                val v = a.value
+                alpha = (v * 1.6f).coerceIn(0f, 1f)
+                translationY = (1f - v) * -72.dp.toPx()
+                val k = 0.9f + 0.1f * v; scaleX = k; scaleY = k
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+            }
                 .fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(Color.Black).border(1.dp, Color(0xFF333333), RoundedCornerShape(8.dp)).padding(16.dp),
         ) {
             Text(t, fontSize = 13.sp, lineHeight = 18.sp, color = Sbo.foreground, fontWeight = FontWeight.Medium)

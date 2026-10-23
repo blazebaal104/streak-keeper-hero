@@ -74,24 +74,24 @@ val LocalDialogScrollToEnd = androidx.compose.runtime.staticCompositionLocalOf {
 @Composable
 fun SboDialog(onClose: () -> Unit, content: @Composable () -> Unit) {
     BackHandler(onBack = onClose)
-    val anim = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { anim.animateTo(1f, tween(200, easing = FastOutSlowInEasing)) }
+    val pop = rememberPanelProgress()
     val maxH = LocalConfiguration.current.screenHeightDp.dp * 0.9f
     Box(
         Modifier.fillMaxSize()
-            .graphicsLayer { alpha = anim.value }
-            .background(Color.Black.copy(alpha = 0.8f))
+            .scrim(pop)
+            .background(Color.Black.copy(alpha = 0.72f))
             .clickable(remember { MutableInteractionSource() }, indication = null, onClick = onClose),
         contentAlignment = Alignment.Center,
     ) {
         Box(
             Modifier.fillMaxWidth().heightIn(max = maxH)
-                .graphicsLayer { val k = 0.95f + 0.05f * anim.value; scaleX = k; scaleY = k }
+                .panel(pop)
                 .background(Sbo.card).border(1.dp, Sbo.border)
                 .clickable(remember { MutableInteractionSource() }, indication = null) {},
         ) {
             androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.material3.LocalTextStyle provides androidx.compose.ui.text.TextStyle(fontFamily = Inter, color = Sbo.foreground),
+                LocalPop provides null, // panels opened from inside this one animate on their own
             ) {
                 val scroll = rememberScrollState()
                 val toEnd = LocalDialogScrollToEnd.current
@@ -143,7 +143,7 @@ fun InventoryDialog(slot: Int, profile: Profile, badges: List<Badge>, onClose: (
         Group("💪 Allenamenti totali", Badges.WORKOUT, "workout", badges, equipped, onEquip) { preview = it }
         titles()
     }
-    preview?.let { LockedPreview(it) { preview = null } }
+    PopOf(preview) { LockedPreview(it) { preview = null } }
 }
 
 @Composable

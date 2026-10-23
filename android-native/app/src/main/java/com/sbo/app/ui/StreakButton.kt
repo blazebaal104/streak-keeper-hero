@@ -87,12 +87,22 @@ fun StreakButton(fire: Int, ice: Int, onPress: () -> Unit, modifier: Modifier = 
     val iceLevel = min(ice / 30f, 1f)
     val press = rememberPressScale()
     val base = 28.dp // room for the glow under the disc
+    var wave by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val view = androidx.compose.ui.platform.LocalView.current
+    val tapped = {
+        wave++
+        view.performHapticFeedback(if (android.os.Build.VERSION.SDK_INT >= 30) android.view.HapticFeedbackConstants.CONFIRM else android.view.HapticFeedbackConstants.LONG_PRESS)
+        onPress()
+    }
+    val waveColor = when { fire > 0 -> Color(0xFFFF8A3D); ice > 0 -> Color(0xFF7DD3FC); else -> Color.White }
     // Same footprint in every state: the flames overflow upwards without pushing the layout.
     Box(modifier.size(width = 340.dp, height = DISC + base * 2), contentAlignment = Alignment.BottomCenter) {
+        // shockwave rings behind the disc
+        Box(Modifier.padding(bottom = base).size(DISC), contentAlignment = Alignment.Center) { ShockWave(wave, waveColor, DISC) }
         when {
-            fire > 0 -> FireButton(level, base, press, onPress)
-            ice > 0 -> Disc(base, press, onPress, glow = Color(0xFF38BDF8), glowAlpha = 0.3f + iceLevel * 0.4f, iceAura = true) { IceSurface(ice, iceLevel) }
-            else -> Disc(base, press, onPress, glow = Sbo.dropGlow, glowAlpha = 0.45f) { NeutralSurface() }
+            fire > 0 -> FireButton(level, base, press, tapped)
+            ice > 0 -> Disc(base, press, tapped, glow = Color(0xFF38BDF8), glowAlpha = 0.3f + iceLevel * 0.4f, iceAura = true) { IceSurface(ice, iceLevel) }
+            else -> Disc(base, press, tapped, glow = Sbo.dropGlow, glowAlpha = 0.45f) { NeutralSurface() }
         }
         // shards fly over everything, centred on the disc
         Box(Modifier.padding(bottom = base).size(DISC), contentAlignment = Alignment.Center) { IceShatter(shatter) }

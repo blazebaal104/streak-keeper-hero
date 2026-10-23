@@ -2,6 +2,10 @@ package com.sbo.app.ui
 
 import android.graphics.BitmapFactory
 import android.util.Base64
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.using
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -171,6 +175,7 @@ fun HomeContent(
     var viewFriend by remember { mutableStateOf<Profile?>(if (open == "friend") s.social.friends.firstOrNull()?.profile else null) }
     var confirmKick by remember { mutableStateOf<Profile?>(null) }
     var shatter by remember { mutableIntStateOf(0) }
+    var firePulse by remember { mutableIntStateOf(0) }
     var inventory by remember { mutableStateOf(openInventory) }
     val zv = remember(s.zero, s.events, s.profile?.id, today) { ZeroView(s.zero, s.profile?.id, s.events, today) }
     var quiz by remember { mutableStateOf<String?>(if (open == "quiz") "start" else null) }
@@ -241,6 +246,7 @@ fun HomeContent(
       } else {
         rain.burst()
         if (s.ice > 0) shatter++
+        if (s.fire > 0) firePulse++
         s.profile?.takeIf { it.notifications_enabled }?.let { pr ->
             val n = pr.username
             when {
@@ -253,7 +259,7 @@ fun HomeContent(
         onAdd()
       }
     }
-    CompositionLocalProvider(LocalTextStyle provides TextStyle(fontFamily = Inter, color = Sbo.foreground)) {
+    CompositionLocalProvider(LocalTextStyle provides TextStyle(fontFamily = Inter, color = Sbo.foreground), androidx.compose.foundation.LocalIndication provides IosIndication) {
         Box(
             Modifier.fillMaxSize().background(Sbo.background).drawBehind {
                 drawRect(Brush.radialGradient(0f to Sbo.surfaceTop, 0.7f to Sbo.background, center = Offset(size.width / 2f, 0f), radius = size.height * 0.75f))
@@ -268,12 +274,27 @@ fun HomeContent(
                     Text("Errore: ${s.error}", color = Sbo.mutedFg, textAlign = TextAlign.Center)
                 }
                 else -> Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp),
+                    Modifier.fillMaxSize().recede().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp),
                 ) {
                     Header(p, s.fire, s.ice, s.social.invites.size, zv = zv, onProfile = { showProfile = true }, onBell = { showInvites = true }, onSettings = { showSettings = true })
                     TabsBar(tab) { tab = it }
                     Spacer(Modifier.height(32.dp))
-                    when (tab) {
+                    androidx.compose.animation.AnimatedContent(
+                        tab, label = "tab", contentAlignment = Alignment.TopCenter,
+                        transitionSpec = {
+                            // iOS-style push: the new tab slides in from the side you tapped, the old one drifts away and fades
+                            val dir = if (targetState > initialState) 1 else -1
+                            val inSpring = androidx.compose.animation.core.spring(0.86f, 360f, androidx.compose.ui.unit.IntOffset.VisibilityThreshold)
+                            (androidx.compose.animation.slideInHorizontally(inSpring) { it * dir / 4 } +
+                                androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(230, delayMillis = 50)) +
+                                androidx.compose.animation.scaleIn(androidx.compose.animation.core.spring(0.86f, 360f), initialScale = 0.965f)) togetherWith
+                                (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(200, easing = Motion.EXIT)) { -it * dir / 6 } +
+                                    androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(150)) +
+                                    androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(200), targetScale = 0.965f)) using
+                                androidx.compose.animation.SizeTransform(clip = false) { _, _ -> androidx.compose.animation.core.snap() }
+                        },
+                    ) { t ->
+                    when (t) {
                         0 -> if (zv.active && zv.plan != null) ZeroHome(s, zv, add, onUndo, onReassess = { quiz = "reassess" },
                                 onWorkout = { if (zv.plan.rest || zv.todayWD?.completed == true) showCustom = true else showPlan = true },
                                 onToggle = toggleExercise, onSkip = skipExercise, onCustom = { showCustom = true }, onExpand = { showPlan = true }) { inventory = it }
@@ -288,23 +309,25 @@ fun HomeContent(
                             coach = if (zv.active || s.zero.agent.isNotEmpty()) ({ AgentRow(s.zero.agent) { showAgent = true; zero.markRead() } }) else null,
                         )
                     }
+                    }
                     Spacer(Modifier.height(96.dp))
                 }
             }
             DropRainOverlay(rain)
+            FirePulse(firePulse)
             val me = p
             if (me != null) {
-                if (showProfile) ProfileDialog(me, s.badges, onClose = { showProfile = false }, onUpdate = onUpdateProfile, onSlot = { showProfile = false; inventory = it }, onSignOut = { showProfile = false; onSignOut() }, onToast = { toast.show(it) })
-                if (showSettings) SettingsDialog(me, onClose = { showSettings = false }, onUpdate = onUpdateProfile, onToast = { toast.show(it) }, onEnableNotifications = onEnableNotifications, onTestPush = { onTestPush(); toast.show("Notifica di prova inviata: arriva entro un minuto. Puoi anche chiudere l'app.") }, pzCard = {
+                Pop(showProfile) { ProfileDialog(me, s.badges, onClose = { showProfile = false }, onUpdate = onUpdateProfile, onSlot = { showProfile = false; inventory = it }, onSignOut = { showProfile = false; onSignOut() }, onToast = { toast.show(it) }) }
+                Pop(showSettings) { SettingsDialog(me, onClose = { showSettings = false }, onUpdate = onUpdateProfile, onToast = { toast.show(it) }, onEnableNotifications = onEnableNotifications, onTestPush = { onTestPush(); toast.show("Notifica di prova inviata: arriva entro un minuto. Puoi anche chiudere l'app.") }, pzCard = {
                     ZeroSettingsCard(zv, onStart = { quiz = "start" }, onQuit = {
                         if (zv.day <= 7) toast.show("Il Progetto Zero dura almeno 7 giorni. Potrai disattivarlo tra ${8 - zv.day} giorni.") else confirmQuit = true
                     }, onLimit = { v -> zero.save(patch("start_limit" to v, "limit_set_at" to java.time.Instant.now().toString())) { toast.show("Limite settimanale: $v") } },
                         onTheme = { t -> zero.save(patch("theme" to t)) {} }, onReassess = { quiz = "reassess" })
-                })
-                if (confirmQuit) ConfirmDialog("Vuoi davvero mollare il Progetto Zero? Il coach non la prenderà bene.", "Molla", onClose = { confirmQuit = false }) {
+                }) }
+                Pop(confirmQuit) { ConfirmDialog("Vuoi davvero mollare il Progetto Zero? Il coach non la prenderà bene.", "Molla", onClose = { confirmQuit = false }) {
                     zero.tick("quit"); zero.save(patch("active" to false)) { toast.show("Progetto Zero disattivato") }
-                }
-                quiz?.let { mode ->
+                } }
+                PopOf(quiz) { mode ->
                     ZeroQuestionnaire(reassess = mode == "reassess", redo = mode == "redo", initial = zv.pz?.answers, initialTheme = zv.pz?.theme, onClose = { quiz = null }) { ans, theme, league, startLimit ->
                         val nowIso = java.time.Instant.now().toString()
                         val a = kotlinx.serialization.json.Json { encodeDefaults = false; explicitNulls = false }.encodeToJsonElement(com.sbo.app.logic.ZeroAnswers.serializer(), ans.copy(_redo = null))
@@ -324,40 +347,40 @@ fun HomeContent(
                     }
                 }
                 val plan = zv.plan
-                if (zv.active && plan != null && showPlan) PlanOverlay(plan, zv.todayWD, zv.pz?.answers?.realName?.takeIf { it.isNotBlank() } ?: me.username, zv.day, toggleExercise, skipExercise, onCustom = { showCustom = true }) { showPlan = false }
-                if (showCustom) CustomWorkoutDialog(onClose = { showCustom = false }) { n, note ->
+                Pop(zv.active && plan != null && showPlan) { if (plan != null) PlanOverlay(plan, zv.todayWD, zv.pz?.answers?.realName?.takeIf { it.isNotBlank() } ?: me.username, zv.day, toggleExercise, skipExercise, onCustom = { showCustom = true }) { showPlan = false } }
+                Pop(showCustom) { CustomWorkoutDialog(onClose = { showCustom = false }) { n, note ->
                     saveToday(null, (zv.todayWD?.custom ?: emptyList()) + com.sbo.app.data.CustomWorkout(n, note, java.time.Instant.now().toString())); showCustom = false
-                }
-                if (showAgent) {
+                } }
+                Pop(showAgent) {
                     AgentChatDialog(s.zero.agent, onClose = { showAgent = false }, onPoll = zero.poll) { t -> zero.send(t)?.let { toast.show(it) } }
                 }
-                if (showInvites) InvitesDialog(s.social.invites, onClose = { showInvites = false }, onAccept = { clan.accept(it) { m -> toast.show(m) } }, onDecline = { clan.decline(it) { m -> toast.show(m) } })
-                if (showClanManage) ClanManageDialog(
+                Pop(showInvites) { InvitesDialog(s.social.invites, onClose = { showInvites = false }, onAccept = { clan.accept(it) { m -> toast.show(m) } }, onDecline = { clan.decline(it) { m -> toast.show(m) } }) }
+                Pop(showClanManage) { ClanManageDialog(
                     onClose = { showClanManage = false },
                     onCreate = { n, t -> clan.create(n, t) { m -> toast.show(m); if (!m.startsWith("Tag") && !m.startsWith("Errore")) showClanManage = false } },
                     onJoin = { t -> clan.join(t) { m -> toast.show(m); if (m.startsWith("Ti sei")) showClanManage = false } },
-                )
-                if (showClanInvite) InviteFriendToClanDialog(s.social.friends.map { it.profile }, s.social.members.map { it.id }.toSet(), onClose = { showClanInvite = false }) { f -> clan.invite(f) { m -> toast.show(m) } }
-                viewFriend?.let { f -> FriendProfileDialog(f, onClose = { viewFriend = null }, onChat = { chatWith = f; viewFriend = null }, today = today, preload = friendPreload) }
-                confirmKick?.let { m -> ConfirmDialog("Espellere ${m.username}?", "Espelli", onClose = { confirmKick = null }) { clan.kick(m.id) } }
+                ) }
+                Pop(showClanInvite) { InviteFriendToClanDialog(s.social.friends.map { it.profile }, s.social.members.map { it.id }.toSet(), onClose = { showClanInvite = false }) { f -> clan.invite(f) { m -> toast.show(m) } } }
+                PopOf(viewFriend) { f -> FriendProfileDialog(f, onClose = { viewFriend = null }, onChat = { chatWith = f; viewFriend = null }, today = today, preload = friendPreload) }
+                PopOf(confirmKick) { m -> ConfirmDialog("Espellere ${m.username}?", "Espelli", onClose = { confirmKick = null }) { clan.kick(m.id) } }
             }
             ToastHost(toast)
-            if (p != null && addFriend) AddFriendDialog(onClose = { addFriend = false }) { code ->
+            Pop(p != null && addFriend) { AddFriendDialog(onClose = { addFriend = false }) { code ->
                 onAddFriend(code) { msg -> toast.show(msg) }; addFriend = false
-            }
+            } }
             LaunchedEffect(chatWith) { onChatOpen(chatWith?.id) }
-            if (p != null) chatWith?.let { DirectChatDialog(p, it) { chatWith = null } }
+            if (p != null) PopOf(chatWith) { DirectChatDialog(p, it) { chatWith = null } }
             val clan = s.social.clan
-            if (p != null && clanChat && clan != null) ClanChatDialog(p, clan, s.social.members) { clanChat = false }
-            if (confirmLeave) SboDialog({ confirmLeave = false }) {
+            if (p != null) PopOf(clan.takeIf { clanChat }) { c -> ClanChatDialog(p, c, s.social.members) { clanChat = false } }
+            Pop(confirmLeave) { SboDialog({ confirmLeave = false }) {
                 Text("Uscire dal clan?", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(16.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SmallButton("Annulla", modifier = Modifier.weight(1f), height = 36.dp, fontSize = 14) { confirmLeave = false }
                     SmallButton("Esci", variant = "default", modifier = Modifier.weight(1f), height = 36.dp, fontSize = 14) { onLeaveClan(); confirmLeave = false; toast.show("Hai lasciato il clan") }
                 }
-            }
-            confirmRemove?.let { f ->
+            } }
+            PopOf(confirmRemove) { f ->
                 SboDialog({ confirmRemove = null }) {
                     Text("Rimuovere ${f.username}?", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
                     Spacer(Modifier.height(16.dp))
@@ -367,17 +390,16 @@ fun HomeContent(
                     }
                 }
             }
-            dayEdit?.let { d ->
+            PopOf(dayEdit) { d ->
                 val n = remember(s.events, d) { com.sbo.app.logic.Streaks.byDay(s.events)[d] ?: 0 }
                 DayEditDialog(d, n, onAdd = { onDayAdd(d) }, onRemove = { onDayRemove(d) }, onClose = { dayEdit = null })
             }
-            val slot = inventory
-            if (p != null && slot != null) InventoryDialog(
+            if (p != null) PopOf(inventory) { slot -> InventoryDialog(
                 slot, p, s.badges, onClose = { inventory = null },
                 titles = { TitlesSection(s.events.size, com.sbo.app.ui.Titles.cleanDays(s.events, today), p.equipped_title) { id -> onUpdateProfile(p.copy(equipped_title = id), patch("equipped_title" to id)) } },
             ) { id ->
                 onEquip(slot, id); inventory = null
-            }
+            } }
         }
     }
 }
@@ -480,19 +502,41 @@ fun Avatar(p: Profile, sizeDp: Int) {
 @Composable
 private fun TabsBar(selected: Int, onSelect: (Int) -> Unit) {
     val tabs = listOf("Home" to Lucide.Droplets, "Cal" to Lucide.CalendarDays, "Trend" to Lucide.ChartLine, "Social" to Lucide.Users)
-    Row(
-        Modifier.fillMaxWidth().height(35.dp).clip(CircleShape).surface().padding(horizontal = 4.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        tabs.forEachIndexed { i, (label, icon) ->
-            val on = i == selected
-            Row(
-                Modifier.weight(1f).fillMaxHeight().clip(CircleShape).background(if (on) Sbo.background.copy(alpha = 0.55f) else Color.Transparent).clickable { onSelect(i) },
-                horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(icon, null, tint = if (on) Sbo.foreground else Sbo.mutedFg, modifier = Modifier.size(14.dp))
-                Spacer(Modifier.width(4.dp))
-                Text(label, fontSize = 12.sp, lineHeight = 16.sp, color = if (on) Sbo.foreground else Sbo.mutedFg, fontWeight = FontWeight.Medium)
+    // the selected pill glides to the new tab on a spring and stretches while it travels (iOS "liquid" segmented control)
+    val pos = remember { Animatable(selected.toFloat()) }
+    LaunchedEffect(selected) { pos.animateTo(selected.toFloat(), spring(dampingRatio = 0.7f, stiffness = 320f)) }
+    val view = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().height(35.dp).clip(CircleShape).surface().padding(horizontal = 4.dp, vertical = 6.dp)) {
+        val gap = 3.dp
+        val w = (maxWidth - gap * 3) / 4
+        Box(
+            Modifier.fillMaxHeight().width(w).graphicsLayer {
+                val stretch = (kotlin.math.abs(pos.velocity) * 0.07f).coerceAtMost(0.32f)
+                translationX = pos.value * (w + gap).toPx()
+                scaleX = 1f + stretch; scaleY = 1f - stretch * 0.18f
+            }.clip(CircleShape).background(Sbo.background.copy(alpha = 0.55f)),
+        )
+        Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+            tabs.forEachIndexed { i, (label, icon) ->
+                val on = i == selected
+                val fg by androidx.compose.animation.animateColorAsState(if (on) Sbo.foreground else Sbo.mutedFg, androidx.compose.animation.core.tween(220), label = "fg")
+                val bounce = remember { Animatable(1f) }
+                val first = remember { booleanArrayOf(true) }
+                LaunchedEffect(on) {
+                    if (first[0]) { first[0] = false; return@LaunchedEffect }
+                    if (on) { bounce.snapTo(0.7f); bounce.animateTo(1f, spring(dampingRatio = 0.38f, stiffness = 520f)) }
+                }
+                Row(
+                    Modifier.weight(1f).fillMaxHeight().clip(CircleShape).clickable {
+                        if (!on) view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
+                        onSelect(i)
+                    },
+                    horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(icon, null, tint = fg, modifier = Modifier.size(14.dp).graphicsLayer { scaleX = bounce.value; scaleY = bounce.value; rotationZ = (1f - bounce.value) * -40f })
+                    Spacer(Modifier.width(4.dp))
+                    Text(label, fontSize = 12.sp, lineHeight = 16.sp, color = fg, fontWeight = FontWeight.Medium)
+                }
             }
         }
     }

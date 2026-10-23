@@ -342,7 +342,7 @@ fun FriendProfileDialog(friend: Profile, onClose: () -> Unit, onChat: () -> Unit
             SboButton("Manda un messaggio", Lucide.MessageCircle, onClick = onChat)
         }
     }
-    if (full) AvatarFullscreen(prof) { full = false }
+    Pop(full) { AvatarFullscreen(prof) { full = false } }
 }
 
 @Composable
@@ -361,13 +361,14 @@ private fun MiniStat(label: String, value: String, icon: androidx.compose.ui.gra
 @Composable
 fun AvatarFullscreen(p: Profile, onClose: () -> Unit) {
     androidx.activity.compose.BackHandler(onBack = onClose)
+    val pop = rememberPanelProgress()
     Box(
-        Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.95f)).clickable(remember { MutableInteractionSource() }, indication = null, onClick = onClose),
+        Modifier.fillMaxSize().scrim(pop).background(Color.Black.copy(alpha = 0.95f)).clickable(remember { MutableInteractionSource() }, indication = null, onClick = onClose),
         contentAlignment = Alignment.Center,
     ) {
         val bmp = rememberAvatarBitmap(p.avatar_url)
-        if (bmp != null) Image(bmp, "Foto di ${p.username}", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth())
-        else Text(p.avatar, fontSize = 200.sp, lineHeight = 220.sp)
+        if (bmp != null) Image(bmp, "Foto di ${p.username}", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxWidth().panel(pop, lift = 0f, from = 0.8f))
+        else Text(p.avatar, fontSize = 200.sp, lineHeight = 220.sp, modifier = Modifier.panel(pop, lift = 0f, from = 0.6f))
     }
 }
 
