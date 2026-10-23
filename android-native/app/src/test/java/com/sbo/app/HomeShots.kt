@@ -178,7 +178,7 @@ class HomeShots {
         val weekEvents = listOf(SboEvent("w1", "d0", "2026-10-20T10:00:00+00:00"), SboEvent("w2", "d0", "2026-10-21T10:00:00+00:00"), SboEvent("w3", "d0", "2026-10-22T10:00:00+00:00"))
         return state(0, 0).copy(events = history.filter { !it.ts.startsWith("2026-10-2") } + weekEvents, zero = com.sbo.app.ui.ZeroData(pz, wds, msgs))
     }
-    private fun pz(name: String, open: String? = null, tab: Int = 0) {
+    private fun pz(name: String, open: String? = "none", tab: Int = 0) {
         render(theme = "obsidian") { HomeContent(zeroState(), {}, {}, open = open, startTab = tab, today = day) }
         rule.mainClock.advanceTimeBy(900); cap(name)
     }
