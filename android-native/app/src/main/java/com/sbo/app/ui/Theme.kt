@@ -16,6 +16,11 @@ object Palettes {
         Color(0xFF060E15), Color(0xFF002332), Color(0xFF0D1A23), Color(0xFF64E0FF), Color(0xFF040C13),
         Color(0xFF192834), Color(0xFF14212A), Color(0xFF85919A), Color(0xFF00B9C3), Color(0xFF040C13),
     )
+    /** Halloween (html[data-holiday="halloween"]): night purple + pumpkin; overrides every other theme. */
+    val halloween = Palette(
+        Color(0xFF0B0615), Color(0xFF2C1D45), Color(0xFF170E25), Color(0xFFFF8421), Color(0xFF0F0A18),
+        Color(0xFF251C36), Color(0xFF20182F), Color(0xFFAE9CBD), Color(0xFFAE6DEE), Color(0xFFF9F4EE),
+    )
     /** Progetto Zero themes (html[data-pz-theme=...]). */
     val zero = mapOf(
         "obsidian" to Palette(Color(0xFF080706), Color(0xFF22190A), Color(0xFF13110E), Color(0xFFEBBD57), Color(0xFF0D0B07), Color(0xFF221F1A), Color(0xFF1D1A15), Color(0xFF9F978B), Color(0xFFE8A95C), Color(0xFF040C13)),
@@ -31,7 +36,11 @@ object Palettes {
  * screen that reads them, like the web swapping CSS variables.
  */
 object Sbo {
-    var palette by mutableStateOf(Palettes.default)
+    /** Theme chosen by the user (default or a Progetto Zero theme). */
+    var base by mutableStateOf(Palettes.default)
+    /** Holiday in progress ("halloween" or null): its palette wins over everything. */
+    var holiday by mutableStateOf<String?>(null)
+    val palette: Palette get() = if (holiday == "halloween") Palettes.halloween else base
     val background get() = palette.background
     val surfaceTop get() = palette.surfaceTop
     val card get() = palette.card
@@ -44,7 +53,7 @@ object Sbo {
     val accentFg get() = palette.accentFg
     val foreground = Color(0xFFF6F9FB)
     val destructive = Color(0xFFF94144)
-    val border = Color(0x0FFFFFFF)
+    val border get() = if (holiday == "halloween") Color(0x24C7AFF5) else Color(0x0FFFFFFF)
     val dropA = Color(0xFFD9F4FD)
     val dropB = Color(0xFF00C6E2)
     val dropGlow = Color(0xFF00CAEC)
@@ -55,5 +64,5 @@ object Sbo {
     val zeroLimit = Color(0xFFF3B01D)
     val zeroOver = Color(0xFFF92434)
 
-    fun applyZeroTheme(theme: String?) { palette = theme?.let { Palettes.zero[it] } ?: Palettes.default }
+    fun applyZeroTheme(theme: String?) { base = theme?.let { Palettes.zero[it] } ?: Palettes.default }
 }

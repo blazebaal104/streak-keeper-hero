@@ -56,7 +56,7 @@ import kotlinx.coroutines.launch
  * Same validation and the same Italian messages as the website.
  */
 @Composable
-fun AuthScreen(onSignedIn: () -> Unit) {
+fun AuthScreen(onSignedIn: () -> Unit, holiday: String? = null) {
     var mode by remember { mutableStateOf("signup") } // signup | login | forgot
     var username by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -133,7 +133,7 @@ fun AuthScreen(onSignedIn: () -> Unit) {
                 Column(Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.drawBehind {
                         drawCircle(Brush.radialGradient(0f to Sbo.dropGlow.copy(alpha = 0.15f), 1f to Color.Transparent, center = center, radius = size.width * 0.5f), size.width * 0.5f)
-                    }) { Image(painterResource(R.drawable.sbo_logo), "SBO", modifier = Modifier.size(72.dp)) }
+                    }) { if (holiday == "halloween") HalloweenDrop(72) else Image(painterResource(R.drawable.sbo_logo), "SBO", modifier = Modifier.size(72.dp)) }
                     Spacer(Modifier.height(16.dp))
                     Text("SBO", fontFamily = SpaceGrotesk, fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.75).sp)
                     Spacer(Modifier.height(4.dp))

@@ -269,6 +269,16 @@ fun SettingsDialog(p: Profile, onClose: () -> Unit, onUpdate: (Profile, JsonObje
             }
             SboButton("Attiva notifiche del sistema", Lucide.Bell, variant = "secondary", onClick = onEnableNotifications)
             SboButton("Invia notifica di prova", variant = "ghost", fontSize = 12, onClick = onTestPush)
+            if (com.sbo.app.holiday.Holiday.enabledInBuild) {
+                // dev app only (web: the 🎃 button in the DEV strip)
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val opts = listOf("halloween", "none", "auto")
+                val cur = remember(com.sbo.app.holiday.Holiday.version) { com.sbo.app.holiday.Holiday.override(ctx) }
+                Column(Modifier.fillMaxWidth().outlined().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    UpperLabel("DEV · Tema di Halloween 🎃")
+                    SegTabs(listOf("Sempre", "Mai", "Solo il 31/10"), opts.indexOf(cur).coerceAtLeast(0)) { com.sbo.app.holiday.Holiday.setOverride(ctx, opts[it]) }
+                }
+            }
         }
         Spacer(Modifier.height(16.dp))
         SboButton("Fatto", onClick = onClose)

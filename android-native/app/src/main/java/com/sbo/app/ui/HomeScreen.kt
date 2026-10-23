@@ -89,7 +89,7 @@ class ClanActions(
 @Composable
 fun HomeScreen(vm: HomeViewModel) {
     val s by vm.state.collectAsState()
-    HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip, onDayAdd = vm::addOnDay, onDayRemove = vm::removeOnDay, onAddFriend = vm::addFriend, onRemoveFriend = vm::removeFriend, onLeaveClan = vm::leaveClan,
+    HomeContent(s, holiday = com.sbo.app.holiday.rememberHoliday(), onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip, onDayAdd = vm::addOnDay, onDayRemove = vm::removeOnDay, onAddFriend = vm::addFriend, onRemoveFriend = vm::removeFriend, onLeaveClan = vm::leaveClan,
         onUpdateProfile = { p, j -> vm.updateProfile({ p }, j) }, onSignOut = vm::signOut, onSetRole = vm::setRole,
         clan = ClanActions(vm::createClan, vm::joinClan, vm::acceptInvite, vm::declineInvite, vm::inviteToClan, vm::kick),
         notices = vm.notices, onChatOpen = { vm.openChatWith = it }, onSignedIn = { vm.refresh() },
@@ -156,7 +156,10 @@ fun HomeContent(
     openInventory: Int? = null,
     startTab: Int = 0,
     today: java.time.LocalDate = java.time.LocalDate.now(),
+    holiday: String? = null,
 ) {
+    // the holiday palette wins over every theme while it lasts
+    androidx.compose.runtime.SideEffect { Sbo.holiday = holiday }
     var tab by rememberSaveable { mutableIntStateOf(startTab) }
     val toastRef = remember { mutableStateOf<ToastState?>(null) }
     var dayEdit by remember { mutableStateOf<java.time.LocalDate?>(null) }
@@ -267,11 +270,12 @@ fun HomeContent(
                 drawRect(Brush.radialGradient(0f to Sbo.surfaceTop, 0.7f to Sbo.background, center = Offset(size.width / 2f, 0f), radius = size.height * 0.75f))
             },
         ) {
+            if (holiday == "halloween") HalloweenNight()
             AmbientMood(if (zv.active) "neutral" else if (s.fire > 0) "fire" else if (s.ice > 0) "ice" else "neutral", duck = { moodDuck.value })
             val p = s.profile
             when {
                 p == null && s.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Sbo.primary) }
-                p == null && s.error == "login" -> AuthScreen(onSignedIn)
+                p == null && s.error == "login" -> AuthScreen(onSignedIn, holiday)
                 p == null -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                     Text("Errore: ${s.error}", color = Sbo.mutedFg, textAlign = TextAlign.Center)
                 }
@@ -298,6 +302,7 @@ fun HomeContent(
                     ) { t ->
                     // AnimatedContent lays children out in a Box: tabs emit several siblings, keep them stacked
                     Column(Modifier.fillMaxWidth()) {
+                    if (t == 0 && holiday == "halloween") { HalloweenBanner(); Spacer(Modifier.height(32.dp)) }
                     when (t) {
                         0 -> if (zv.active && zv.plan != null) ZeroHome(s, zv, add, onUndo, onReassess = { quiz = "reassess" },
                                 onWorkout = { if (zv.plan.rest || zv.todayWD?.completed == true) showCustom = true else showPlan = true },

@@ -88,4 +88,20 @@ class MotionShots {
         rain.burst(seed = 7)
         frames("drops", 250, 500, 800, 1050, 1300, 1550, 1800)
     }
+
+    @Test fun halloween() {
+        rule.mainClock.autoAdvance = false
+        rule.setContent { CompositionLocalProvider(LocalFireStill provides R.drawable.fire_still_2) { HomeContent(state(0, 0), {}, {}, today = day, holiday = "halloween") } }
+        frames("halloween", 800, 4000, 6500)
+    }
+    @Test fun halloweenFire() {
+        rule.mainClock.autoAdvance = false
+        rule.setContent { CompositionLocalProvider(LocalFireStill provides R.drawable.fire_still_2) { HomeContent(state(12, 0), {}, {}, today = day, holiday = "halloween") } }
+        frames("halloweenfire", 800)
+    }
+    @Test fun halloweenAuth() {
+        rule.mainClock.autoAdvance = false
+        rule.setContent { HomeContent(HomeState(loading = false, error = "login"), {}, {}, holiday = "halloween") }
+        frames("halloweenauth", 800)
+    }
 }
