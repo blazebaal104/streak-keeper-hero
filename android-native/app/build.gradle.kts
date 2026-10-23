@@ -5,8 +5,15 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
     id("io.github.takahirom.roborazzi")
 }
-// Firebase Cloud Messaging (instant push): enabled once app/google-services.json is in place
-if (file("google-services.json").exists()) apply(plugin = "com.google.gms.google-services")
+// Firebase Cloud Messaging (instant push): google-services.json per flavor (src/prod, src/dev) or in app/.
+// A flavor without its file just builds without instant push (the 15-minute check still works).
+val hasFirebase = listOf("google-services.json", "src/prod/google-services.json", "src/dev/google-services.json").any { file(it).exists() }
+if (hasFirebase) {
+    apply(plugin = "com.google.gms.google-services")
+    extensions.configure<com.google.gms.googleservices.GoogleServicesPlugin.GoogleServicesPluginConfig>("googleServices") {
+        missingGoogleServicesStrategy = com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesStrategy.WARN
+    }
+}
 
 android {
     namespace = "com.sbo.app"
