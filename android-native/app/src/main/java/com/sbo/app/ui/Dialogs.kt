@@ -129,7 +129,7 @@ fun ProfileDialog(p: Profile, badges: List<Badge>, onClose: () -> Unit, onUpdate
     SboDialog(onClose) {
         DialogTitle("Il tuo profilo")
         Spacer(Modifier.height(16.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(27.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(72.dp).clip(CircleShape).border(2.dp, Sbo.primary.copy(alpha = 0.4f), CircleShape)) { AvatarSmall(p, 72) }
                 Spacer(Modifier.width(16.dp))
@@ -161,13 +161,15 @@ fun ProfileDialog(p: Profile, badges: List<Badge>, onClose: () -> Unit, onUpdate
                 Spacer(Modifier.height(4.dp))
                 Text(p.username, fontSize = 18.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold)
                 Titles.byId(p.equipped_title)?.let { TitleBadge(it, "sm") }
+                Spacer(Modifier.height(5.dp))
                 Text("L'username non è modificabile dopo la creazione.", color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp)
             }
             Section("Codice amico") {
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(9.dp))
                 Text(p.friend_code, fontFamily = FontFamily.Monospace, fontSize = 18.sp, lineHeight = 28.sp, letterSpacing = 1.8.sp)
             }
             Section("Slot medaglie") {
+                Spacer(Modifier.height(4.dp))
                 Text("Tocca uno slot per scegliere dalla tua collezione.", color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp)
                 Spacer(Modifier.height(8.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally)) {
@@ -192,7 +194,7 @@ private fun StreakProgress(badges: List<Badge>) {
     if (nf == null && ni == null) { Text("🏆 Hai tutte le medaglie!", color = Sbo.mutedFg, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()); return }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         @Composable fun Box1(title: String, n: BadgeDef, label: String) {
-            Column(Modifier.fillMaxWidth().outlined().padding(12.dp)) {
+            Column(Modifier.fillMaxWidth().outlined().padding(horizontal = 12.dp, vertical = 17.dp)) {
                 Text(title, color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -218,12 +220,12 @@ private fun StreakProgress(badges: List<Badge>) {
 
 /** Settings (web: limits + notifications; Progetto Zero lives on top once enabled). */
 @Composable
-fun SettingsDialog(p: Profile, onClose: () -> Unit, onUpdate: (Profile, JsonObject) -> Unit, onToast: (String) -> Unit, pzCard: @Composable () -> Unit = {}) {
+fun SettingsDialog(p: Profile, onClose: () -> Unit, onUpdate: (Profile, JsonObject) -> Unit, onToast: (String) -> Unit, pzCard: @Composable () -> Unit = { PzCard(false, "Trasforma SBO nel tuo personal trainer. Minimo 7 giorni.") { onToast("Progetto Zero arriva nella prossima versione nativa.") } }) {
     SboDialog(onClose) {
         DialogTitle("Impostazioni")
         DialogDesc("Personalizza SBO come vuoi tu.")
         Spacer(Modifier.height(24.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+        Column(Modifier.padding(end = 5.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
             pzCard()
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -241,7 +243,7 @@ fun SettingsDialog(p: Profile, onClose: () -> Unit, onUpdate: (Profile, JsonObje
                 var draft by remember(p.daily_limit) { mutableStateOf(p.daily_limit) }
                 SboSlider(draft, 1, 10, onChange = { draft = it }, onCommit = { onUpdate(p.copy(daily_limit = it), patch("daily_limit" to it)) })
             }
-            Row(Modifier.fillMaxWidth().outlined().padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().outlined().padding(horizontal = 12.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     FieldLabel("Notifiche di incoraggiamento")
                     Spacer(Modifier.height(2.dp))
@@ -292,9 +294,10 @@ fun FriendProfileDialog(friend: Profile, onClose: () -> Unit, onChat: () -> Unit
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(56.dp).clip(CircleShape).border(2.dp, Sbo.primary.copy(alpha = 0.4f), CircleShape).clickable { full = true }) { AvatarSmall(prof, 56) }
             Spacer(Modifier.width(12.dp))
-            Column {
+            // shadcn DialogHeader is text-center on phones
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(prof.username, fontSize = 18.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.45).sp)
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(2.dp))
                 Titles.byId(prof.equipped_title)?.let { TitleBadge(it, "sm") }
                     ?: Text(prof.friend_code, color = Sbo.mutedFg, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
             }
@@ -315,7 +318,7 @@ fun FriendProfileDialog(friend: Profile, onClose: () -> Unit, onChat: () -> Unit
                 Spacer(Modifier.height(8.dp))
                 if (badges.isEmpty()) Text("Nessuna ancora.", color = Sbo.mutedFg, fontSize = 12.sp)
                 else badges.mapNotNull { Badges.def(it.category, it.threshold) }.chunked(5).forEach { row ->
-                    Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { row.forEach { BadgeArt(it, 52.dp) } }
+                    Row(Modifier.padding(bottom = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) { row.forEach { BadgeArt(it, 55.dp) } }
                 }
             }
             Column {
@@ -325,6 +328,7 @@ fun FriendProfileDialog(friend: Profile, onClose: () -> Unit, onChat: () -> Unit
                     MonthGrid(month, today, byDay, Int.MAX_VALUE, onPrev = { month = month.minusMonths(1) }, onNext = { month = month.plusMonths(1) }, onDay = null)
                 }
             }
+            Spacer(Modifier.height(6.dp))
             Column {
                 UpperLabel("Andamento (30gg)")
                 Spacer(Modifier.height(8.dp))
@@ -332,8 +336,8 @@ fun FriendProfileDialog(friend: Profile, onClose: () -> Unit, onChat: () -> Unit
                 if (s30.all { it.count == 0 }) Text("Nessun dato ancora.", color = Sbo.mutedFg, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp))
                 else {
                     val counts = s30.map { it.count.toFloat() }
-                    val ma7 = counts.indices.map { i -> val from = maxOf(0, i - 6); kotlin.math.round(counts.subList(from, i + 1).average().toFloat() * 100f) / 100f }
-                    Chart(s30.map { it.date }, listOf(ChartSeries("Al giorno", counts, Color(0xFFFB923C), area = true), ChartSeries("Media", ma7, Color(0xFF38BDF8), area = false)), height = 160)
+                    // web: an AreaChart, which draws only its Area (the "Media" Line child is not rendered)
+                    Chart(s30.map { it.date }, listOf(ChartSeries("Al giorno", counts, Color(0xFFFB923C), area = true)), height = 160)
                 }
             }
             SboButton("Manda un messaggio", Lucide.MessageCircle, onClick = onChat)
@@ -344,7 +348,7 @@ fun FriendProfileDialog(friend: Profile, onClose: () -> Unit, onChat: () -> Unit
 
 @Composable
 private fun MiniStat(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector?, tint: Color, modifier: Modifier, big: Boolean = true) {
-    Column(modifier.sboCard().padding(12.dp)) {
+    Column(modifier.sboCard().padding(horizontal = 12.dp, vertical = 15.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             if (icon != null) { Icon(icon, null, tint = tint, modifier = Modifier.size(12.dp)); Spacer(Modifier.width(4.dp)) }
             Text(label, color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -452,6 +456,33 @@ fun ConfirmDialog(question: String, confirm: String, onClose: () -> Unit, onConf
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             SboButton("Annulla", variant = "secondary", modifier = Modifier.weight(1f), onClick = onClose)
             SboButton(confirm, modifier = Modifier.weight(1f)) { onConfirm(); onClose() }
+        }
+    }
+}
+
+/** Progetto Zero box at the top of the settings (web: rounded-2xl, primary/40 border, primary/10 fill, blurred glow top-right). */
+@Composable
+fun PzCard(active: Boolean, desc: String, extra: @Composable () -> Unit = {}, onToggle: (Boolean) -> Unit) {
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Sbo.primary.copy(alpha = 0.10f)).border(1.dp, Sbo.primary.copy(alpha = 0.4f), RoundedCornerShape(28.dp))) {
+        Box(
+            Modifier.align(Alignment.TopEnd).padding(0.dp).size(160.dp).drawBehind {
+                drawCircle(androidx.compose.ui.graphics.Brush.radialGradient(0f to Sbo.primary.copy(alpha = 0.28f), 1f to Color.Transparent, center = androidx.compose.ui.geometry.Offset(size.width * 0.75f, size.height * 0.25f), radius = size.width * 0.5f), radius = size.width * 0.5f, center = androidx.compose.ui.geometry.Offset(size.width * 0.75f, size.height * 0.25f))
+            },
+        )
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Lucide.Target, null, tint = Sbo.primary, modifier = Modifier.size(16.dp)); Spacer(Modifier.width(6.dp))
+                        Text("Progetto Zero", fontSize = 16.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium)
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Text(desc, color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
+                }
+                Spacer(Modifier.width(12.dp))
+                SboSwitch(active, onToggle)
+            }
+            extra()
         }
     }
 }

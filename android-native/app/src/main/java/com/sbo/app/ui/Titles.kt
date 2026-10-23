@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -66,6 +67,10 @@ data class TitleDef(val category: String, val threshold: Int, val tier: Tier, va
 }
 
 private fun c(h: Long) = Color(0xFF000000 or h)
+
+private val grayPaint = androidx.compose.ui.graphics.Paint().apply {
+    colorFilter = androidx.compose.ui.graphics.ColorFilter.colorMatrix(androidx.compose.ui.graphics.ColorMatrix().apply { setToSaturation(0f) })
+}
 
 object Titles {
     val FIRE = listOf(
@@ -143,16 +148,12 @@ fun TitleBadge(t: TitleDef, variant: String = "sm", modifier: Modifier = Modifie
         },
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(t.emoji, fontSize = fs, lineHeight = fs * 1.4f)
+        Text(t.emoji, fontSize = fs, lineHeight = fs * 1.3f)
         Spacer(Modifier.width(4.dp))
         Box {
             // glow: soft halo in the gradient's first colour (CSS drop-shadow 2 → 10 px)
-            if (glowOn) Text(
-                t.name, fontSize = fs, lineHeight = fs * 1.4f, fontWeight = FontWeight.SemiBold, letterSpacing = fs * 0.025f, maxLines = 1,
-                style = TextStyle(color = Color.Transparent, shadow = Shadow(t.gradient.first().copy(alpha = 0.9f), blurRadius = 4f + 16f * glow)),
-            )
             Text(
-                t.name, fontSize = fs, lineHeight = fs * 1.4f, fontWeight = FontWeight.SemiBold, letterSpacing = fs * 0.025f, maxLines = 1, overflow = TextOverflow.Clip,
+                t.name, fontSize = fs, lineHeight = fs * 1.4f, fontWeight = FontWeight.SemiBold, letterSpacing = fs * 0.025f, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }.drawWithContent {
                     drawContent()
                     val w = size.width
@@ -241,7 +242,7 @@ private fun TitleGroup(title: String, list: List<TitleDef>, total: Int, unit: St
         }
     }
     Spacer(Modifier.height(8.dp))
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         list.forEach { t ->
             val owned = total >= t.threshold
             val on = equipped == t.id
@@ -251,10 +252,13 @@ private fun TitleGroup(title: String, list: List<TitleDef>, total: Int, unit: St
                     .border(1.dp, if (on) Sbo.primary else Sbo.border, RoundedCornerShape(20.dp))
                     .then(if (owned) Modifier.clickable { onEquip(if (on) null else t.id) } else Modifier)
                     .alpha(if (owned) 1f else 0.5f)
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                    .padding(horizontal = 10.dp, vertical = if (owned) 10.dp else 9.5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(t.emoji, fontSize = 16.sp, lineHeight = 24.sp)
+                if (owned) Text(t.emoji, fontSize = 16.sp, lineHeight = 24.sp)
+                else Box(Modifier.graphicsLayer { alpha = 0.6f }.drawWithContent {
+                    drawIntoCanvas { c -> c.saveLayer(androidx.compose.ui.geometry.Rect(Offset.Zero, size), grayPaint); drawContent(); c.restore() }
+                }) { Text(t.emoji, fontSize = 16.sp, lineHeight = 24.sp) }
                 Spacer(Modifier.width(8.dp))
                 Column(Modifier.weight(1f)) {
                     if (owned) TitleBadge(t, "sm") else Text(t.name, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)

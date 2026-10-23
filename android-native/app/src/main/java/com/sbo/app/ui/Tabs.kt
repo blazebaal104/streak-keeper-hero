@@ -351,11 +351,11 @@ internal fun Chart(dates: List<LocalDate>, series: List<ChartSeries>, height: In
                 drawCircle(Color.White, 5.dp.toPx(), p); drawCircle(sr.color, 4.dp.toPx(), p)
             }
             // tooltip box: #0f172a, 1px #334155, radius 8, 12px text, label = the day key, then "Name : value" in each colour
-            val pad = 10.dp.toPx()
+            val pad = 10.dp.toPx(); val vpad = 16.dp.toPx(); val gap = 8.dp.toPx()
             val title = measurer.measure(dates[a].toString(), tipStyle)
             val rows = series.map { measurer.measure("${it.name} : ${fmtValue(it.values[a])}", tipStyle.copy(color = it.color)) }
             val w = maxOf(title.size.width, rows.maxOf { it.size.width }) + pad * 2
-            val h = title.size.height + rows.sumOf { it.size.height } + 4.dp.toPx() * rows.size + pad * 2
+            val h = title.size.height + rows.sumOf { it.size.height } + gap * rows.size + vpad * 2
             val cx = xOf(a)
             var x = cx + 10.dp.toPx()
             if (x + w > size.width) x = cx - 10.dp.toPx() - w
@@ -363,9 +363,9 @@ internal fun Chart(dates: List<LocalDate>, series: List<ChartSeries>, height: In
             val y = ((touchY ?: top) + 10.dp.toPx()).coerceIn(0f, (size.height - h).coerceAtLeast(0f))
             drawRoundRect(TIP_BG, Offset(x, y), androidx.compose.ui.geometry.Size(w, h), androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()))
             drawRoundRect(TIP_BORDER, Offset(x, y), androidx.compose.ui.geometry.Size(w, h), androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()), style = Stroke(1.dp.toPx()))
-            drawText(title, topLeft = Offset(x + pad, y + pad))
-            var yy = y + pad + title.size.height + 4.dp.toPx()
-            rows.forEach { t -> drawText(t, topLeft = Offset(x + pad, yy)); yy += t.size.height + 4.dp.toPx() }
+            drawText(title, topLeft = Offset(x + pad, y + vpad))
+            var yy = y + vpad + title.size.height + gap
+            rows.forEach { t -> drawText(t, topLeft = Offset(x + pad, yy)); yy += t.size.height + gap }
         }
     }
 }
