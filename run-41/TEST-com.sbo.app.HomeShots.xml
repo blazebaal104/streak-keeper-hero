@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sbo.app.HomeShots" tests="36" skipped="0" failures="0" errors="0" timestamp="2026-10-23T12:29:42" hostname="runnervm8k3b6" time="44.995">
+  <properties/>
+  <testcase name="inventory" classname="com.sbo.app.HomeShots" time="17.918"/>
+  <testcase name="friendDlg2" classname="com.sbo.app.HomeShots" time="0.864"/>
+  <testcase name="fire30" classname="com.sbo.app.HomeShots" time="0.963"/>
+  <testcase name="fire2a" classname="com.sbo.app.HomeShots" time="1.189"/>
+  <testcase name="fire2b" classname="com.sbo.app.HomeShots" time="0.807"/>
+  <testcase name="fire2c" classname="com.sbo.app.HomeShots" time="0.866"/>
+  <testcase name="friendDlg" classname="com.sbo.app.HomeShots" time="0.75"/>
+  <testcase name="profileDlg" classname="com.sbo.app.HomeShots" time="0.625"/>
+  <testcase name="pzHome" classname="com.sbo.app.HomeShots" time="0.6"/>
+  <testcase name="pzPlan" classname="com.sbo.app.HomeShots" time="0.52"/>
+  <testcase name="social" classname="com.sbo.app.HomeShots" time="0.534"/>
+  <testcase name="titles" classname="com.sbo.app.HomeShots" time="1.037"/>
+  <testcase name="pzSettings" classname="com.sbo.app.HomeShots" time="0.564"/>
+  <testcase name="preview" classname="com.sbo.app.HomeShots" time="1.138"/>
+  <testcase name="calendar" classname="com.sbo.app.HomeShots" time="0.593"/>
+  <testcase name="settingsDlg" classname="com.sbo.app.HomeShots" time="0.464"/>
+  <testcase name="pzCoach" classname="com.sbo.app.HomeShots" time="0.772"/>
+  <testcase name="pzTrend" classname="com.sbo.app.HomeShots" time="0.37"/>
+  <testcase name="pzPlanWork" classname="com.sbo.app.HomeShots" time="0.74"/>
+  <testcase name="auth" classname="com.sbo.app.HomeShots" time="0.416"/>
+  <testcase name="ice9" classname="com.sbo.app.HomeShots" time="0.627"/>
+  <testcase name="drops" classname="com.sbo.app.HomeShots" time="1.153"/>
+  <testcase name="press" classname="com.sbo.app.HomeShots" time="3.691"/>
+  <testcase name="pzCal" classname="com.sbo.app.HomeShots" time="0.438"/>
+  <testcase name="quiz1" classname="com.sbo.app.HomeShots" time="0.472"/>
+  <testcase name="trend" classname="com.sbo.app.HomeShots" time="0.523"/>
+  <testcase name="profileDlg2" classname="com.sbo.app.HomeShots" time="0.488"/>
+  <testcase name="trendTips" classname="com.sbo.app.HomeShots" time="0.366"/>
+  <testcase name="settingsDlg2" classname="com.sbo.app.HomeShots" time="0.537"/>
+  <testcase name="equipped" classname="com.sbo.app.HomeShots" time="0.785"/>
+  <testcase name="clanDlg" classname="com.sbo.app.HomeShots" time="0.55"/>
+  <testcase name="pzSocial" classname="com.sbo.app.HomeShots" time="0.447"/>
+  <testcase name="headerTitle" classname="com.sbo.app.HomeShots" time="0.45"/>
+  <testcase name="invitesDlg" classname="com.sbo.app.HomeShots" time="0.417"/>
+  <testcase name="neutral" classname="com.sbo.app.HomeShots" time="0.422"/>
+  <testcase name="shatter" classname="com.sbo.app.HomeShots" time="1.892"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
