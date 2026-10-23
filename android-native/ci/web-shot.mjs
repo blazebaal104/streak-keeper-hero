@@ -125,4 +125,10 @@ await step("quiz", async () => {
   await page.screenshot({ path: "shots/web-quiz-2.png" });
   await page.keyboard.press("Escape"); await page.waitForTimeout(400);
 });
+// the native app's coach API on the dev worker: without a token it must answer 401 JSON
+await step("api", async () => {
+  const fs = await import("node:fs");
+  const r = await page.request.post("https://sbo-dev.perlospam696.workers.dev/api/public/native/agent-tick", { data: {} });
+  fs.writeFileSync("shots/api-check.txt", `${r.status()} ${await r.text()}`.slice(0, 500));
+});
 await browser.close();

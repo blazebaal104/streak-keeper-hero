@@ -515,7 +515,8 @@ internal fun Modifier.sboCard(borderColor: Color = Sbo.border, borderWidth: Floa
 
 /** Translucent surface like the web (card colour at ~75% + a faint light from the top), so the page tint shows through. */
 internal fun Modifier.surface() = this.background(
-    Brush.verticalGradient(listOf(Color(0xFF1A2A35).copy(alpha = 0.72f), Sbo.card.copy(alpha = 0.66f))),
+    // top tint = the card colour lifted a little (default theme: #1A2A35), so Progetto Zero themes recolour it too
+    Brush.verticalGradient(listOf(androidx.compose.ui.graphics.lerp(Sbo.card, Color.White, 0.06f).copy(alpha = 0.72f), Sbo.card.copy(alpha = 0.66f))),
 )
 
 @Composable
