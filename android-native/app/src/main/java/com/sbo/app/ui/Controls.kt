@@ -57,6 +57,7 @@ fun SboSlider(value: Int, min: Int, max: Int, onChange: (Int) -> Unit, onCommit:
     BoxWithConstraints(Modifier.fillMaxWidth().height(20.dp)) {
         val w = constraints.maxWidth.toFloat()
         val thumb = 16.dp
+        val mw = maxWidth
         fun pick(px: Float): Int {
             val f = ((px - 8f) / (w - 16f)).coerceIn(0f, 1f)
             return (min + f * (max - min)).roundToInt()
@@ -75,7 +76,7 @@ fun SboSlider(value: Int, min: Int, max: Int, onChange: (Int) -> Unit, onCommit:
                 Box(Modifier.fillMaxWidth(f).fillMaxHeight().background(Sbo.primary))
             }
             Box(
-                Modifier.offset(x = (maxWidth - thumb) * f).size(thumb).shadow(2.dp, CircleShape).clip(CircleShape)
+                Modifier.offset(x = (mw - thumb) * f).size(thumb).shadow(2.dp, CircleShape).clip(CircleShape)
                     .background(Sbo.background).border(1.dp, Sbo.primary.copy(alpha = 0.5f), CircleShape),
             )
         }

@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -417,7 +418,7 @@ fun IceShatter(trigger: Int, modifier: Modifier = Modifier) {
             val a = when { f < 0.75f -> 1f; f < 0.875f -> 1f - (f - 0.75f) / 0.125f * 0.4f; else -> 0.6f * (1f - (f - 0.875f) / 0.125f) }
             val sz = s.size * dp
             val p = Offset(c.x + x * dp, c.y + y * dp)
-            androidx.compose.ui.graphics.drawscope.rotate(s.spin * f, pivot = p) {
+            rotate(s.spin * f, pivot = p) {
                 drawImage(
                     sheet, srcOffset = androidx.compose.ui.unit.IntOffset((s.cell % 6) * cw, (s.cell / 6) * ch), srcSize = androidx.compose.ui.unit.IntSize(cw, ch),
                     dstOffset = androidx.compose.ui.unit.IntOffset((p.x - sz / 2).toInt(), (p.y - sz / 2).toInt()), dstSize = androidx.compose.ui.unit.IntSize(sz.toInt(), sz.toInt()),

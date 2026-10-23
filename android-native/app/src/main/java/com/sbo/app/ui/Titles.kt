@@ -111,8 +111,8 @@ object Titles {
  * mythic/legendary flow the gradient, rare+ glow softly, super rare+ get a sheen, mythic+ get sparks.
  */
 @Composable
-fun TitleBadge(t: TitleDef, size: String = "sm", modifier: Modifier = Modifier) {
-    val fs: TextUnit = when (size) { "md" -> 14.sp; "sm" -> 12.sp; else -> 10.sp }
+fun TitleBadge(t: TitleDef, variant: String = "sm", modifier: Modifier = Modifier) {
+    val fs: TextUnit = when (variant) { "md" -> 14.sp; "sm" -> 12.sp; else -> 10.sp }
     val flow = t.tier == Tier.mythic || t.tier == Tier.legendary
     val sheenOn = t.tier.rank >= Tier.super_rare.rank
     val glowOn = t.tier == Tier.rare || t.tier.rank >= Tier.epic.rank
