@@ -28,7 +28,22 @@ data class Profile(
     val clan_id: String? = null,
     val clan_role: String = "recruit",
     val notifications_enabled: Boolean = true,
+    val notif_messages: Boolean = true,
+    val notif_streak: Boolean = true,
+    val notif_social: Boolean = true,
 )
+
+@Serializable
+data class ClanInvite(val id: String, val clan_id: String, val from_user_id: String, val to_user_id: String, val status: String = "pending")
+
+@Serializable
+private data class NewInvite(val clan_id: String, val from_user_id: String, val to_user_id: String)
+
+@Serializable
+private data class NewClan(val name: String, val tag: String, val owner_id: String)
+
+@Serializable
+private data class NameRow(val username: String)
 
 @Serializable
 data class Clan(val id: String, val name: String, val tag: String, val owner_id: String = "")
@@ -153,6 +168,48 @@ object Supa {
         val (a, b) = listOf(uid, other).sorted()
         client.from("friendships").delete { filter { eq("user_a", a); eq("user_b", b) } }
     }
+
+    /** Partial profile update, e.g. buildJsonObject { put("avatar", "🔥") }. */
+    suspend fun updateProfile(uid: String, patch: kotlinx.serialization.json.JsonObject) {
+        client.from("profiles").update(patch) { filter { eq("id", uid) } }
+    }
+
+    suspend fun profileById(id: String): Profile? = client.from("profiles").select { filter { eq("id", id) } }.decodeList<Profile>().firstOrNull()
+
+    suspend fun badgesOf(id: String): List<Badge> = badges(id)
+
+    suspend fun usernameOf(id: String): String = client.from("profiles").select(io.github.jan.supabase.postgrest.query.Columns.list("username")) { filter { eq("id", id) } }.decodeList<NameRow>().firstOrNull()?.username ?: ""
+
+    suspend fun createClan(uid: String, name: String, tag: String): Clan =
+        client.from("clans").insert(NewClan(name, tag.uppercase(), uid)) { select() }.decodeSingle()
+
+    suspend fun joinClanByTag(uid: String, tag: String): Clan {
+        val c = client.from("clans").select { filter { eq("tag", tag.uppercase()) } }.decodeList<Clan>().firstOrNull() ?: throw IllegalArgumentException("Clan non trovato")
+        updateProfile(uid, kotlinx.serialization.json.buildJsonObject { put("clan_id", kotlinx.serialization.json.JsonPrimitive(c.id)); put("clan_role", kotlinx.serialization.json.JsonPrimitive("recruit")) })
+        return c
+    }
+
+    suspend fun incomingInvites(uid: String): List<ClanInvite> =
+        client.from("clan_invites").select { filter { eq("to_user_id", uid); eq("status", "pending") } }.decodeList()
+
+    suspend fun sendClanInvite(uid: String, clanId: String, to: String, myName: String, clanName: String) {
+        runCatching { client.from("clan_invites").insert(NewInvite(clanId, uid, to)) }.onFailure { if (it.message?.contains("duplicate") != true) throw it }
+        sendDm(uid, to, "👋 $myName ti invita nel clan \"$clanName\"! Controlla i tuoi inviti.")
+    }
+
+    private suspend fun rpc1(fn: String, key: String, value: String) {
+        client.postgrest.rpc(fn, kotlinx.serialization.json.buildJsonObject { put(key, kotlinx.serialization.json.JsonPrimitive(value)) })
+    }
+    suspend fun acceptInvite(id: String) = rpc1("accept_clan_invite", "_invite_id", id)
+    suspend fun declineInvite(id: String) = rpc1("decline_clan_invite", "_invite_id", id)
+    suspend fun kickMember(target: String) = rpc1("kick_clan_member", "_target", target)
+    suspend fun setClanRole(target: String, role: String) {
+        client.postgrest.rpc("set_clan_role", kotlinx.serialization.json.buildJsonObject {
+            put("_target", kotlinx.serialization.json.JsonPrimitive(target)); put("_role", kotlinx.serialization.json.JsonPrimitive(role))
+        })
+    }
+
+    suspend fun signOut() { client.auth.signOut() }
 
     suspend fun leaveClan(uid: String) {
         client.from("profiles").update({ set("clan_id", null as String?); set("clan_role", "recruit") }) { filter { eq("id", uid) } }

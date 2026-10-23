@@ -26,6 +26,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -89,7 +93,7 @@ fun CalendarTab(events: List<SboEvent>, limit: Int, today: LocalDate = LocalDate
 private val CELL = 32.dp
 
 @Composable
-private fun MonthGrid(month: YearMonth, today: LocalDate, byDay: Map<LocalDate, Int>, limit: Int, onPrev: () -> Unit, onNext: () -> Unit, onDay: (LocalDate) -> Unit) {
+internal fun MonthGrid(month: YearMonth, today: LocalDate, byDay: Map<LocalDate, Int>, limit: Int, onPrev: () -> Unit, onNext: () -> Unit, onDay: ((LocalDate) -> Unit)?) {
     // react-day-picker inside a shadcn Calendar: bg-background, p-3, 2rem cells
     Column(Modifier.background(Sbo.background).padding(12.dp).width(CELL * 7)) {
         Box(Modifier.fillMaxWidth().height(CELL)) {
@@ -135,13 +139,14 @@ private fun NavButton(icon: androidx.compose.ui.graphics.vector.ImageVector, mod
 }
 
 @Composable
-private fun DayCell(d: LocalDate, inMonth: Boolean, today: LocalDate, count: Int, limit: Int, onDay: (LocalDate) -> Unit) {
-    val enabled = !d.isAfter(today) && !d.isBefore(today.minusDays(7))
+private fun DayCell(d: LocalDate, inMonth: Boolean, today: LocalDate, count: Int, limit: Int, onDay: ((LocalDate) -> Unit)?) {
+    // read-only calendars (friend profile) have no disabled days
+    val enabled = onDay == null || (!d.isAfter(today) && !d.isBefore(today.minusDays(7)))
     val isToday = d == today
     Box(
         Modifier.size(CELL).clip(RoundedCornerShape(18.dp))
             .then(if (isToday) Modifier.background(Sbo.accent) else Modifier)
-            .then(if (enabled) Modifier.clickable { onDay(d) } else Modifier)
+            .then(if (enabled && onDay != null) Modifier.clickable { onDay(d) } else Modifier)
             .alpha(if (enabled) 1f else 0.5f),
         contentAlignment = Alignment.Center,
     ) {
@@ -150,7 +155,7 @@ private fun DayCell(d: LocalDate, inMonth: Boolean, today: LocalDate, count: Int
             color = when { isToday -> Sbo.accentFg; !inMonth || !enabled -> Sbo.mutedFg; else -> Sbo.foreground },
         )
         if (count > 0) {
-            val heavy = count >= limit
+            val heavy = onDay != null && count >= limit
             Box(
                 Modifier.align(Alignment.BottomCenter).padding(bottom = 4.dp).size(if (heavy) 6.dp else 4.dp)
                     .clip(CircleShape).background(if (heavy) Sbo.destructive else Sbo.accent),
@@ -215,7 +220,7 @@ fun ema90(series: List<DayPoint>): List<Float> {
 }
 
 @Composable
-fun TrendTab(events: List<SboEvent>, today: LocalDate = LocalDate.now()) {
+fun TrendTab(events: List<SboEvent>, today: LocalDate = LocalDate.now(), tip30: Int? = null, tip90: Int? = null) {
     val s30 = remember(events) { dailySeries(events, 30, today) }
     val s90 = remember(events) { dailySeries(events, 90, today) }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -224,7 +229,7 @@ fun TrendTab(events: List<SboEvent>, today: LocalDate = LocalDate.now()) {
                 Text("Andamento — ultimi 30 giorni", fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 4.dp))
                 Spacer(Modifier.height(12.dp))
                 if (s30.all { it.count == 0 }) Empty("Nessun dato ancora. Il grafico si popolerà con l'uso.", 40)
-                else Chart(s30.map { it.date }, s30.map { it.count.toFloat() }, area = true, color = Color(0xFFFB923C), height = 224)
+                else Chart(s30.map { it.date }, listOf(ChartSeries("Al giorno", s30.map { it.count.toFloat() }, Color(0xFFFB923C), area = true)), height = 224, initialIndex = tip30)
                 Spacer(Modifier.height(6.dp))
             }
         }
@@ -233,7 +238,7 @@ fun TrendTab(events: List<SboEvent>, today: LocalDate = LocalDate.now()) {
                 Text("Trend a 90 giorni", fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 4.dp))
                 Spacer(Modifier.height(12.dp))
                 if (s90.all { it.count == 0 }) Empty("Nessun dato ancora.", 32)
-                else Chart(s90.map { it.date }, ema90(s90), area = false, color = Color(0xFF38BDF8), height = 192, stroke = 2.5f)
+                else Chart(s90.map { it.date }, listOf(ChartSeries("Media", ema90(s90).map { kotlin.math.round(it * 100f) / 100f }, Color(0xFF38BDF8), area = false, stroke = 2.5f)), height = 192, initialIndex = tip90)
                 Spacer(Modifier.height(14.dp))
                 Text(
                     "La linea blu è la tua media: sale e scende piano piano, giorno dopo giorno. Obiettivo: portarla giù nel tempo.",
@@ -253,22 +258,50 @@ private fun Empty(text: String, pad: Int) {
  * Recharts look: dashed white/15 grid, white 10px ticks, Y domain 0..max(3, ceil(max)) with integer
  * ticks, X labels MM-DD thinned so they never overlap (keeping the last one), monotone curve.
  */
+data class ChartSeries(val name: String, val values: List<Float>, val color: Color, val area: Boolean, val stroke: Float = 2f)
+
+private val TIP_BG = Color(0xFF0F172A)
+private val TIP_BORDER = Color(0xFF334155)
+
+private fun fmtValue(v: Float): String {
+    val r = kotlin.math.round(v * 100f) / 100f
+    return if (r == kotlin.math.floor(r)) "${r.toInt()}" else r.toString().trimEnd('0').trimEnd('.')
+}
+
 @Composable
-private fun Chart(dates: List<LocalDate>, values: List<Float>, area: Boolean, color: Color, height: Int, stroke: Float = 2f) {
+internal fun Chart(dates: List<LocalDate>, series: List<ChartSeries>, height: Int, initialIndex: Int? = null) {
     val measurer = rememberTextMeasurer()
     val tick = TextStyle(color = Color.White, fontSize = 10.sp, fontFamily = Inter)
-    Canvas(Modifier.fillMaxWidth().height(height.dp)) {
+    val tipStyle = TextStyle(color = Color.White, fontSize = 12.sp, fontFamily = Inter)
+    var active by remember { mutableStateOf(initialIndex) }
+    var touchY by remember { mutableStateOf<Float?>(null) }
+    val n = dates.size
+    Canvas(
+        Modifier.fillMaxWidth().height(height.dp).pointerInput(n) {
+            // Recharts on a phone: touching (or dragging over) the chart moves the tooltip to the nearest day; it stays after lifting.
+            val l = 6.dp.toPx(); val r = size.width - 8.dp.toPx()
+            fun idx(x: Float) = (((x - l) / (r - l)) * (n - 1)).let { kotlin.math.round(it).toInt() }.coerceIn(0, n - 1)
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false)
+                active = idx(down.position.x); touchY = down.position.y
+                do {
+                    val ev = awaitPointerEvent()
+                    val c = ev.changes.firstOrNull() ?: break
+                    if (c.pressed) { active = idx(c.position.x); touchY = c.position.y; if (kotlin.math.abs(c.positionChange().x) > kotlin.math.abs(c.positionChange().y)) c.consume() }
+                } while (ev.changes.any { it.pressed })
+            }
+        },
+    ) {
         val l = (28f - 22f).dp.toPx() // YAxis width 28 with margin.left -22: the plot starts 6dp in, ticks spill left
         val r = size.width - 8.dp.toPx()
         val top = 6.dp.toPx()
         val xAxisH = 30.dp.toPx()
         val axisW = 0.7.dp.toPx()
         val b = size.height - xAxisH
-        val maxV = max(3f, ceil(values.max()))
+        val maxV = max(3f, ceil(series.maxOf { it.values.max() }))
         val step = niceIntStep(maxV)
         val yMax = ceil(maxV / step) * step
         fun yOf(v: Float) = b - (v / yMax) * (b - top)
-        val n = values.size
         fun xOf(i: Int) = l + (r - l) * i / (n - 1).coerceAtLeast(1)
         val grid = Color.White.copy(alpha = 0.15f)
         val dash = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx()))
@@ -299,13 +332,41 @@ private fun Chart(dates: List<LocalDate>, values: List<Float>, area: Boolean, co
         // axis lines
         drawLine(Color.White, Offset(l, top), Offset(l, b), axisW)
         drawLine(Color.White, Offset(l, b), Offset(r, b), axisW)
-        val pts = values.mapIndexed { k, value -> Offset(xOf(k), yOf(value)) }
-        val line = monotonePath(pts)
-        if (area) {
-            val fill = Path().apply { addPath(line); lineTo(pts.last().x, b); lineTo(pts.first().x, b); close() }
-            drawPath(fill, Brush.verticalGradient(0f to color.copy(alpha = 0.55f), 1f to color.copy(alpha = 0f), startY = top, endY = b))
+        val a = active
+        // recharts cursor: a thin grey vertical line under the series
+        if (a != null) drawLine(Color(0xFFCCCCCC), Offset(xOf(a), top), Offset(xOf(a), b), 1.dp.toPx())
+        for (sr in series) {
+            val pts = sr.values.mapIndexed { k, value -> Offset(xOf(k), yOf(value)) }
+            val line = monotonePath(pts)
+            if (sr.area) {
+                val fill = Path().apply { addPath(line); lineTo(pts.last().x, b); lineTo(pts.first().x, b); close() }
+                drawPath(fill, Brush.verticalGradient(0f to sr.color.copy(alpha = 0.55f), 1f to sr.color.copy(alpha = 0f), startY = top, endY = b))
+            }
+            drawPath(line, sr.color, style = Stroke(sr.stroke.dp.toPx(), cap = StrokeCap.Butt, join = StrokeJoin.Round))
         }
-        drawPath(line, color, style = Stroke(stroke.dp.toPx(), cap = StrokeCap.Butt, join = StrokeJoin.Round))
+        if (a != null) {
+            // active dots (recharts: r 4, series colour, 2px white ring)
+            for (sr in series) {
+                val p = Offset(xOf(a), yOf(sr.values[a]))
+                drawCircle(Color.White, 5.dp.toPx(), p); drawCircle(sr.color, 4.dp.toPx(), p)
+            }
+            // tooltip box: #0f172a, 1px #334155, radius 8, 12px text, label = the day key, then "Name : value" in each colour
+            val pad = 10.dp.toPx()
+            val title = measurer.measure(dates[a].toString(), tipStyle)
+            val rows = series.map { measurer.measure("${it.name} : ${fmtValue(it.values[a])}", tipStyle.copy(color = it.color)) }
+            val w = maxOf(title.size.width, rows.maxOf { it.size.width }) + pad * 2
+            val h = title.size.height + rows.sumOf { it.size.height } + 4.dp.toPx() * rows.size + pad * 2
+            val cx = xOf(a)
+            var x = cx + 10.dp.toPx()
+            if (x + w > size.width) x = cx - 10.dp.toPx() - w
+            x = x.coerceAtLeast(0f)
+            val y = ((touchY ?: top) + 10.dp.toPx()).coerceIn(0f, (size.height - h).coerceAtLeast(0f))
+            drawRoundRect(TIP_BG, Offset(x, y), androidx.compose.ui.geometry.Size(w, h), androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()))
+            drawRoundRect(TIP_BORDER, Offset(x, y), androidx.compose.ui.geometry.Size(w, h), androidx.compose.ui.geometry.CornerRadius(8.dp.toPx()), style = Stroke(1.dp.toPx()))
+            drawText(title, topLeft = Offset(x + pad, y + pad))
+            var yy = y + pad + title.size.height + 4.dp.toPx()
+            rows.forEach { t -> drawText(t, topLeft = Offset(x + pad, yy)); yy += t.size.height + 4.dp.toPx() }
+        }
     }
 }
 

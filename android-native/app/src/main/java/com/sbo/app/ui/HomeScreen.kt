@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -69,10 +70,23 @@ import androidx.compose.ui.graphics.graphicsLayer
 
 private val CardShape = RoundedCornerShape(24.dp) // web: rounded-xl = 1.25rem + 4px
 
+/** Clan operations, each reporting a message for the toast. */
+class ClanActions(
+    val create: (String, String, (String) -> Unit) -> Unit = { _, _, _ -> },
+    val join: (String, (String) -> Unit) -> Unit = { _, _ -> },
+    val accept: (String, (String) -> Unit) -> Unit = { _, _ -> },
+    val decline: (String, (String) -> Unit) -> Unit = { _, _ -> },
+    val invite: (Profile, (String) -> Unit) -> Unit = { _, _ -> },
+    val kick: (String) -> Unit = {},
+)
+
 @Composable
 fun HomeScreen(vm: HomeViewModel) {
     val s by vm.state.collectAsState()
-    HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip, onDayAdd = vm::addOnDay, onDayRemove = vm::removeOnDay, onAddFriend = vm::addFriend, onRemoveFriend = vm::removeFriend, onLeaveClan = vm::leaveClan)
+    HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip, onDayAdd = vm::addOnDay, onDayRemove = vm::removeOnDay, onAddFriend = vm::addFriend, onRemoveFriend = vm::removeFriend, onLeaveClan = vm::leaveClan,
+        onUpdateProfile = { p, j -> vm.updateProfile({ p }, j) }, onSignOut = vm::signOut, onSetRole = vm::setRole,
+        clan = ClanActions(vm::createClan, vm::joinClan, vm::acceptInvite, vm::declineInvite, vm::inviteToClan, vm::kick),
+    )
 }
 
 @Composable
@@ -84,6 +98,13 @@ fun HomeContent(
     onAddFriend: (String, (String) -> Unit) -> Unit = { _, _ -> },
     onRemoveFriend: (String) -> Unit = {},
     onLeaveClan: () -> Unit = {},
+    onUpdateProfile: (Profile, kotlinx.serialization.json.JsonObject) -> Unit = { _, _ -> },
+    onSignOut: () -> Unit = {},
+    clan: ClanActions = ClanActions(),
+    onSetRole: (String, String) -> Unit = { _, _ -> },
+    open: String? = null,
+    tip30: Int? = null, tip90: Int? = null,
+    friendPreload: Pair<List<com.sbo.app.data.SboEvent>, List<com.sbo.app.data.Badge>>? = null,
     rain: DropRain = remember { DropRain() },
     openInventory: Int? = null,
     startTab: Int = 0,
@@ -99,9 +120,18 @@ fun HomeContent(
     val toast = remember { ToastState() }
     toastRef.value = toast
     var confirmLeave by remember { mutableStateOf(false) }
+    var showProfile by remember { mutableStateOf(open == "profile") }
+    var showSettings by remember { mutableStateOf(open == "settings") }
+    var showInvites by remember { mutableStateOf(open == "invites") }
+    var showClanManage by remember { mutableStateOf(open == "clan") }
+    var showClanInvite by remember { mutableStateOf(false) }
+    var viewFriend by remember { mutableStateOf<Profile?>(if (open == "friend") s.social.friends.firstOrNull()?.profile else null) }
+    var confirmKick by remember { mutableStateOf<Profile?>(null) }
+    var shatter by remember { mutableIntStateOf(0) }
     var inventory by remember { mutableStateOf(openInventory) }
     val add = {
         rain.burst()
+        if (s.ice > 0) shatter++
         s.profile?.takeIf { it.notifications_enabled }?.let { pr ->
             val n = pr.username
             when {
@@ -129,22 +159,38 @@ fun HomeContent(
                 else -> Column(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp),
                 ) {
-                    Header(p, s.fire, s.ice)
+                    Header(p, s.fire, s.ice, s.social.invites.size, onProfile = { showProfile = true }, onBell = { showInvites = true }, onSettings = { showSettings = true })
                     TabsBar(tab) { tab = it }
                     Spacer(Modifier.height(32.dp))
                     when (tab) {
-                        0 -> HomeTab(s, add, onUndo) { inventory = it }
+                        0 -> HomeTab(s, add, onUndo, shatter) { inventory = it }
                         1 -> CalendarTab(s.events, s.limit, today) { dayEdit = it }
-                        2 -> TrendTab(s.events, today)
+                        2 -> TrendTab(s.events, today, tip30 = tip30, tip90 = tip90)
                         else -> SocialTab(
                             p, s.social, onToast = toast::show, onAddFriend = { addFriend = true },
                             onChat = { chatWith = it }, onClanChat = { clanChat = true }, onRemove = { confirmRemove = it }, onLeaveClan = { confirmLeave = true },
+                            onOpenFriend = { viewFriend = it }, onManageClan = { showClanManage = true }, onInviteToClan = { showClanInvite = true },
+                            onSetRole = onSetRole, onKick = { confirmKick = it },
                         )
                     }
                     Spacer(Modifier.height(96.dp))
                 }
             }
             DropRainOverlay(rain)
+            val me = p
+            if (me != null) {
+                if (showProfile) ProfileDialog(me, s.badges, onClose = { showProfile = false }, onUpdate = onUpdateProfile, onSlot = { showProfile = false; inventory = it }, onSignOut = { showProfile = false; onSignOut() }, onToast = { toast.show(it) })
+                if (showSettings) SettingsDialog(me, onClose = { showSettings = false }, onUpdate = onUpdateProfile, onToast = { toast.show(it) })
+                if (showInvites) InvitesDialog(s.social.invites, onClose = { showInvites = false }, onAccept = { clan.accept(it) { m -> toast.show(m) } }, onDecline = { clan.decline(it) { m -> toast.show(m) } })
+                if (showClanManage) ClanManageDialog(
+                    onClose = { showClanManage = false },
+                    onCreate = { n, t -> clan.create(n, t) { m -> toast.show(m); if (!m.startsWith("Tag") && !m.startsWith("Errore")) showClanManage = false } },
+                    onJoin = { t -> clan.join(t) { m -> toast.show(m); if (m.startsWith("Ti sei")) showClanManage = false } },
+                )
+                if (showClanInvite) InviteFriendToClanDialog(s.social.friends.map { it.profile }, s.social.members.map { it.id }.toSet(), onClose = { showClanInvite = false }) { f -> clan.invite(f) { m -> toast.show(m) } }
+                viewFriend?.let { f -> FriendProfileDialog(f, onClose = { viewFriend = null }, onChat = { chatWith = f; viewFriend = null }, today = today, preload = friendPreload) }
+                confirmKick?.let { m -> ConfirmDialog("Espellere ${m.username}?", "Espelli", onClose = { confirmKick = null }) { clan.kick(m.id) } }
+            }
             ToastHost(toast)
             if (p != null && addFriend) AddFriendDialog(onClose = { addFriend = false }) { code ->
                 onAddFriend(code) { msg -> toast.show(msg) }; addFriend = false
@@ -175,7 +221,10 @@ fun HomeContent(
                 DayEditDialog(d, n, onAdd = { onDayAdd(d) }, onRemove = { onDayRemove(d) }, onClose = { dayEdit = null })
             }
             val slot = inventory
-            if (p != null && slot != null) InventoryDialog(slot, p, s.badges, onClose = { inventory = null }) { id ->
+            if (p != null && slot != null) InventoryDialog(
+                slot, p, s.badges, onClose = { inventory = null },
+                titles = { TitlesSection(s.events.size, com.sbo.app.ui.Titles.cleanDays(s.events, today), p.equipped_title) { id -> onUpdateProfile(p.copy(equipped_title = id), patch("equipped_title" to id)) } },
+            ) { id ->
                 onEquip(slot, id); inventory = null
             }
         }
@@ -203,21 +252,31 @@ private fun AmbientMood(mode: String) {
 }
 
 @Composable
-private fun Header(p: Profile, fire: Int, ice: Int) {
+private fun Header(p: Profile, fire: Int, ice: Int, invites: Int, onProfile: () -> Unit, onBell: () -> Unit, onSettings: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 32.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-        Avatar(p, 44)
-        Spacer(Modifier.width(10.dp))
-        Column(Modifier.weight(1f)) {
-            Text(p.username, fontFamily = SpaceGrotesk, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.45).sp, maxLines = 1)
-            Text(p.friend_code, color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp, fontFamily = FontFamily.Monospace)
+        Row(Modifier.weight(1f).clickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, onClick = onProfile), verticalAlignment = Alignment.CenterVertically) {
+            Avatar(p, 44)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(p.username, fontFamily = SpaceGrotesk, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.45).sp, maxLines = 1)
+                val title = Titles.byId(p.equipped_title)
+                if (title != null) TitleBadge(title, "xs")
+                else Text(p.friend_code, color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp, fontFamily = FontFamily.Monospace)
+            }
         }
         Chip(Lucide.Flame, Sbo.orange, fire)
         Spacer(Modifier.width(6.dp))
         Chip(Lucide.Snowflake, Sbo.sky, ice)
         Spacer(Modifier.width(6.dp))
-        RoundIcon(Lucide.Bell)
+        Box {
+            RoundIcon(Lucide.Bell, onBell)
+            if (invites > 0) Box(
+                Modifier.align(Alignment.TopEnd).offset(x = 2.dp, y = (-2).dp).size(16.dp).clip(CircleShape).background(Sbo.destructive),
+                contentAlignment = Alignment.Center,
+            ) { Text("$invites", color = Color.White, fontSize = 10.sp, lineHeight = 12.sp, fontWeight = FontWeight.Bold) }
+        }
         Spacer(Modifier.width(8.dp))
-        RoundIcon(Lucide.Settings)
+        RoundIcon(Lucide.Settings, onSettings)
     }
 }
 
@@ -283,7 +342,7 @@ private fun TabsBar(selected: Int, onSelect: (Int) -> Unit) {
 }
 
 @Composable
-private fun HomeTab(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit, onSlot: (Int) -> Unit) {
+private fun HomeTab(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit, shatter: Int = 0, onSlot: (Int) -> Unit) {
     val p = s.profile ?: return
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Max), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Stat("Oggi", s.today, accent = s.today >= s.limit, modifier = Modifier.weight(1f).fillMaxHeight())
@@ -299,7 +358,7 @@ private fun HomeTab(s: HomeState, onAdd: () -> Unit, onUndo: () -> Unit, onSlot:
     }
     Spacer(Modifier.height(24.dp))
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-        StreakButton(s.fire, s.ice, onPress = onAdd)
+        StreakButton(s.fire, s.ice, onPress = onAdd, shatter = shatter)
         Text(
             when {
                 s.fire > 0 -> "🔥 La tua fiamma cresce: ${s.fire} giorni di fila."

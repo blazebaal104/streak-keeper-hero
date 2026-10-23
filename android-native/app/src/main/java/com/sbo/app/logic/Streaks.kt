@@ -48,6 +48,24 @@ object Streaks {
         return n
     }
 
+    /** Longest run of consecutive active days. */
+    fun maxFire(events: List<SboEvent>): Int {
+        if (events.isEmpty()) return 0
+        val days = byDay(events).keys.sorted()
+        var best = 1; var cur = 1
+        for (i in 1 until days.size) { cur = if (ChronoUnit.DAYS.between(days[i - 1], days[i]) == 1L) cur + 1 else 1; best = max(best, cur) }
+        return best
+    }
+
+    /** Longest gap between active days minus the 24h grace day, or the current ice streak. */
+    fun maxIce(events: List<SboEvent>): Int {
+        if (events.isEmpty()) return 0
+        val days = byDay(events).keys.sorted()
+        var best = 0
+        for (i in 1 until days.size) { val gap = ChronoUnit.DAYS.between(days[i - 1], days[i]).toInt() - 1; best = max(best, max(0, gap - 1)) }
+        return max(best, ice(events))
+    }
+
     fun adaptiveLimit(events: List<SboEvent>, fallback: Int = 3): Int {
         val cutoff = Instant.now().minus(14, ChronoUnit.DAYS)
         val recent = events.count { instant(it.ts).isAfter(cutoff) }

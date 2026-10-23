@@ -53,6 +53,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -80,7 +81,7 @@ val LocalFireStill = staticCompositionLocalOf<Int?> { null }
  * neutral → the water drop.
  */
 @Composable
-fun StreakButton(fire: Int, ice: Int, onPress: () -> Unit, modifier: Modifier = Modifier) {
+fun StreakButton(fire: Int, ice: Int, onPress: () -> Unit, modifier: Modifier = Modifier, shatter: Int = 0) {
     val level = min(fire / 30f, 1f)
     val iceLevel = min(ice / 30f, 1f)
     val press = rememberPressScale()
@@ -92,6 +93,8 @@ fun StreakButton(fire: Int, ice: Int, onPress: () -> Unit, modifier: Modifier = 
             ice > 0 -> Disc(base, press, onPress, glow = Color(0xFF38BDF8), glowAlpha = 0.3f + iceLevel * 0.4f, iceAura = true) { IceSurface(ice, iceLevel) }
             else -> Disc(base, press, onPress, glow = Sbo.dropGlow, glowAlpha = 0.45f) { NeutralSurface() }
         }
+        // shards fly over everything, centred on the disc
+        Box(Modifier.padding(bottom = base).size(DISC), contentAlignment = Alignment.Center) { IceShatter(shatter) }
     }
 }
 
@@ -360,4 +363,67 @@ private fun hash(i: Int, j: Int): Float {
     var h = i * 374761393 + j * 668265263
     h = (h xor (h ushr 13)) * 1274126177
     return ((h xor (h ushr 16)) and 0xFFFFFF) / 16777215f
+}
+
+// ---------------------------------------------------------------- ice shatter
+
+private class Shard(val angle: Float, val vx: Float, val vy: Float, val r0: Float, val size: Float, val cell: Int, val g: Float, val spin: Float, val delay: Float)
+
+/**
+ * Breaking the ice (web IceShatter): a flash, then 46 real ice fragments from the sprite sheet are blasted
+ * out from the rim and fall on ballistic arcs under gravity, spinning, fading in the last third. 1.05 s.
+ * Drawn in one Canvas from a frame clock (no recomposition per frame).
+ */
+@Composable
+fun IceShatter(trigger: Int, modifier: Modifier = Modifier) {
+    if (trigger == 0) return
+    val sheet = androidx.compose.ui.graphics.ImageBitmap.imageResource(R.drawable.ice_shards)
+    val shards = remember(trigger) {
+        val r = kotlin.random.Random(trigger * 7919)
+        List(46) { i ->
+            val a = (i / 46f) * 2f * PI.toFloat() + (r.nextFloat() - 0.5f) * 0.6f
+            val sp = 260f + r.nextFloat() * 420f
+            Shard(a, kotlin.math.cos(a) * sp, sin(a) * sp - 110f, 30f + r.nextFloat() * 45f, 7f + r.nextFloat() * 22f, r.nextInt(12), 1500f + r.nextFloat() * 700f, (r.nextFloat() - 0.5f) * 1200f, r.nextFloat() * 0.05f)
+        }
+    }
+    val start = remember(trigger) { mutableStateOf(-1L) }
+    val now = remember(trigger) { androidx.compose.runtime.mutableLongStateOf(0L) }
+    var done by remember(trigger) { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(trigger) {
+        while (true) {
+            androidx.compose.runtime.withFrameNanos { t -> if (start.value < 0) start.value = t; now.longValue = t }
+            if ((now.longValue - start.value) / 1e9f > 1.2f) { done = true; break }
+        }
+    }
+    if (done) return
+    Canvas(modifier.requiredSize(DISC)) {
+        if (start.value < 0) return@Canvas
+        val t = (now.longValue - start.value) / 1e9f
+        val c = center
+        val dp = density
+        // burst flash: radial white-blue, scale 0.6 → 1.5, opacity 0.9 → 0 in 0.35 s (ease-out)
+        if (t < 0.35f) {
+            val k = 1f - (1f - t / 0.35f).let { it * it }
+            val rad = size.minDimension / 2f * (0.6f + 0.9f * k)
+            drawCircle(Brush.radialGradient(0f to Color(0xFFDCF5FF).copy(alpha = 0.85f * (0.9f * (1f - k))), 0.6f to Color.Transparent, center = c, radius = rad), rad, c)
+        }
+        val cw = sheet.width / 6; val ch = sheet.height / 2
+        for (s in shards) {
+            val tt = (t - s.delay).coerceAtLeast(0f)
+            if (tt > 1.05f) continue
+            val x = kotlin.math.cos(s.angle) * s.r0 + s.vx * tt
+            val y = sin(s.angle) * s.r0 + s.vy * tt + 0.5f * s.g * tt * tt
+            val f = tt / 1.05f
+            val a = when { f < 0.75f -> 1f; f < 0.875f -> 1f - (f - 0.75f) / 0.125f * 0.4f; else -> 0.6f * (1f - (f - 0.875f) / 0.125f) }
+            val sz = s.size * dp
+            val p = Offset(c.x + x * dp, c.y + y * dp)
+            androidx.compose.ui.graphics.drawscope.rotate(s.spin * f, pivot = p) {
+                drawImage(
+                    sheet, srcOffset = androidx.compose.ui.unit.IntOffset((s.cell % 6) * cw, (s.cell / 6) * ch), srcSize = androidx.compose.ui.unit.IntSize(cw, ch),
+                    dstOffset = androidx.compose.ui.unit.IntOffset((p.x - sz / 2).toInt(), (p.y - sz / 2).toInt()), dstSize = androidx.compose.ui.unit.IntSize(sz.toInt(), sz.toInt()),
+                    alpha = a.coerceIn(0f, 1f),
+                )
+            }
+        }
+    }
 }

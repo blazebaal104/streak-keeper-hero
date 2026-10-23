@@ -142,6 +142,8 @@ internal fun AvatarSmall(p: Profile, size: Int) {
 fun SocialTab(
     me: Profile, social: com.sbo.app.ui.Social,
     onToast: (String) -> Unit, onAddFriend: () -> Unit, onChat: (Profile) -> Unit, onClanChat: () -> Unit, onRemove: (Profile) -> Unit, onLeaveClan: () -> Unit = {},
+    onOpenFriend: (Profile) -> Unit = {}, onManageClan: () -> Unit = {}, onInviteToClan: () -> Unit = {},
+    onSetRole: (String, String) -> Unit = { _, _ -> }, onKick: (Profile) -> Unit = {},
 ) {
     val clip = LocalClipboardManager.current
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -165,8 +167,10 @@ fun SocialTab(
                 }
             }
             val clan = social.clan
-            if (clan != null) ClanCard(clan, social.members, me, onClanChat)
-            else DashedCard(Lucide.Shield, "Crea o unisciti a un clan per chattare e competere.")
+            if (clan != null) ClanCard(clan, social.members, me, onClanChat, onInviteToClan, onSetRole, onKick)
+            else DashedCard(Lucide.Shield, "Crea o unisciti a un clan per chattare e competere.") {
+                SmallButton("Gestisci clan", variant = "default", onClick = onManageClan)
+            }
         }
         Column {
             Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -175,16 +179,17 @@ fun SocialTab(
             }
             if (social.friends.isEmpty()) DashedCard(Lucide.Users, "Non hai ancora amici. Aggiungine uno con il suo codice.")
             else Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                social.friends.forEach { f -> FriendCard(f, social.unread[f.profile.id] ?: 0, onChat = { onChat(f.profile) }, onRemove = { onRemove(f.profile) }) }
+                social.friends.forEach { f -> FriendCard(f, social.unread[f.profile.id] ?: 0, onOpen = { onOpenFriend(f.profile) }, onChat = { onChat(f.profile) }, onRemove = { onRemove(f.profile) }) }
             }
         }
     }
 }
 
 @Composable
-private fun FriendCard(f: FriendRow, unread: Int, onChat: () -> Unit, onRemove: () -> Unit) {
+private fun FriendCard(f: FriendRow, unread: Int, onOpen: () -> Unit, onChat: () -> Unit, onRemove: () -> Unit) {
     Card(padding = 16.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
+          Row(Modifier.weight(1f).clickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, onClick = onOpen), verticalAlignment = Alignment.CenterVertically) {
             AvatarSmall(f.profile, 40)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
@@ -195,6 +200,7 @@ private fun FriendCard(f: FriendRow, unread: Int, onChat: () -> Unit, onRemove: 
                     Stat(Lucide.Droplets, Sbo.primary, "${f.today} oggi")
                 }
             }
+          }
             Spacer(Modifier.width(12.dp))
             Box {
                 SmallButton(icon = Lucide.MessageCircle, onClick = onChat)
@@ -218,7 +224,9 @@ private fun Stat(icon: ImageVector, tint: Color, text: String) {
 }
 
 @Composable
-private fun ClanCard(clan: com.sbo.app.data.Clan, members: List<Profile>, me: Profile, onChat: () -> Unit) {
+private fun ClanCard(clan: com.sbo.app.data.Clan, members: List<Profile>, me: Profile, onChat: () -> Unit, onInvite: () -> Unit, onSetRole: (String, String) -> Unit, onKick: (Profile) -> Unit) {
+    val canInvite = me.clan_role in setOf("leader", "co_leader", "recruit")
+    val leader = me.clan_role == "leader"
     Card(padding = 20.dp) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -233,8 +241,10 @@ private fun ClanCard(clan: com.sbo.app.data.Clan, members: List<Profile>, me: Pr
                 }
                 SmallButton("Chat", Lucide.MessageCircle, onClick = onChat)
             }
-            Spacer(Modifier.height(12.dp))
-            SmallButton("Invita un amico", Lucide.UserPlus, modifier = Modifier.fillMaxWidth()) {}
+            if (canInvite) {
+                Spacer(Modifier.height(12.dp))
+                SmallButton("Invita un amico", Lucide.UserPlus, modifier = Modifier.fillMaxWidth(), onClick = onInvite)
+            }
             Spacer(Modifier.height(16.dp))
             val order = mapOf("leader" to 0, "co_leader" to 1, "recruit" to 2)
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -251,11 +261,22 @@ private fun ClanCard(clan: com.sbo.app.data.Clan, members: List<Profile>, me: Pr
                         )
                         Spacer(Modifier.width(12.dp))
                         RoleBadge(m.clan_role)
+                        Spacer(Modifier.weight(1f))
+                        if (m.id != me.id && leader) Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            if (m.clan_role == "recruit") RoleAction(Lucide.Star, Color(0xFFFBBF24)) { onSetRole(m.id, "co_leader") }
+                            if (m.clan_role == "co_leader") RoleAction(Lucide.UserMinus, Sbo.mutedFg) { onSetRole(m.id, "recruit") }
+                            RoleAction(Lucide.X, Sbo.destructive) { onKick(m) }
+                        }
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun RoleAction(icon: ImageVector, tint: Color, onClick: () -> Unit) {
+    Box(Modifier.clip(RoundedCornerShape(4.dp)).clickable(onClick = onClick).padding(4.dp)) { Icon(icon, null, tint = tint, modifier = Modifier.size(14.dp)) }
 }
 
 @Composable

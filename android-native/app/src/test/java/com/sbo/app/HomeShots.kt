@@ -117,6 +117,52 @@ class HomeShots {
         rule.mainClock.advanceTimeBy(700); cap("tab-social")
     }
 
+    private fun open(name: String, what: String, end: Boolean = false, st: HomeState = state(0, 0).copy(events = history, limit = 2)) {
+        render {
+            CompositionLocalProvider(com.sbo.app.ui.LocalDialogScrollToEnd provides end) {
+                HomeContent(st, {}, {}, open = what, today = day, friendPreload = history to listOf(brina))
+            }
+        }
+        rule.mainClock.advanceTimeBy(900); cap(name)
+    }
+    private fun socialState(): HomeState {
+        val robot = { id: String, name: String, role: String -> Profile(id = id, username = name, avatar = "🤖", friend_code = "AAAAAA", clan_id = "c1", clan_role = role) }
+        return state(0, 0).copy(events = history, limit = 2, social = com.sbo.app.ui.Social(
+            loaded = true, friends = listOf(com.sbo.app.ui.FriendRow(robot("f1", "amico_test", "leader"), 0, 3, 0)),
+            invites = listOf(com.sbo.app.ui.InviteInfo("i1", "Clan di Prova", "DEV", "amico_test")),
+        ))
+    }
+    @Test fun profileDlg() = open("dlg-profile", "profile")
+    @Test fun profileDlg2() = open("dlg-profile-2", "profile", end = true)
+    @Test fun settingsDlg() = open("dlg-settings", "settings")
+    @Test fun settingsDlg2() = open("dlg-settings-2", "settings", end = true, st = state(0, 0).copy(profile = profile.copy(use_adaptive_limit = false)))
+    @Test fun invitesDlg() = open("dlg-invites", "invites", st = socialState())
+    @Test fun clanDlg() = open("dlg-clan", "clan")
+    @Test fun friendDlg() = open("dlg-friend", "friend", st = socialState())
+    @Test fun friendDlg2() = open("dlg-friend-2", "friend", end = true, st = socialState())
+    @Test fun headerTitle() { render { HomeContent(state(0, 0).copy(profile = profile.copy(equipped_title = "ice:365")), {}, {}) }; rule.mainClock.advanceTimeBy(1500); cap("header-title") }
+    @Test fun titles() {
+        render {
+            CompositionLocalProvider(com.sbo.app.ui.LocalDialogScrollToEnd provides true) {
+                androidx.compose.material3.MaterialTheme {
+                    HomeContent(state(0, 0).copy(events = history, profile = profile.copy(equipped_title = "fire:30")), {}, {}, openInventory = 0, today = day)
+                }
+            }
+        }
+        rule.mainClock.advanceTimeBy(900); cap("inventory-titles")
+    }
+    @Test fun trendTips() { render { HomeContent(state(0, 0).copy(events = history, limit = 2), {}, {}, startTab = 2, today = day, tip30 = 19, tip90 = 59) }; rule.mainClock.advanceTimeBy(700); cap("tab-trend-tips") }
+    @Test fun shatter() {
+        render { HomeContent(state(0, 9), {}, {}) }
+        rule.mainClock.advanceTimeBy(500)
+        rule.onRoot().performTouchInput { down(Offset(width / 2f, height * 0.555f)) }
+        rule.mainClock.advanceTimeBy(40)
+        rule.onRoot().performTouchInput { up() }
+        rule.mainClock.advanceTimeBy(120); cap("shatter-160")
+        rule.mainClock.advanceTimeBy(240); cap("shatter-400")
+        rule.mainClock.advanceTimeBy(400); cap("shatter-800")
+    }
+
     @Test fun fire2a() = shot("fire-2-1", 2, 0, R.drawable.fire_still_1)
     @Test fun fire2b() = shot("fire-2-2", 2, 0, R.drawable.fire_still_2)
     @Test fun fire2c() = shot("fire-2-3", 2, 0, R.drawable.fire_still_3)

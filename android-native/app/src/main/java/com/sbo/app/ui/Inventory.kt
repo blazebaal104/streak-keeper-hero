@@ -68,6 +68,9 @@ import com.sbo.app.logic.Badges
  * 24dp padding, black/80 backdrop, fade + zoom-in from 95%. Drawn inside the app's own tree
  * (not a separate window) so it composes with everything else.
  */
+/** Screenshot tests: open dialogs already scrolled to the bottom. */
+val LocalDialogScrollToEnd = androidx.compose.runtime.staticCompositionLocalOf { false }
+
 @Composable
 fun SboDialog(onClose: () -> Unit, content: @Composable () -> Unit) {
     BackHandler(onBack = onClose)
@@ -89,7 +92,12 @@ fun SboDialog(onClose: () -> Unit, content: @Composable () -> Unit) {
         ) {
             androidx.compose.runtime.CompositionLocalProvider(
                 androidx.compose.material3.LocalTextStyle provides androidx.compose.ui.text.TextStyle(fontFamily = Inter, color = Sbo.foreground),
-            ) { Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) { content() } }
+            ) {
+                val scroll = rememberScrollState()
+                val toEnd = LocalDialogScrollToEnd.current
+                if (toEnd) LaunchedEffect(scroll.maxValue) { scroll.scrollTo(scroll.maxValue) }
+                Column(Modifier.verticalScroll(scroll).padding(24.dp)) { content() }
+            }
             Icon(
                 Lucide.X, "Chiudi", tint = Sbo.foreground.copy(alpha = 0.7f),
                 modifier = Modifier.align(Alignment.TopEnd).padding(top = 16.dp, end = 16.dp).size(16.dp).clickable(onClick = onClose),
@@ -109,7 +117,7 @@ private fun DialogHeader(title: String, description: String? = null) {
 
 /** Medal inventory for one slot (web InventoryDialog): tap an owned medal to equip it, a locked one to see how to get it. */
 @Composable
-fun InventoryDialog(slot: Int, profile: Profile, badges: List<Badge>, onClose: () -> Unit, initialPreview: BadgeDef? = null, onEquip: (String?) -> Unit) {
+fun InventoryDialog(slot: Int, profile: Profile, badges: List<Badge>, onClose: () -> Unit, initialPreview: BadgeDef? = null, titles: @Composable () -> Unit = {}, onEquip: (String?) -> Unit) {
     var preview by remember { mutableStateOf(initialPreview) }
     val equipped = setOfNotNull(profile.slot_1, profile.slot_2, profile.slot_3)
     SboDialog(onClose) {
@@ -133,6 +141,7 @@ fun InventoryDialog(slot: Int, profile: Profile, badges: List<Badge>, onClose: (
         Group("🔥 Streak di fuoco (fai ogni giorno)", Badges.FIRE, "fire", badges, equipped, onEquip) { preview = it }
         Group("❄️ Streak di ghiaccio (giorni puliti)", Badges.ICE, "ice", badges, equipped, onEquip) { preview = it }
         Group("💪 Allenamenti totali", Badges.WORKOUT, "workout", badges, equipped, onEquip) { preview = it }
+        titles()
     }
     preview?.let { LockedPreview(it) { preview = null } }
 }
