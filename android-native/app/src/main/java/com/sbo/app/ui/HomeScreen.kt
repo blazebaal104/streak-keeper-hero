@@ -4,8 +4,8 @@ import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.using
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
