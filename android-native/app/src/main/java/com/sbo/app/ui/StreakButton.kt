@@ -94,11 +94,13 @@ fun StreakButton(fire: Int, ice: Int, onPress: () -> Unit, modifier: Modifier = 
         view.performHapticFeedback(if (android.os.Build.VERSION.SDK_INT >= 30) android.view.HapticFeedbackConstants.CONFIRM else android.view.HapticFeedbackConstants.LONG_PRESS)
         onPress()
     }
-    val waveColor = when { fire > 0 -> Color(0xFFFF8A3D); ice > 0 -> Color(0xFF7DD3FC); else -> Color.White }
+    val waveColor = when { fire > 0 -> Color(0xFFFF7A1F); ice > 0 -> Color(0xFF38BDF8); else -> Color(0xFFBFEFFF) }
     // Same footprint in every state: the flames overflow upwards without pushing the layout.
     Box(modifier.size(width = 340.dp, height = DISC + base * 2), contentAlignment = Alignment.BottomCenter) {
         // shockwave rings behind the disc
-        Box(Modifier.padding(bottom = base).size(DISC), contentAlignment = Alignment.Center) { ShockWave(wave, waveColor, DISC) }
+        Box(Modifier.padding(bottom = base).size(DISC), contentAlignment = Alignment.Center) {
+            ShockWave(wave, waveColor, DISC, core = when { fire > 0 -> Color(0xFFFFE6A8); ice > 0 -> Color(0xFFE8FAFF); else -> Color.White })
+        }
         when {
             fire > 0 -> FireButton(level, base, press, tapped)
             ice > 0 -> Disc(base, press, tapped, glow = Color(0xFF38BDF8), glowAlpha = 0.3f + iceLevel * 0.4f, iceAura = true) { IceSurface(ice, iceLevel) }

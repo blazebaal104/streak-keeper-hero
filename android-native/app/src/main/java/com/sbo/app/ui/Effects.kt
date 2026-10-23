@@ -30,25 +30,27 @@ private val OUT = CubicBezierEasing(0.16f, 1f, 0.3f, 1f) // easeOutExpo-ish
  * with a soft bloom right at the rim. Colour follows the button's mood (fire / ice / neutral).
  */
 @Composable
-fun ShockWave(trigger: Int, color: Color, disc: Dp) {
+fun ShockWave(trigger: Int, color: Color, disc: Dp, core: Color = Color(0xFFFFF4E0)) {
     if (trigger == 0) return
     val a = remember(trigger) { Animatable(0f) }
     val b = remember(trigger) { Animatable(0f) }
     LaunchedEffect(trigger) {
-        launch { a.animateTo(1f, tween(760, easing = OUT)) }
-        delay(110)
-        b.animateTo(1f, tween(820, easing = OUT))
+        launch { a.animateTo(1f, tween(620, easing = OUT)) }
+        delay(100)
+        b.animateTo(1f, tween(680, easing = OUT))
     }
     Canvas(Modifier.requiredSize(disc * 2.3f)) {
         val r0 = disc.toPx() / 2f
         fun ring(t: Float, strength: Float) {
             if (t <= 0f || t >= 1f) return
-            val r = r0 * (0.98f + 0.95f * t)
+            val r = r0 * (1f + 0.62f * t)
             val fade = (1f - t)
-            val w = (7.dp.toPx() * (1f - t * 0.85f))
-            // soft halo + crisp core
-            drawCircle(color.copy(alpha = 0.18f * fade * strength), r, style = Stroke(w * 3.2f), blendMode = BlendMode.Screen)
-            drawCircle(color.copy(alpha = 0.55f * fade * fade * strength), r, style = Stroke(w), blendMode = BlendMode.Screen)
+            val thin = 1f - t * 0.75f
+            // glow (stacked soft strokes) around a hot, thin core: reads as light, not paint
+            drawCircle(color.copy(alpha = 0.07f * fade * strength), r, style = Stroke(14.dp.toPx() * thin), blendMode = BlendMode.Screen)
+            drawCircle(color.copy(alpha = 0.14f * fade * strength), r, style = Stroke(8.dp.toPx() * thin), blendMode = BlendMode.Screen)
+            drawCircle(color.copy(alpha = 0.30f * fade * strength), r, style = Stroke(4.dp.toPx() * thin), blendMode = BlendMode.Screen)
+            drawCircle(core.copy(alpha = 0.9f * fade * fade * strength), r, style = Stroke(2.2.dp.toPx() * thin + 0.5f), blendMode = BlendMode.Screen)
         }
         // bloom on the rim right after the tap
         val bloom = (1f - a.value * 2.2f).coerceIn(0f, 1f)
@@ -77,7 +79,7 @@ fun FirePulse(trigger: Int) {
                 // easing belongs to the segment that starts at each keyframe
                 0f at 0 using CubicBezierEasing(0.2f, 0.8f, 0.3f, 1f)
                 1f at 120 using CubicBezierEasing(0.4f, 0f, 0.6f, 1f)
-                0.38f at 300 using CubicBezierEasing(0.2f, 0.8f, 0.3f, 1f)
+                0.22f at 270 using CubicBezierEasing(0.2f, 0.8f, 0.3f, 1f)
                 0.82f at 420 using CubicBezierEasing(0.33f, 0f, 0.2f, 1f)
                 0f at 1250
             })
@@ -91,17 +93,16 @@ fun FirePulse(trigger: Int) {
         val w = size.width; val h = size.height
         val core = Color(0xFFFF6A1A)
         val hot = Color(0xFFFFB347)
-        val side = w * 0.2f
-        drawRect(Brush.horizontalGradient(0f to core.copy(alpha = 0.55f * v), 1f to Color.Transparent, startX = 0f, endX = side), blendMode = BlendMode.Screen)
-        drawRect(Brush.horizontalGradient(0f to Color.Transparent, 1f to core.copy(alpha = 0.55f * v), startX = w - side, endX = w), blendMode = BlendMode.Screen)
-        drawRect(Brush.verticalGradient(0f to Color.Transparent, 1f to core.copy(alpha = 0.7f * v), startY = h * 0.68f, endY = h), blendMode = BlendMode.Screen)
-        drawRect(Brush.verticalGradient(0f to core.copy(alpha = 0.32f * v), 1f to Color.Transparent, startY = 0f, endY = h * 0.1f), blendMode = BlendMode.Screen)
+        val side = w * 0.1f
+        drawRect(Brush.horizontalGradient(0f to core.copy(alpha = 0.45f * v), 1f to Color.Transparent, startX = 0f, endX = side), blendMode = BlendMode.Screen)
+        drawRect(Brush.horizontalGradient(0f to Color.Transparent, 1f to core.copy(alpha = 0.45f * v), startX = w - side, endX = w), blendMode = BlendMode.Screen)
+        drawRect(Brush.verticalGradient(0f to Color.Transparent, 1f to core.copy(alpha = 0.7f * v), startY = h * 0.86f, endY = h), blendMode = BlendMode.Screen)
+        drawRect(Brush.verticalGradient(0f to core.copy(alpha = 0.32f * v), 1f to Color.Transparent, startY = 0f, endY = h * 0.05f), blendMode = BlendMode.Screen)
         // glowing border hugging the screen's rounded corners
         val cr = CornerRadius(40.dp.toPx())
-        listOf(16.dp to 0.12f, 7.dp to 0.28f, 2.5.dp to 0.75f).forEach { (sw, al) ->
+        listOf(22.dp to 0.10f, 12.dp to 0.18f, 6.dp to 0.32f, 2.5.dp to 0.8f).forEach { (sw, al) ->
             val px = sw.toPx()
             drawRoundRect(hot.copy(alpha = al * v), topLeft = Offset(px / 2, px / 2), size = Size(w - px, h - px), cornerRadius = cr, style = Stroke(px), blendMode = BlendMode.Screen)
         }
-        drawRect(core.copy(alpha = 0.05f * v), blendMode = BlendMode.Screen)
-    }
+            }
 }

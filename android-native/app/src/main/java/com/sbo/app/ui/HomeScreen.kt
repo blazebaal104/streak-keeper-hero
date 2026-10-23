@@ -53,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import kotlinx.coroutines.launch
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -284,12 +285,12 @@ fun HomeContent(
                         transitionSpec = {
                             // iOS-style push: the new tab slides in from the side you tapped, the old one drifts away and fades
                             val dir = if (targetState > initialState) 1 else -1
-                            val inSpring = androidx.compose.animation.core.spring(0.86f, 360f, androidx.compose.ui.unit.IntOffset.VisibilityThreshold)
+                            val inSpring = androidx.compose.animation.core.spring(0.85f, 380f, androidx.compose.ui.unit.IntOffset.VisibilityThreshold)
                             (androidx.compose.animation.slideInHorizontally(inSpring) { it * dir / 4 } +
-                                androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(230, delayMillis = 50)) +
+                                androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(180, delayMillis = 70, easing = androidx.compose.animation.core.LinearOutSlowInEasing)) +
                                 androidx.compose.animation.scaleIn(androidx.compose.animation.core.spring(0.86f, 360f), initialScale = 0.965f)) togetherWith
-                                (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(200, easing = Motion.EXIT)) { -it * dir / 6 } +
-                                    androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(150)) +
+                                (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(180, easing = Motion.EXIT)) { -it * dir / 7 } +
+                                    androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(90, easing = androidx.compose.animation.core.LinearEasing)) +
                                     androidx.compose.animation.scaleOut(androidx.compose.animation.core.tween(200), targetScale = 0.965f)) using
                                 androidx.compose.animation.SizeTransform(clip = false) { _, _ -> androidx.compose.animation.core.snap() }
                         },
@@ -506,18 +507,31 @@ fun Avatar(p: Profile, sizeDp: Int) {
 private fun TabsBar(selected: Int, onSelect: (Int) -> Unit) {
     val tabs = listOf("Home" to Lucide.Droplets, "Cal" to Lucide.CalendarDays, "Trend" to Lucide.ChartLine, "Social" to Lucide.Users)
     // the selected pill glides to the new tab on a spring and stretches while it travels (iOS "liquid" segmented control)
-    val pos = remember { Animatable(selected.toFloat()) }
-    LaunchedEffect(selected) { pos.animateTo(selected.toFloat(), spring(dampingRatio = 0.7f, stiffness = 320f)) }
+    // two edges on two springs: the leading edge is stiffer, so the pill stretches like liquid and snaps back
+    val left = remember { Animatable(selected.toFloat()) }
+    val right = remember { Animatable(selected + 1f) }
+    LaunchedEffect(selected) {
+        val goingRight = selected > left.value
+        launch { left.animateTo(selected.toFloat(), spring(dampingRatio = 0.75f, stiffness = if (goingRight) 260f else 560f)) }
+        right.animateTo(selected + 1f, spring(dampingRatio = 0.75f, stiffness = if (goingRight) 560f else 260f))
+    }
     val view = androidx.compose.ui.platform.LocalView.current
     androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().height(35.dp).clip(CircleShape).surface().padding(horizontal = 4.dp, vertical = 6.dp)) {
         val gap = 3.dp
         val w = (maxWidth - gap * 3) / 4
+        val pill = Sbo.background.copy(alpha = 0.55f)
         Box(
-            Modifier.fillMaxHeight().width(w).graphicsLayer {
-                val stretch = (kotlin.math.abs(pos.velocity) * 0.07f).coerceAtMost(0.32f)
-                translationX = pos.value * (w + gap).toPx()
-                scaleX = 1f + stretch; scaleY = 1f - stretch * 0.18f
-            }.clip(CircleShape).background(Sbo.background.copy(alpha = 0.55f)),
+            Modifier.fillMaxSize().drawBehind {
+                val step = (w + gap).toPx()
+                val x0 = left.value * step
+                val x1 = right.value * step - gap.toPx()
+                val span = x1 - x0
+                // squeeze a touch vertically while stretched
+                val stretch = ((span / w.toPx()) - 1f).coerceIn(0f, 1f)
+                val hh = size.height * (1f - 0.12f * stretch)
+                val top = (size.height - hh) / 2f
+                drawRoundRect(pill, topLeft = Offset(x0, top), size = androidx.compose.ui.geometry.Size(span, hh), cornerRadius = androidx.compose.ui.geometry.CornerRadius(hh / 2f))
+            },
         )
         Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(gap)) {
             tabs.forEachIndexed { i, (label, icon) ->

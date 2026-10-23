@@ -158,12 +158,16 @@ private fun DrawScope.drawWaterDrop(path: Path, at: Offset, w: Float, stretch: F
     val unit = w / 20f
     // motion streak above fast drops
     if (v > 950f) {
-        val len = (v - 950f) * 0.05f * unit * 2.2f
-        val sw = w * 0.16f
-        drawRect(
-            Brush.verticalGradient(0f to Color.Transparent, 1f to Color.White.copy(alpha = 0.16f * a), startY = at.y - len, endY = at.y + w * 0.4f),
-            topLeft = Offset(at.x - sw / 2f, at.y - len), size = Size(sw, len + w * 0.4f),
-        )
+        val len = ((v - 950f) / 700f).coerceIn(0f, 1f) * w * 1.4f * 2.5f
+        val sw = w * 0.2f
+        // tapered streak: wide at the drop, a hair at the top
+        val streak = Path().apply {
+            moveTo(at.x, at.y - len)
+            lineTo(at.x + sw / 2f, at.y + w * 0.45f)
+            lineTo(at.x - sw / 2f, at.y + w * 0.45f)
+            close()
+        }
+        drawPath(streak, Brush.verticalGradient(0f to Color.Transparent, 1f to Color.White.copy(alpha = 0.3f * a), startY = at.y - len, endY = at.y + w * 0.45f))
     }
     // soft light around the bulb (the web's drop-shadow-glow), weaker for far drops
     drawCircle(
@@ -179,26 +183,26 @@ private fun DrawScope.drawWaterDrop(path: Path, at: Offset, w: Float, stretch: F
                 drawPath(
                     path,
                     Brush.radialGradient(
-                        0f to Color.White.copy(alpha = 0.08f * a), 0.45f to Color.White.copy(alpha = 0.14f * a),
-                        0.6f to Color.White.copy(alpha = 0.40f * a), 0.69f to Color.White.copy(alpha = 0.60f * a),
-                        1f to Color.White.copy(alpha = 0.30f * a),
+                        0f to Color.White.copy(alpha = 0.03f * a), 0.4f to Color.White.copy(alpha = 0.06f * a),
+                        0.58f to Color.White.copy(alpha = 0.26f * a), 0.68f to Color.White.copy(alpha = 0.55f * a),
+                        1f to Color.White.copy(alpha = 0.22f * a),
                         center = Offset(10.4f, 19.6f), radius = 12f,
                     ),
                 )
                 // thin rim, brighter at the bottom where light gathers
                 drawPath(
                     path,
-                    Brush.verticalGradient(0f to Color.White.copy(alpha = 0.25f * a), 1f to Color.White.copy(alpha = 0.85f * a), startY = 1f, endY = 28f),
-                    style = Stroke(0.9f),
+                    Brush.verticalGradient(0f to Color.White.copy(alpha = 0.04f * a), 0.5f to Color.White.copy(alpha = 0.18f * a), 1f to Color.White.copy(alpha = 0.45f * a), startY = 1f, endY = 28f),
+                    style = Stroke(0.5f),
                 )
                 // specular highlight (light from top-left) + caustic glint
                 rotate(-28f, pivot = Offset(7f, 17.5f)) {
                     drawOval(Color.White.copy(alpha = 0.95f * a), topLeft = Offset(5.4f, 14.8f), size = Size(3.0f, 5.4f))
                 }
-                drawCircle(Color.White.copy(alpha = 0.75f * a), radius = 0.9f, center = Offset(8.2f, 11.6f))
                 drawArc(
-                    Color.White.copy(alpha = 0.55f * a), startAngle = 20f, sweepAngle = 70f, useCenter = false,
-                    topLeft = Offset(bulb.x - 6.2f, bulb.y - 6.2f + 1.2f), size = Size(12.4f, 12.4f), style = Stroke(1.1f),
+                    Brush.radialGradient(0f to Color.White.copy(alpha = 0.6f * a), 1f to Color.White.copy(alpha = 0f), center = Offset(13.2f, 25f), radius = 4.5f),
+                    startAngle = 25f, sweepAngle = 60f, useCenter = false,
+                    topLeft = Offset(bulb.x - 6.4f, bulb.y - 6.4f + 0.9f), size = Size(12.8f, 12.8f), style = Stroke(1.4f, cap = androidx.compose.ui.graphics.StrokeCap.Round),
                 )
             }
         }
@@ -214,11 +218,15 @@ private fun DrawScope.splash(d: DropRain.Drop, t: Float, x: Float, floor: Float,
     val u = (t / 0.42f).coerceIn(0f, 1f)
     if (u < 1f) {
         val ease = 1f - (1f - u) * (1f - u) * (1f - u)
-        val rx = d.w * dp * (0.4f + 1.5f * ease)
-        val ry = rx * 0.2f
+        val rx = d.w * dp * (0.4f + 1.2f * ease)
+        val ry = rx * 0.18f
         drawOval(
-            Color.White.copy(alpha = 0.5f * a0 * (1f - u)), topLeft = Offset(x - rx, floor - ry), size = Size(rx * 2f, ry * 2f),
-            style = Stroke((1.6f * (1f - u) + 0.4f) * dp),
+            Color.White.copy(alpha = 0.08f * a0 * (1f - u)), topLeft = Offset(x - rx, floor - ry), size = Size(rx * 2f, ry * 2f),
+            style = Stroke(5f * dp),
+        )
+        drawOval(
+            Color.White.copy(alpha = 0.3f * a0 * (1f - u) * (1f - u)), topLeft = Offset(x - rx, floor - ry), size = Size(rx * 2f, ry * 2f),
+            style = Stroke((1.1f * (1f - u) + 0.4f) * dp),
         )
         // flash of the impact
         val f = (1f - t / 0.12f).coerceIn(0f, 1f)
@@ -235,7 +243,7 @@ private fun DrawScope.splash(d: DropRain.Drop, t: Float, x: Float, floor: Float,
         val px = x + vx * t * dp
         val py = floor + (vy * t + 0.5f * G * 0.9f * t * t) * dp
         if (py > floor + 2f * dp) return@repeat
-        val size = (1.1f + r.nextFloat() * 1.6f) * (0.6f + 0.5f * big) * dp
+        val size = (1.5f + r.nextFloat() * 1.5f) * dp
         val fade = (1f - t / SPLASH_LIFE).coerceIn(0f, 1f)
         val al = a0 * 0.9f * fade
         // tiny drops stretch along their motion
@@ -244,7 +252,7 @@ private fun DrawScope.splash(d: DropRain.Drop, t: Float, x: Float, floor: Float,
         val st = 1f + (speed / 900f).coerceAtMost(0.8f)
         val deg = Math.toDegrees(kotlin.math.atan2(vyNow.toDouble(), vx.toDouble())).toFloat() - 90f
         rotate(deg, pivot = Offset(px, py)) {
-            drawOval(Color.White.copy(alpha = al * 0.35f), topLeft = Offset(px - size * 1.4f, py - size * 1.4f * st), size = Size(size * 2.8f, size * 2.8f * st))
+            drawOval(Color.White.copy(alpha = al * 0.12f), topLeft = Offset(px - size * 1.4f, py - size * 1.4f * st), size = Size(size * 2.8f, size * 2.8f * st))
             drawOval(Color.White.copy(alpha = al), topLeft = Offset(px - size / 2f, py - size / 2f * st), size = Size(size, size * st))
         }
     }

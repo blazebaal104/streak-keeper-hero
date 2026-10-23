@@ -53,9 +53,9 @@ class MotionShots {
     @Test fun tabs() {
         render(state(0, 0))
         rule.onNodeWithText("Trend").performClick()
-        frames("tab", 16, 50, 90, 140, 200, 300, 600)
+        frames("tab", 30, 60, 90, 120, 160, 220, 320, 600)
         rule.onNodeWithText("Cal").performClick()
-        frames("tabback", 50, 140, 600)
+        frames("tabback", 30, 60, 90, 120, 200, 600)
     }
 
     @Test fun panel() {
@@ -63,7 +63,7 @@ class MotionShots {
         rule.onNodeWithText("tester_dev").performClick()
         frames("open", 16, 50, 100, 160, 240, 400)
         rule.onNodeWithContentDescription("Chiudi").performClick()
-        frames("close", 40, 90, 140, 260)
+        frames("close", 40, 90, 140, 180, 260)
     }
 
     @Test fun firePress() {

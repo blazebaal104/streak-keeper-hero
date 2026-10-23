@@ -40,7 +40,7 @@ import kotlinx.coroutines.launch
  */
 object Motion {
     /** iOS "default" spring for things that appear: fast, a whisper of overshoot. */
-    fun <T> pop() = spring<T>(dampingRatio = 0.78f, stiffness = 340f)
+    fun <T> pop() = spring<T>(dampingRatio = 0.72f, stiffness = 260f)
     /** iOS-like exit curve (ease-in, short). */
     val EXIT = CubicBezierEasing(0.4f, 0f, 1f, 1f)
 }
@@ -160,7 +160,8 @@ fun Modifier.panel(p: () -> Float, lift: Float = 28f, from: Float = 0.9f) = this
     val k = from + (1f - from) * v
     scaleX = k; scaleY = k
     translationY = (1f - v) * lift.dp.toPx()
-    alpha = (v * 1.8f).coerceIn(0f, 1f)
+    // opaque almost at once (never see-through), the motion is carried by scale + lift
+    alpha = (v * 4f).coerceIn(0f, 1f)
 }
 
 /** The page behind open panels: recedes and softly blurs (blur on Android 12+). */
