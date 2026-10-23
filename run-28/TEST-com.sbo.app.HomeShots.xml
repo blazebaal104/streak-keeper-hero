@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sbo.app.HomeShots" tests="26" skipped="0" failures="0" errors="0" timestamp="2026-10-23T06:52:16" hostname="runnervm8k3b6" time="38.743">
+  <properties/>
+  <testcase name="inventory" classname="com.sbo.app.HomeShots" time="17.518"/>
+  <testcase name="friendDlg2" classname="com.sbo.app.HomeShots" time="1.157"/>
+  <testcase name="fire30" classname="com.sbo.app.HomeShots" time="1.089"/>
+  <testcase name="fire2a" classname="com.sbo.app.HomeShots" time="0.895"/>
+  <testcase name="fire2b" classname="com.sbo.app.HomeShots" time="0.999"/>
+  <testcase name="fire2c" classname="com.sbo.app.HomeShots" time="0.796"/>
+  <testcase name="friendDlg" classname="com.sbo.app.HomeShots" time="0.716"/>
+  <testcase name="profileDlg" classname="com.sbo.app.HomeShots" time="0.564"/>
+  <testcase name="social" classname="com.sbo.app.HomeShots" time="0.455"/>
+  <testcase name="titles" classname="com.sbo.app.HomeShots" time="1.077"/>
+  <testcase name="preview" classname="com.sbo.app.HomeShots" time="0.938"/>
+  <testcase name="calendar" classname="com.sbo.app.HomeShots" time="0.458"/>
+  <testcase name="settingsDlg" classname="com.sbo.app.HomeShots" time="0.537"/>
+  <testcase name="ice9" classname="com.sbo.app.HomeShots" time="0.698"/>
+  <testcase name="drops" classname="com.sbo.app.HomeShots" time="1.2"/>
+  <testcase name="press" classname="com.sbo.app.HomeShots" time="3.278"/>
+  <testcase name="trend" classname="com.sbo.app.HomeShots" time="0.427"/>
+  <testcase name="profileDlg2" classname="com.sbo.app.HomeShots" time="0.559"/>
+  <testcase name="trendTips" classname="com.sbo.app.HomeShots" time="0.427"/>
+  <testcase name="settingsDlg2" classname="com.sbo.app.HomeShots" time="0.434"/>
+  <testcase name="equipped" classname="com.sbo.app.HomeShots" time="0.668"/>
+  <testcase name="clanDlg" classname="com.sbo.app.HomeShots" time="0.612"/>
+  <testcase name="headerTitle" classname="com.sbo.app.HomeShots" time="0.56"/>
+  <testcase name="invitesDlg" classname="com.sbo.app.HomeShots" time="0.4"/>
+  <testcase name="neutral" classname="com.sbo.app.HomeShots" time="0.554"/>
+  <testcase name="shatter" classname="com.sbo.app.HomeShots" time="1.724"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
