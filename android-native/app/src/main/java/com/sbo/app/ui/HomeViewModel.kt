@@ -26,7 +26,45 @@ data class HomeState(
     val tip: String = "",
     val badges: List<Badge> = emptyList(),
     val social: Social = Social(),
+    val zero: ZeroData = ZeroData(),
 )
+
+data class ZeroData(
+    val pz: com.sbo.app.data.ProjectZero? = null,
+    val workouts: List<com.sbo.app.data.WorkoutDay> = emptyList(),
+    val agent: List<com.sbo.app.data.AgentMessage> = emptyList(),
+)
+
+/** Everything the screens derive from Progetto Zero (web index.tsx, "PROGETTO ZERO" block). */
+class ZeroView(z: ZeroData, uid: String?, events: List<SboEvent>, val today: java.time.LocalDate = java.time.LocalDate.now()) {
+    private val zone = java.time.ZoneId.systemDefault()
+    private fun localDate(iso: String) = Streaks.instant(iso).atZone(zone).toLocalDate()
+    val pz = z.pz
+    val active = pz?.active == true && pz.started_at != null
+    val start: java.time.LocalDate? = pz?.started_at?.let(::localDate)
+    val day = start?.let { java.time.temporal.ChronoUnit.DAYS.between(it, today).toInt() + 1 } ?: 0
+    val league = runCatching { com.sbo.app.logic.League.valueOf(pz?.league ?: "low") }.getOrDefault(com.sbo.app.logic.League.low)
+    val weeklyLimit = pz?.let { com.sbo.app.logic.Zero.weeklyLimitFor(it.start_limit, start, today, it.limit_set_at?.let(::localDate)) } ?: 3
+    val weekStartKey = com.sbo.app.logic.Zero.weekStart(today).toString()
+    val weekCount = events.count { localDate(it.ts).toString() >= weekStartKey }
+    val byDay = z.workouts.associateBy { it.day }
+    val workoutsWeek = z.workouts.count { it.day >= weekStartKey && (it.completed || it.custom.isNotEmpty()) }
+    private val doneBefore = z.workouts.filter { it.day < today.toString() && (it.completed || it.custom.isNotEmpty()) }.map { it.day }.toSet()
+    val plan = if (pz != null && uid != null) com.sbo.app.logic.Zero.planForDay(today, league, pz.answers, pz.last_assessment_at?.let(::localDate) ?: start, uid, doneBefore) else null
+    val todayWD = plan?.let { byDay[it.key] }
+    val reassessDue = pz?.last_assessment_at?.let { java.time.Duration.between(Streaks.instant(it), java.time.Instant.now()).toDays() > 30 } == true
+    val status get() = if (weekCount > weeklyLimit) "over" else if (weekCount == weeklyLimit) "limit" else "ok"
+    /** Calendar marks: "done" / "missed" / null. */
+    fun workoutStatus(d: java.time.LocalDate): String? {
+        val s = start ?: return null
+        if (d.isBefore(s) || d.isAfter(today)) return null
+        val w = byDay[d.toString()]
+        if (w != null && (w.completed || w.custom.isNotEmpty())) return "done"
+        if (d == today) return null
+        return if (pz != null && com.sbo.app.logic.Zero.isTrainingDay(league, d, pz.answers)) "missed" else null
+    }
+    fun workoutsOn(key: String) = byDay[key]?.let { (if (it.completed) 1 else 0) + it.custom.size } ?: 0
+}
 
 data class FriendRow(val profile: Profile, val fire: Int, val ice: Int, val today: Int)
 data class Social(
@@ -56,6 +94,7 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
             val b = runCatching { Supa.badges(id) }.getOrDefault(_s.value.badges)
             _s.value = compute(p, ev).copy(badges = b, social = _s.value.social)
             loadSocial(id, p)
+            loadZero(id)
         } catch (e: Exception) {
             _s.update { it.copy(loading = false, error = e.message ?: "Errore di rete") }
         }
@@ -100,6 +139,69 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
             }
             Social(true, friends, clan, members, unread, invites)
         }.onSuccess { soc -> _s.update { it.copy(social = soc) } }
+    }
+
+    fun uidOrNull() = uid
+
+    private fun loadZero(id: String) = viewModelScope.launch {
+        val since = java.time.LocalDate.now().minusDays(120).toString()
+        val pz = runCatching { Supa.projectZero(id) }.getOrNull()
+        val wd = runCatching { Supa.workoutDays(id, since) }.getOrDefault(_s.value.zero.workouts)
+        val ag = runCatching { Supa.agentMessages(id) }.getOrDefault(_s.value.zero.agent)
+        com.sbo.app.ui.Sbo.applyZeroTheme(if (pz?.active == true && pz.started_at != null) pz.theme else null)
+        _s.update { it.copy(zero = ZeroData(pz, wd, ag)) }
+    }
+
+    fun reloadAgent() = viewModelScope.launch {
+        val id = uid ?: return@launch
+        runCatching { Supa.agentMessages(id) }.onSuccess { ag -> _s.update { it.copy(zero = it.zero.copy(agent = ag)) } }
+    }
+
+    private fun tzOffset(): Int = -java.time.ZoneId.systemDefault().rules.getOffset(java.time.Instant.now()).totalSeconds / 60
+
+    /** Coach check-in (web runTick). */
+    fun tick(reason: String) = viewModelScope.launch {
+        Supa.coach("agent-tick", kotlinx.serialization.json.buildJsonObject {
+            put("tzOffset", kotlinx.serialization.json.JsonPrimitive(tzOffset())); put("reason", kotlinx.serialization.json.JsonPrimitive(reason))
+        })
+        reloadAgent()
+    }
+
+    /** Message to Coach Zero; returns the toast to show, if any. */
+    suspend fun sendCoach(text: String): String? {
+        val r = Supa.coach("coach-chat", kotlinx.serialization.json.buildJsonObject {
+            put("text", kotlinx.serialization.json.JsonPrimitive(text)); put("tzOffset", kotlinx.serialization.json.JsonPrimitive(tzOffset()))
+        })
+        reloadAgent().join()
+        if (r == null) return "Messaggio non inviato. Controlla la connessione e riprova."
+        val ok = (r["ok"] as? kotlinx.serialization.json.JsonPrimitive)?.content == "true"
+        val left = (r["left"] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() ?: 99
+        return if (!ok) "Per oggi basta messaggi al coach 😤 Riprova domani." else if (left <= 3) "Ancora $left messaggi al coach per oggi." else null
+    }
+
+    fun markAgentRead() = viewModelScope.launch { val id = uid ?: return@launch; runCatching { Supa.markAgentRead(id) }; reloadAgent() }
+
+    fun savePz(patch: kotlinx.serialization.json.JsonObject, after: suspend () -> Unit = {}) = viewModelScope.launch {
+        val id = uid ?: return@launch
+        runCatching { Supa.savePz(id, patch) }
+        loadZero(id).join(); after()
+    }
+
+    /** Save today's workout row; returns true when it just became completed. */
+    fun saveToday(doneIds: List<String>? = null, custom: List<com.sbo.app.data.CustomWorkout>? = null, onCompleted: () -> Unit = {}) {
+        val id = uid ?: return
+        val st = _s.value
+        val v = ZeroView(st.zero, id, st.events)
+        val plan = v.plan ?: return
+        val ids = doneIds ?: v.todayWD?.done_ids ?: emptyList()
+        val cus = custom ?: v.todayWD?.custom ?: emptyList()
+        val planDone = !plan.rest && plan.exercises.all { it.id in ids }
+        val completed = planDone || cus.isNotEmpty()
+        val was = v.todayWD?.completed == true
+        val row = com.sbo.app.data.WorkoutDay(id, plan.key, ids, plan.exercises.size, cus, completed, java.time.Instant.now().toString())
+        _s.update { it.copy(zero = it.zero.copy(workouts = it.zero.workouts.filter { w -> w.day != plan.key } + row)) }
+        viewModelScope.launch { runCatching { Supa.saveWorkoutDay(row) } }
+        if (completed && !was) { onCompleted(); tick("workout") }
     }
 
     /** Add a friend by code; result message for the toast. */

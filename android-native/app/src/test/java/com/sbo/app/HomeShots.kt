@@ -54,7 +54,8 @@ class HomeShots {
         rule.onRoot().captureRoboImage("build/shots/native-$name.png")
     }
 
-    private fun render(still: Int = R.drawable.fire_still_1, body: @androidx.compose.runtime.Composable () -> Unit) {
+    private fun render(still: Int = R.drawable.fire_still_1, theme: String? = null, body: @androidx.compose.runtime.Composable () -> Unit) {
+        com.sbo.app.ui.Sbo.applyZeroTheme(theme)
         rule.mainClock.autoAdvance = false
         rule.setContent { CompositionLocalProvider(LocalFireStill provides still) { body() } }
     }
@@ -162,6 +163,33 @@ class HomeShots {
         rule.mainClock.advanceTimeBy(240); cap("shatter-400")
         rule.mainClock.advanceTimeBy(400); cap("shatter-800")
     }
+
+    // ---------------- Progetto Zero (test day 2026-10-22, started 9 days earlier)
+    private fun zeroState(): HomeState {
+        val started = "2026-10-13T08:00:00+00:00"
+        val pz = com.sbo.app.data.ProjectZero("d0", true, started, "mid", 4, "obsidian",
+            com.sbo.app.logic.ZeroAnswers(20, 25, 60, 4, 40, 5, realName = "Tester", dumbbellKg = 8, hasBar = true, gymDays = listOf(6)), started)
+        val wds = listOf(19, 17, 16, 14).map { d -> com.sbo.app.data.WorkoutDay("d0", "2026-10-$d", emptyList(), 4, listOf(com.sbo.app.data.CustomWorkout("Corsa", "", started)), true) }
+        val msgs = listOf(
+            com.sbo.app.data.AgentMessage("m1", "d0", "Buongiorno Tester. Oggi si lavora: niente scuse.", "daily", "2026-10-22T08:00:00+00:00"),
+            com.sbo.app.data.AgentMessage("m2", "d0", "Ok coach, ci provo", "user", "2026-10-22T09:00:00+00:00", "2026-10-22T09:00:00+00:00"),
+            com.sbo.app.data.AgentMessage("m3", "d0", "PROVARE NON BASTA. FALLO.", "rant", "2026-10-22T09:01:00+00:00"),
+        )
+        val weekEvents = listOf(SboEvent("w1", "d0", "2026-10-20T10:00:00+00:00"), SboEvent("w2", "d0", "2026-10-21T10:00:00+00:00"), SboEvent("w3", "d0", "2026-10-22T10:00:00+00:00"))
+        return state(0, 0).copy(events = history.filter { !it.ts.startsWith("2026-10-2") } + weekEvents, zero = com.sbo.app.ui.ZeroData(pz, wds, msgs))
+    }
+    private fun pz(name: String, open: String? = null, tab: Int = 0) {
+        render(theme = "obsidian") { HomeContent(zeroState(), {}, {}, open = open, startTab = tab, today = day) }
+        rule.mainClock.advanceTimeBy(900); cap(name)
+    }
+    @Test fun pzHome() = pz("pz-home")
+    @Test fun pzPlan() = pz("pz-plan", "plan")
+    @Test fun pzSettings() = pz("pz-settings", "settings")
+    @Test fun pzCoach() = pz("pz-coach", "agent")
+    @Test fun pzCal() = pz("pz-cal", tab = 1)
+    @Test fun pzTrend() = pz("pz-trend", tab = 2)
+    @Test fun pzSocial() = pz("pz-social", tab = 3)
+    @Test fun quiz1() { render { HomeContent(state(0, 0), {}, {}, open = "quiz") }; rule.mainClock.advanceTimeBy(900); cap("quiz-1") }
 
     @Test fun fire2a() = shot("fire-2-1", 2, 0, R.drawable.fire_still_1)
     @Test fun fire2b() = shot("fire-2-2", 2, 0, R.drawable.fire_still_2)

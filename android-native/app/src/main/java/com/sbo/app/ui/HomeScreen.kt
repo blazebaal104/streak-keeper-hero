@@ -86,8 +86,31 @@ fun HomeScreen(vm: HomeViewModel) {
     HomeContent(s, onAdd = vm::add, onUndo = vm::undo, onEquip = vm::equip, onDayAdd = vm::addOnDay, onDayRemove = vm::removeOnDay, onAddFriend = vm::addFriend, onRemoveFriend = vm::removeFriend, onLeaveClan = vm::leaveClan,
         onUpdateProfile = { p, j -> vm.updateProfile({ p }, j) }, onSignOut = vm::signOut, onSetRole = vm::setRole,
         clan = ClanActions(vm::createClan, vm::joinClan, vm::acceptInvite, vm::declineInvite, vm::inviteToClan, vm::kick),
+        zero = ZeroActions(
+            save = { j, after -> vm.savePz(j) { after() } }, tick = { vm.tick(it) }, send = vm::sendCoach, poll = { vm.reloadAgent() }, markRead = { vm.markAgentRead() },
+            saveToday = { ids, cus, done -> vm.saveToday(ids, cus, done) },
+        ),
     )
+    // Coach check-in once a day on open (web: localStorage sbo:pzTick:<day>)
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val zv = ZeroView(s.zero, s.profile?.id, s.events)
+    LaunchedEffect(zv.active) {
+        if (!zv.active) return@LaunchedEffect
+        val prefs = ctx.getSharedPreferences("sbo", android.content.Context.MODE_PRIVATE)
+        val k = "pzTick:${java.time.LocalDate.now()}"
+        if (!prefs.getBoolean(k, false)) { prefs.edit().putBoolean(k, true).apply(); vm.tick("open") }
+    }
 }
+
+/** Progetto Zero operations (data lives in the view model). */
+class ZeroActions(
+    val save: (kotlinx.serialization.json.JsonObject, suspend () -> Unit) -> Unit = { _, _ -> },
+    val tick: (String) -> Unit = {},
+    val send: suspend (String) -> String? = { null },
+    val poll: () -> Unit = {},
+    val markRead: () -> Unit = {},
+    val saveToday: (List<String>?, List<com.sbo.app.data.CustomWorkout>?, () -> Unit) -> Unit = { _, _, _ -> },
+)
 
 @Composable
 fun HomeContent(
@@ -105,6 +128,7 @@ fun HomeContent(
     open: String? = null,
     tip30: Int? = null, tip90: Int? = null,
     friendPreload: Pair<List<com.sbo.app.data.SboEvent>, List<com.sbo.app.data.Badge>>? = null,
+    zero: ZeroActions = ZeroActions(),
     rain: DropRain = remember { DropRain() },
     openInventory: Int? = null,
     startTab: Int = 0,
@@ -129,7 +153,54 @@ fun HomeContent(
     var confirmKick by remember { mutableStateOf<Profile?>(null) }
     var shatter by remember { mutableIntStateOf(0) }
     var inventory by remember { mutableStateOf(openInventory) }
+    val zv = remember(s.zero, s.events, s.profile?.id, today) { ZeroView(s.zero, s.profile?.id, s.events, today) }
+    var quiz by remember { mutableStateOf<String?>(if (open == "quiz") "start" else null) }
+    var showPlan by remember { mutableStateOf(open == "plan") }
+    var showCustom by remember { mutableStateOf(false) }
+    var showAgent by remember { mutableStateOf(open == "agent") }
+    var confirmQuit by remember { mutableStateOf(false) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    // big plan on the first open of the day (web: localStorage sbo:pzPlanSeen:<key>)
+    LaunchedEffect(zv.active, zv.plan?.key) {
+        val k = zv.plan?.key ?: return@LaunchedEffect
+        if (!zv.active || open != null) return@LaunchedEffect
+        val prefs = ctx.getSharedPreferences("sbo", android.content.Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("pzPlanSeen:$k", false)) { prefs.edit().putBoolean("pzPlanSeen:$k", true).apply(); showPlan = true }
+    }
+    // "redo" questionnaire flagged by the server
+    LaunchedEffect(zv.pz) { val pz = zv.pz; if (pz != null && !pz.active && pz.answers._redo == true) quiz = "redo" }
+    // toast when the coach writes
+    val seenAgent = remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(s.zero.agent.size) {
+        val n = s.zero.agent.size
+        val seen = seenAgent.value
+        if (seen != null && n > seen && !showAgent) s.zero.agent.lastOrNull()?.let { toastRef.value?.show("🏋️ Coach Zero", it.content.take(140)) }
+        seenAgent.value = n
+    }
+    val saveToday: (List<String>?, List<com.sbo.app.data.CustomWorkout>?) -> Unit = { ids, cus ->
+        zero.saveToday(ids, cus) { toastRef.value?.show("💪 Allenamento completato!", "Spunta verde sul calendario. Il coach approva."); rain.burst() }
+    }
+    val toggleExercise: (String) -> Unit = { id ->
+        val cur = (zv.todayWD?.done_ids ?: emptyList()).toMutableSet()
+        if (!cur.add(id)) cur.remove(id)
+        saveToday(cur.toList(), null)
+    }
+    val skipExercise: (String) -> Unit = { id ->
+        val cur = zv.todayWD?.done_ids ?: emptyList()
+        if (cur.none { it.startsWith("skip:") }) saveToday(cur + "skip:$id" + id, null)
+    }
     val add = {
+      if (zv.active) {
+        if (zv.weekCount + 1 >= zv.weeklyLimit) zero.tick("event")
+        rain.burst()
+        val n = zv.weekCount + 1; val l = zv.weeklyLimit
+        when {
+            n > l -> toastRef.value?.show("🚨 $n/$l — OLTRE IL LIMITE", "Il coach ti sta scrivendo. Non sarà gentile.")
+            n == l -> toastRef.value?.show("$n/$l — limite raggiunto", "Da qui a lunedì: zero.")
+            else -> toastRef.value?.show("$n/$l questa settimana", "Più stai lontano dal limite, meglio è.")
+        }
+        onAdd()
+      } else {
         rain.burst()
         if (s.ice > 0) shatter++
         s.profile?.takeIf { it.notifications_enabled }?.let { pr ->
@@ -142,6 +213,7 @@ fun HomeContent(
             }
         }
         onAdd()
+      }
     }
     CompositionLocalProvider(LocalTextStyle provides TextStyle(fontFamily = Inter, color = Sbo.foreground)) {
         Box(
@@ -149,7 +221,7 @@ fun HomeContent(
                 drawRect(Brush.radialGradient(0f to Sbo.surfaceTop, 0.7f to Sbo.background, center = Offset(size.width / 2f, 0f), radius = size.height * 0.75f))
             },
         ) {
-            AmbientMood(if (s.fire > 0) "fire" else if (s.ice > 0) "ice" else "neutral")
+            AmbientMood(if (zv.active) "neutral" else if (s.fire > 0) "fire" else if (s.ice > 0) "ice" else "neutral")
             val p = s.profile
             when {
                 p == null && s.loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Sbo.primary) }
@@ -159,18 +231,22 @@ fun HomeContent(
                 else -> Column(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()).statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp),
                 ) {
-                    Header(p, s.fire, s.ice, s.social.invites.size, onProfile = { showProfile = true }, onBell = { showInvites = true }, onSettings = { showSettings = true })
+                    Header(p, s.fire, s.ice, s.social.invites.size, zv = zv, onProfile = { showProfile = true }, onBell = { showInvites = true }, onSettings = { showSettings = true })
                     TabsBar(tab) { tab = it }
                     Spacer(Modifier.height(32.dp))
                     when (tab) {
-                        0 -> HomeTab(s, add, onUndo, shatter) { inventory = it }
-                        1 -> CalendarTab(s.events, s.limit, today) { dayEdit = it }
-                        2 -> TrendTab(s.events, today, tip30 = tip30, tip90 = tip90)
+                        0 -> if (zv.active && zv.plan != null) ZeroHome(s, zv, add, onUndo, onReassess = { quiz = "reassess" },
+                                onWorkout = { if (zv.plan.rest || zv.todayWD?.completed == true) showCustom = true else showPlan = true },
+                                onToggle = toggleExercise, onSkip = skipExercise, onCustom = { showCustom = true }, onExpand = { showPlan = true }) { inventory = it }
+                            else HomeTab(s, add, onUndo, shatter) { inventory = it }
+                        1 -> CalendarTab(s.events, s.limit, today, zero = zv.takeIf { it.active }) { dayEdit = it }
+                        2 -> TrendTab(s.events, today, tip30 = tip30, tip90 = tip90, zero = zv.takeIf { it.active })
                         else -> SocialTab(
                             p, s.social, onToast = toast::show, onAddFriend = { addFriend = true },
                             onChat = { chatWith = it }, onClanChat = { clanChat = true }, onRemove = { confirmRemove = it }, onLeaveClan = { confirmLeave = true },
                             onOpenFriend = { viewFriend = it }, onManageClan = { showClanManage = true }, onInviteToClan = { showClanInvite = true },
                             onSetRole = onSetRole, onKick = { confirmKick = it },
+                            coach = if (zv.active || s.zero.agent.isNotEmpty()) ({ AgentRow(s.zero.agent) { showAgent = true; zero.markRead() } }) else null,
                         )
                     }
                     Spacer(Modifier.height(96.dp))
@@ -180,7 +256,42 @@ fun HomeContent(
             val me = p
             if (me != null) {
                 if (showProfile) ProfileDialog(me, s.badges, onClose = { showProfile = false }, onUpdate = onUpdateProfile, onSlot = { showProfile = false; inventory = it }, onSignOut = { showProfile = false; onSignOut() }, onToast = { toast.show(it) })
-                if (showSettings) SettingsDialog(me, onClose = { showSettings = false }, onUpdate = onUpdateProfile, onToast = { toast.show(it) })
+                if (showSettings) SettingsDialog(me, onClose = { showSettings = false }, onUpdate = onUpdateProfile, onToast = { toast.show(it) }, pzCard = {
+                    ZeroSettingsCard(zv, onStart = { quiz = "start" }, onQuit = {
+                        if (zv.day <= 7) toast.show("Il Progetto Zero dura almeno 7 giorni. Potrai disattivarlo tra ${8 - zv.day} giorni.") else confirmQuit = true
+                    }, onLimit = { v -> zero.save(patch("start_limit" to v, "limit_set_at" to java.time.Instant.now().toString())) { toast.show("Limite settimanale: $v") } },
+                        onTheme = { t -> zero.save(patch("theme" to t)) {} }, onReassess = { quiz = "reassess" })
+                })
+                if (confirmQuit) ConfirmDialog("Vuoi davvero mollare il Progetto Zero? Il coach non la prenderà bene.", "Molla", onClose = { confirmQuit = false }) {
+                    zero.tick("quit"); zero.save(patch("active" to false)) { toast.show("Progetto Zero disattivato") }
+                }
+                quiz?.let { mode ->
+                    ZeroQuestionnaire(reassess = mode == "reassess", redo = mode == "redo", initial = zv.pz?.answers, initialTheme = zv.pz?.theme, onClose = { quiz = null }) { ans, theme, league, startLimit ->
+                        val nowIso = java.time.Instant.now().toString()
+                        val a = kotlinx.serialization.json.Json { encodeDefaults = false; explicitNulls = false }.encodeToJsonElement(com.sbo.app.logic.ZeroAnswers.serializer(), ans.copy(_redo = null))
+                        val base = buildMap<String, kotlinx.serialization.json.JsonElement> {
+                            put("answers", a); put("league", kotlinx.serialization.json.JsonPrimitive(league.name)); put("theme", kotlinx.serialization.json.JsonPrimitive(theme))
+                            put("last_assessment_at", kotlinx.serialization.json.JsonPrimitive(nowIso))
+                            if (mode != "reassess" || zv.pz == null) {
+                                put("active", kotlinx.serialization.json.JsonPrimitive(true)); put("started_at", kotlinx.serialization.json.JsonPrimitive(nowIso))
+                                put("start_limit", kotlinx.serialization.json.JsonPrimitive(startLimit))
+                            }
+                        }
+                        zero.save(kotlinx.serialization.json.JsonObject(base)) {
+                            if (mode == "reassess" && zv.pz != null) toast.show("Piano aggiornato: ${league.label}")
+                            else { toast.show("🎯 Progetto Zero attivato. Il coach ti ha scritto."); kotlinx.coroutines.delay(400); zero.tick("open") }
+                        }
+                        quiz = null; showSettings = false
+                    }
+                }
+                val plan = zv.plan
+                if (zv.active && plan != null && showPlan) PlanOverlay(plan, zv.todayWD, zv.pz?.answers?.realName?.takeIf { it.isNotBlank() } ?: me.username, zv.day, toggleExercise, skipExercise, onCustom = { showCustom = true }) { showPlan = false }
+                if (showCustom) CustomWorkoutDialog(onClose = { showCustom = false }) { n, note ->
+                    saveToday(null, (zv.todayWD?.custom ?: emptyList()) + com.sbo.app.data.CustomWorkout(n, note, java.time.Instant.now().toString())); showCustom = false
+                }
+                if (showAgent) {
+                    AgentChatDialog(s.zero.agent, onClose = { showAgent = false }, onPoll = zero.poll) { t -> zero.send(t)?.let { toast.show(it) } }
+                }
                 if (showInvites) InvitesDialog(s.social.invites, onClose = { showInvites = false }, onAccept = { clan.accept(it) { m -> toast.show(m) } }, onDecline = { clan.decline(it) { m -> toast.show(m) } })
                 if (showClanManage) ClanManageDialog(
                     onClose = { showClanManage = false },
@@ -252,7 +363,7 @@ private fun AmbientMood(mode: String) {
 }
 
 @Composable
-private fun Header(p: Profile, fire: Int, ice: Int, invites: Int, onProfile: () -> Unit, onBell: () -> Unit, onSettings: () -> Unit) {
+private fun Header(p: Profile, fire: Int, ice: Int, invites: Int, zv: ZeroView? = null, onProfile: () -> Unit, onBell: () -> Unit, onSettings: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 32.dp, bottom = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).clickable(remember { androidx.compose.foundation.interaction.MutableInteractionSource() }, indication = null, onClick = onProfile), verticalAlignment = Alignment.CenterVertically) {
             Avatar(p, 44)
@@ -264,9 +375,15 @@ private fun Header(p: Profile, fire: Int, ice: Int, invites: Int, onProfile: () 
                 else Text(p.friend_code, color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp, fontFamily = FontFamily.Monospace)
             }
         }
-        Chip(Lucide.Flame, Sbo.orange, fire)
-        Spacer(Modifier.width(6.dp))
-        Chip(Lucide.Snowflake, Sbo.sky, ice)
+        if (zv != null && zv.active) {
+            ZeroChip(Lucide.Droplets, zeroColor(zv.status), "${zv.weekCount}/${zv.weeklyLimit}")
+            Spacer(Modifier.width(6.dp))
+            ZeroChip(Lucide.Dumbbell, Sbo.primary, "${zv.workoutsWeek}")
+        } else {
+            Chip(Lucide.Flame, Sbo.orange, fire)
+            Spacer(Modifier.width(6.dp))
+            Chip(Lucide.Snowflake, Sbo.sky, ice)
+        }
         Spacer(Modifier.width(6.dp))
         Box {
             RoundIcon(Lucide.Bell, onBell)

@@ -65,7 +65,7 @@ private val CAL_LOCALE: Locale = Locale.US
 private val WEEK_START = DayOfWeek.SUNDAY
 
 @Composable
-fun CalendarTab(events: List<SboEvent>, limit: Int, today: LocalDate = LocalDate.now(), onDay: (LocalDate) -> Unit) {
+fun CalendarTab(events: List<SboEvent>, limit: Int, today: LocalDate = LocalDate.now(), zero: ZeroView? = null, onDay: (LocalDate) -> Unit) {
     val byDay = remember(events) { Streaks.byDay(events) }
     var month by remember { mutableStateOf(YearMonth.from(today)) }
     Card(padding = 16.dp) {
@@ -73,7 +73,7 @@ fun CalendarTab(events: List<SboEvent>, limit: Int, today: LocalDate = LocalDate
             Text("Registro personale — solo per uso medico e di monitoraggio.", color = Sbo.mutedFg, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(horizontal = 8.dp))
             Spacer(Modifier.height(12.dp))
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                MonthGrid(month, today, byDay, limit, onPrev = { month = month.minusMonths(1) }, onNext = { month = month.plusMonths(1) }, onDay = onDay)
+                MonthGrid(month, today, byDay, limit, onPrev = { month = month.minusMonths(1) }, onNext = { month = month.plusMonths(1) }, onDay = onDay, mark = zero?.let { z -> { d: LocalDate -> z.workoutStatus(d) } })
             }
             Spacer(Modifier.height(16.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
@@ -82,6 +82,13 @@ fun CalendarTab(events: List<SboEvent>, limit: Int, today: LocalDate = LocalDate
                 Spacer(Modifier.width(16.dp))
                 Box(Modifier.size(8.dp).clip(CircleShape).background(Sbo.destructive)); Spacer(Modifier.width(6.dp))
                 Text("sopra il limite", color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
+            }
+            if (zero != null) Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                Text("✓", color = Sbo.zeroOk, fontSize = 12.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.width(6.dp))
+                Text("allenamento fatto", color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
+                Spacer(Modifier.width(16.dp))
+                Text("✕", color = Sbo.zeroOver, fontSize = 12.sp, fontWeight = FontWeight.Bold); Spacer(Modifier.width(6.dp))
+                Text("allenamento saltato", color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
             }
             Spacer(Modifier.height(12.dp))
             Text("Tocca un giorno degli ultimi 7 per aggiungere o togliere eventi dimenticati.", color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
@@ -93,7 +100,7 @@ fun CalendarTab(events: List<SboEvent>, limit: Int, today: LocalDate = LocalDate
 private val CELL = 32.dp
 
 @Composable
-internal fun MonthGrid(month: YearMonth, today: LocalDate, byDay: Map<LocalDate, Int>, limit: Int, onPrev: () -> Unit, onNext: () -> Unit, onDay: ((LocalDate) -> Unit)?) {
+internal fun MonthGrid(month: YearMonth, today: LocalDate, byDay: Map<LocalDate, Int>, limit: Int, onPrev: () -> Unit, onNext: () -> Unit, onDay: ((LocalDate) -> Unit)?, mark: ((LocalDate) -> String?)? = null) {
     // react-day-picker inside a shadcn Calendar: bg-background, p-3, 2rem cells
     Column(Modifier.background(Sbo.background).padding(12.dp).width(CELL * 7)) {
         Box(Modifier.fillMaxWidth().height(CELL)) {
@@ -123,7 +130,7 @@ internal fun MonthGrid(month: YearMonth, today: LocalDate, byDay: Map<LocalDate,
             Row(Modifier.fillMaxWidth()) {
                 repeat(7) {
                     val d = cursor
-                    DayCell(d, inMonth = d.month == month.month, today = today, count = byDay[d] ?: 0, limit = limit, onDay = onDay)
+                    DayCell(d, inMonth = d.month == month.month, today = today, count = byDay[d] ?: 0, limit = limit, onDay = onDay, mark = mark?.invoke(d))
                     cursor = cursor.plusDays(1)
                 }
             }
@@ -139,7 +146,7 @@ private fun NavButton(icon: androidx.compose.ui.graphics.vector.ImageVector, mod
 }
 
 @Composable
-private fun DayCell(d: LocalDate, inMonth: Boolean, today: LocalDate, count: Int, limit: Int, onDay: ((LocalDate) -> Unit)?) {
+private fun DayCell(d: LocalDate, inMonth: Boolean, today: LocalDate, count: Int, limit: Int, onDay: ((LocalDate) -> Unit)?, mark: String? = null) {
     // read-only calendars (friend profile) have no disabled days
     val enabled = onDay == null || (!d.isAfter(today) && !d.isBefore(today.minusDays(7)))
     val isToday = d == today
@@ -161,6 +168,10 @@ private fun DayCell(d: LocalDate, inMonth: Boolean, today: LocalDate, count: Int
                     .clip(CircleShape).background(if (heavy) Sbo.destructive else Sbo.accent),
             )
         }
+        if (mark != null) Text(
+            if (mark == "done") "✓" else "✕", color = if (mark == "done") Sbo.zeroOk else Sbo.zeroOver, fontSize = 9.sp, lineHeight = 10.sp, fontWeight = FontWeight.Bold,
+            modifier = Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 2.dp),
+        )
     }
 }
 
@@ -220,7 +231,7 @@ fun ema90(series: List<DayPoint>): List<Float> {
 }
 
 @Composable
-fun TrendTab(events: List<SboEvent>, today: LocalDate = LocalDate.now(), tip30: Int? = null, tip90: Int? = null) {
+fun TrendTab(events: List<SboEvent>, today: LocalDate = LocalDate.now(), tip30: Int? = null, tip90: Int? = null, zero: ZeroView? = null) {
     val s30 = remember(events) { dailySeries(events, 30, today) }
     val s90 = remember(events) { dailySeries(events, 90, today) }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -229,7 +240,18 @@ fun TrendTab(events: List<SboEvent>, today: LocalDate = LocalDate.now(), tip30: 
                 Text("Andamento — ultimi 30 giorni", fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 4.dp))
                 Spacer(Modifier.height(12.dp))
                 if (s30.all { it.count == 0 }) Empty("Nessun dato ancora. Il grafico si popolerà con l'uso.", 40)
-                else Chart(s30.map { it.date }, listOf(ChartSeries("Al giorno", s30.map { it.count.toFloat() }, Color(0xFFFB923C), area = true)), height = 224, initialIndex = tip30)
+                else Chart(s30.map { it.date }, buildList {
+                    if (zero != null) add(ChartSeries("Allenamenti", s30.map { zero.workoutsOn(it.date.toString()).toFloat() }, Color(0xFFEF4444), area = true, fill = listOf(0f to Color(0xFFEF4444).copy(alpha = 0.45f), 1f to Color(0xFFEF4444).copy(alpha = 0f))))
+                    add(ChartSeries("Al giorno", s30.map { it.count.toFloat() }, Color(0xFFFB923C), area = true))
+                    if (zero != null) add(ChartSeries("Oltre il limite", overSeries(s30, zero), Color(0xFFFF2A00), area = true, stroke = 2.5f,
+                        fill = listOf(0f to Color(0xFFFFD000).copy(alpha = 0.95f), 0.45f to Color(0xFFFF3D00).copy(alpha = 0.8f), 1f to Color(0xFF7F0000).copy(alpha = 0.2f))))
+                }, height = 224, initialIndex = tip30)
+                if (zero != null) Row(Modifier.padding(top = 8.dp, start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    @Composable fun Dot(c: Brush, t: String) { Box(Modifier.size(8.dp).clip(CircleShape).background(c)); Spacer(Modifier.width(4.dp)); Text(t, color = Sbo.mutedFg, fontSize = 10.sp, lineHeight = 14.sp); Spacer(Modifier.width(16.dp)) }
+                    Dot(androidx.compose.ui.graphics.SolidColor(Color(0xFFFB923C)), "eventi")
+                    Dot(androidx.compose.ui.graphics.SolidColor(Color(0xFFEF4444)), "allenamenti")
+                    Dot(Brush.verticalGradient(listOf(Color(0xFFFFD000), Color(0xFFFF2A00))), "oltre il limite")
+                }
                 Spacer(Modifier.height(6.dp))
             }
         }
@@ -238,10 +260,16 @@ fun TrendTab(events: List<SboEvent>, today: LocalDate = LocalDate.now(), tip30: 
                 Text("Trend a 90 giorni", fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 4.dp))
                 Spacer(Modifier.height(12.dp))
                 if (s90.all { it.count == 0 }) Empty("Nessun dato ancora.", 32)
-                else Chart(s90.map { it.date }, listOf(ChartSeries("Media", ema90(s90).map { kotlin.math.round(it * 100f) / 100f }, Color(0xFF38BDF8), area = false, stroke = 2.5f)), height = 192, initialIndex = tip90)
+                else Chart(s90.map { it.date }, buildList {
+                    add(ChartSeries("Media", ema90(s90).map { kotlin.math.round(it * 100f) / 100f }, Color(0xFF38BDF8), area = false, stroke = 2.5f))
+                    if (zero != null) {
+                        val raw = s90.map { zero.workoutsOn(it.date.toString()).toFloat() }
+                        add(ChartSeries("Allenamenti (media 7gg)", raw.indices.map { i -> kotlin.math.round(raw.subList(maxOf(0, i - 6), i + 1).average().toFloat() * 100f) / 100f }, Color(0xFFEF4444), area = false))
+                    }
+                }, height = 192, initialIndex = tip90)
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    "La linea blu è la tua media: sale e scende piano piano, giorno dopo giorno. Obiettivo: portarla giù nel tempo.",
+                    if (zero != null) "Obiettivo: la linea rossa (allenamenti) sempre sopra quella blu." else "La linea blu è la tua media: sale e scende piano piano, giorno dopo giorno. Obiettivo: portarla giù nel tempo.",
                     color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
@@ -258,7 +286,7 @@ private fun Empty(text: String, pad: Int) {
  * Recharts look: dashed white/15 grid, white 10px ticks, Y domain 0..max(3, ceil(max)) with integer
  * ticks, X labels MM-DD thinned so they never overlap (keeping the last one), monotone curve.
  */
-data class ChartSeries(val name: String, val values: List<Float>, val color: Color, val area: Boolean, val stroke: Float = 2f)
+data class ChartSeries(val name: String, val values: List<Float>, val color: Color, val area: Boolean, val stroke: Float = 2f, val fill: List<Pair<Float, Color>>? = null)
 
 private val TIP_BG = Color(0xFF0F172A)
 private val TIP_BORDER = Color(0xFF334155)
@@ -298,7 +326,7 @@ internal fun Chart(dates: List<LocalDate>, series: List<ChartSeries>, height: In
         val xAxisH = 30.dp.toPx()
         val axisW = 0.7.dp.toPx()
         val b = size.height - xAxisH
-        val maxV = max(3f, ceil(series.maxOf { it.values.max() }))
+        val maxV = max(3f, ceil(series.maxOf { sr -> sr.values.filter { !it.isNaN() }.maxOrNull() ?: 0f }))
         val step = niceIntStep(maxV)
         val yMax = ceil(maxV / step) * step
         fun yOf(v: Float) = b - (v / yMax) * (b - top)
@@ -336,24 +364,31 @@ internal fun Chart(dates: List<LocalDate>, series: List<ChartSeries>, height: In
         // recharts cursor: a thin grey vertical line under the series
         if (a != null) drawLine(Color(0xFFCCCCCC), Offset(xOf(a), top), Offset(xOf(a), b), 1.dp.toPx())
         for (sr in series) {
-            val pts = sr.values.mapIndexed { k, value -> Offset(xOf(k), yOf(value)) }
-            val line = monotonePath(pts)
-            if (sr.area) {
-                val fill = Path().apply { addPath(line); lineTo(pts.last().x, b); lineTo(pts.first().x, b); close() }
-                drawPath(fill, Brush.verticalGradient(0f to sr.color.copy(alpha = 0.55f), 1f to sr.color.copy(alpha = 0f), startY = top, endY = b))
+            // null values (NaN) break the line into segments, like Recharts without connectNulls
+            val segs = mutableListOf<MutableList<Offset>>()
+            sr.values.forEachIndexed { k, value -> if (value.isNaN()) segs.add(mutableListOf()) else { if (segs.isEmpty()) segs.add(mutableListOf()); segs.last().add(Offset(xOf(k), yOf(value))) } }
+            for (pts in segs.filter { it.isNotEmpty() }) {
+                val line = monotonePath(pts)
+                if (sr.area) {
+                    val fill = Path().apply { addPath(line); lineTo(pts.last().x, b); lineTo(pts.first().x, b); close() }
+                    val stops = sr.fill?.toTypedArray() ?: arrayOf(0f to sr.color.copy(alpha = 0.55f), 1f to sr.color.copy(alpha = 0f))
+                    drawPath(fill, Brush.verticalGradient(*stops, startY = top, endY = b))
+                }
+                if (pts.size == 1) drawCircle(sr.color, sr.stroke.dp.toPx(), pts[0])
+                drawPath(line, sr.color, style = Stroke(sr.stroke.dp.toPx(), cap = StrokeCap.Butt, join = StrokeJoin.Round))
             }
-            drawPath(line, sr.color, style = Stroke(sr.stroke.dp.toPx(), cap = StrokeCap.Butt, join = StrokeJoin.Round))
         }
         if (a != null) {
             // active dots (recharts: r 4, series colour, 2px white ring)
             for (sr in series) {
+                if (sr.values[a].isNaN()) continue
                 val p = Offset(xOf(a), yOf(sr.values[a]))
                 drawCircle(Color.White, 5.dp.toPx(), p); drawCircle(sr.color, 4.dp.toPx(), p)
             }
             // tooltip box: #0f172a, 1px #334155, radius 8, 12px text, label = the day key, then "Name : value" in each colour
             val pad = 10.dp.toPx(); val vpad = 14.dp.toPx(); val gap = 8.dp.toPx()
             val title = measurer.measure(dates[a].toString(), tipStyle)
-            val rows = series.map { measurer.measure("${it.name} : ${fmtValue(it.values[a])}", tipStyle.copy(color = it.color)) }
+            val rows = series.filter { !it.values[a].isNaN() }.map { measurer.measure("${it.name} : ${fmtValue(it.values[a])}", tipStyle.copy(color = it.color)) }
             val w = maxOf(title.size.width, rows.maxOf { it.size.width }) + pad * 2
             val h = title.size.height + rows.sumOf { it.size.height } + gap * rows.size + vpad * 2
             val cx = xOf(a)
@@ -401,4 +436,20 @@ private fun monotonePath(p: List<Offset>): Path {
         path.cubicTo(p[i].x + dx, p[i].y + dx * t[i], p[i + 1].x - dx, p[i + 1].y - dx * t[i + 1], p[i + 1].x, p[i + 1].y)
     }
     return path
+}
+
+
+/** Web chart30 "over": events beyond the weekly limit, counted per Monday-week, from the PZ start (null = not drawn). */
+internal fun overSeries(s30: List<DayPoint>, z: ZeroView): List<Float> {
+    var wk = ""; var cum = 0
+    val pz = z.pz
+    return s30.map { d ->
+        val ws = com.sbo.app.logic.Zero.weekStart(d.date).toString()
+        if (ws != wk) { wk = ws; cum = 0 }
+        cum += d.count
+        val start = z.start
+        val lim = if (pz != null && start != null && !d.date.isBefore(start)) com.sbo.app.logic.Zero.weeklyLimitFor(pz.start_limit, start, d.date, pz.limit_set_at?.let { com.sbo.app.logic.Streaks.instant(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate() }) else Int.MAX_VALUE
+        val over = minOf(d.count, maxOf(0, cum - lim))
+        if (over == 0) Float.NaN else over.toFloat()
+    }
 }

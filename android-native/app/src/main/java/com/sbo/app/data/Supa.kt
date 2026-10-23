@@ -34,6 +34,25 @@ data class Profile(
 )
 
 @Serializable
+data class ProjectZero(
+    val user_id: String, val active: Boolean = false, val started_at: String? = null, val league: String = "low", val start_limit: Int = 5,
+    val theme: String = "obsidian", val answers: com.sbo.app.logic.ZeroAnswers = com.sbo.app.logic.ZeroAnswers(),
+    val last_assessment_at: String? = null, val limit_set_at: String? = null,
+)
+
+@Serializable
+data class CustomWorkout(val name: String, val note: String? = null, val at: String = "")
+
+@Serializable
+data class WorkoutDay(
+    val user_id: String, val day: String, val done_ids: List<String> = emptyList(), val plan_size: Int = 0,
+    val custom: List<CustomWorkout> = emptyList(), val completed: Boolean = false, val updated_at: String? = null,
+)
+
+@Serializable
+data class AgentMessage(val id: String, val user_id: String, val content: String, val kind: String, val created_at: String, val read_at: String? = null)
+
+@Serializable
 data class ClanInvite(val id: String, val clan_id: String, val from_user_id: String, val to_user_id: String, val status: String = "pending")
 
 @Serializable
@@ -208,6 +227,48 @@ object Supa {
             put("_target", kotlinx.serialization.json.JsonPrimitive(target)); put("_role", kotlinx.serialization.json.JsonPrimitive(role))
         })
     }
+
+    // ------------------------------------------------ Progetto Zero
+
+    suspend fun projectZero(uid: String): ProjectZero? =
+        client.from("project_zero").select { filter { eq("user_id", uid) } }.decodeList<ProjectZero>().firstOrNull()
+
+    /** Upsert of a partial row (web useSaveProjectZero). */
+    suspend fun savePz(uid: String, patch: kotlinx.serialization.json.JsonObject) {
+        val row = kotlinx.serialization.json.buildJsonObject { put("user_id", kotlinx.serialization.json.JsonPrimitive(uid)); patch.forEach { (k, v) -> put(k, v) } }
+        client.from("project_zero").upsert(row)
+    }
+
+    suspend fun workoutDays(uid: String, sinceKey: String): List<WorkoutDay> =
+        client.from("workout_days").select { filter { eq("user_id", uid); gte("day", sinceKey) } }.decodeList()
+
+    suspend fun saveWorkoutDay(row: WorkoutDay) { client.from("workout_days").upsert(row) }
+
+    suspend fun agentMessages(uid: String): List<AgentMessage> =
+        client.from("agent_messages").select {
+            filter { eq("user_id", uid) }
+            order("created_at", Order.ASCENDING)
+            limit(300)
+        }.decodeList()
+
+    suspend fun markAgentRead(uid: String) {
+        client.from("agent_messages").update(kotlinx.serialization.json.buildJsonObject { put("read_at", kotlinx.serialization.json.JsonPrimitive(java.time.Instant.now().toString())) }) {
+            filter { eq("user_id", uid); filter("read_at", io.github.jan.supabase.postgrest.query.filter.FilterOperator.IS, "null") }
+        }
+    }
+
+    /** Worker endpoints for the coach (same logic as the web's server functions), authenticated with the user's token. */
+    suspend fun coach(path: String, body: kotlinx.serialization.json.JsonObject): kotlinx.serialization.json.JsonObject? = runCatching {
+        val token = client.auth.currentAccessTokenOrNull() ?: return null
+        val http = java.net.URL("${BuildConfig.SERVER_BASE}/api/public/native/$path").openConnection() as java.net.HttpURLConnection
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            http.requestMethod = "POST"; http.doOutput = true; http.connectTimeout = 15000; http.readTimeout = 30000
+            http.setRequestProperty("Content-Type", "application/json"); http.setRequestProperty("Authorization", "Bearer $token")
+            http.outputStream.use { it.write(body.toString().toByteArray()) }
+            val txt = (if (http.responseCode in 200..299) http.inputStream else http.errorStream).bufferedReader().readText()
+            kotlinx.serialization.json.Json.parseToJsonElement(txt) as? kotlinx.serialization.json.JsonObject
+        }
+    }.getOrNull()
 
     suspend fun signOut() { client.auth.signOut() }
 

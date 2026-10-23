@@ -144,9 +144,11 @@ fun SocialTab(
     onToast: (String) -> Unit, onAddFriend: () -> Unit, onChat: (Profile) -> Unit, onClanChat: () -> Unit, onRemove: (Profile) -> Unit, onLeaveClan: () -> Unit = {},
     onOpenFriend: (Profile) -> Unit = {}, onManageClan: () -> Unit = {}, onInviteToClan: () -> Unit = {},
     onSetRole: (String, String) -> Unit = { _, _ -> }, onKick: (Profile) -> Unit = {},
+    coach: (@Composable () -> Unit)? = null,
 ) {
     val clip = LocalClipboardManager.current
     Column(verticalArrangement = Arrangement.spacedBy(24.dp)) {
+        coach?.invoke()
         Card(padding = 20.dp) {
             Column {
                 SectionLabel("Il tuo codice amico")

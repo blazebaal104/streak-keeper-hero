@@ -76,4 +76,53 @@ for (const [name, file] of [["Cal", "cal"], ["Trend", "trend"], ["Social", "soci
     }
   });
 }
+// Progetto Zero: the dev account has it off, so mock its rows (no data is written)
+await step("pz", async () => {
+  const z = await browser.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2.625, isMobile: true, hasTouch: true });
+  await z.addInitScript(() => { try { localStorage.setItem("sbo:devHoliday", "none"); } catch {} });
+  const day = (n) => { const d = new Date(Date.now() - n * 86400000); return d.toISOString().slice(0, 10); };
+  const started = new Date(Date.now() - 9 * 86400000).toISOString();
+  const pzRow = { user_id: "x", active: true, started_at: started, league: "mid", start_limit: 4, theme: "obsidian",
+    answers: { age: 20, pushups: 25, plank: 60, pullups: 4, squats: 40, weeklyNow: 5, realName: "Tester", dumbbellKg: 8, hasBar: true, gymDays: [6] },
+    last_assessment_at: started, limit_set_at: null };
+  const wds = [3, 5, 6, 8].map((n) => ({ user_id: "x", day: day(n), done_ids: [], plan_size: 4, custom: [{ name: "Corsa", note: "", at: started }], completed: true }));
+  const msgs = [
+    { id: "m1", user_id: "x", kind: "daily", content: "Buongiorno Tester. Oggi si lavora: niente scuse.", created_at: new Date(Date.now() - 2 * 3600e3).toISOString(), read_at: null },
+    { id: "m2", user_id: "x", kind: "user", content: "Ok coach, ci provo", created_at: new Date(Date.now() - 3600e3).toISOString(), read_at: new Date().toISOString() },
+    { id: "m3", user_id: "x", kind: "rant", content: "PROVARE NON BASTA. FALLO.", created_at: new Date(Date.now() - 3500e3).toISOString(), read_at: null },
+  ];
+  await z.route(/\/rest\/v1\/project_zero/, (r) => r.request().method() === "GET" ? r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(r.request().headers()["accept"]?.includes("object") ? pzRow : [pzRow]) }) : r.fulfill({ status: 204, body: "" }));
+  await z.route(/\/rest\/v1\/workout_days/, (r) => r.request().method() === "GET" ? r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(wds) }) : r.fulfill({ status: 204, body: "" }));
+  await z.route(/\/rest\/v1\/agent_messages/, (r) => r.request().method() === "GET" ? r.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(msgs) }) : r.fulfill({ status: 204, body: "" }));
+  await z.route(/_serverFn/, (r) => r.fulfill({ status: 200, contentType: "application/json", body: "{}" }));
+  const pg = await z.newPage();
+  await pg.goto("https://sbo-dev.perlospam696.workers.dev/", { waitUntil: "networkidle" });
+  await pg.waitForTimeout(6000);
+  await pg.screenshot({ path: "shots/web-pz-plan.png" });
+  await pg.getByText("Vai alla home").click().catch(() => {});
+  await pg.waitForTimeout(800);
+  await pg.screenshot({ path: "shots/web-pz-home.png" });
+  await pg.screenshot({ path: "shots/web-pz-home-full.png", fullPage: true });
+  await pg.getByLabel("Impostazioni").first().click(); await pg.waitForTimeout(900);
+  await pg.screenshot({ path: "shots/web-pz-settings.png" });
+  await pg.keyboard.press("Escape"); await pg.waitForTimeout(500);
+  for (const [name, file] of [["Cal", "cal"], ["Trend", "trend"], ["Social", "social"]]) {
+    await pg.getByRole("tab", { name }).click(); await pg.waitForTimeout(1000);
+    await pg.screenshot({ path: `shots/web-pz-${file}.png` });
+  }
+  await pg.getByText("Coach Zero").first().click(); await pg.waitForTimeout(900);
+  await pg.screenshot({ path: "shots/web-pz-coach.png" });
+  await pg.keyboard.press("Escape"); await pg.waitForTimeout(400);
+  await z.close();
+});
+// questionnaire (intro + first question) with Progetto Zero off: open settings and flip the switch
+await step("quiz", async () => {
+  await page.getByRole("tab", { name: "Home" }).click(); await page.waitForTimeout(500);
+  await page.getByLabel("Impostazioni").first().click(); await page.waitForTimeout(800);
+  await page.locator("[role=dialog] button[role=switch]").first().click(); await page.waitForTimeout(900);
+  await page.screenshot({ path: "shots/web-quiz-1.png" });
+  await page.getByText("Iniziamo").click(); await page.waitForTimeout(600);
+  await page.screenshot({ path: "shots/web-quiz-2.png" });
+  await page.keyboard.press("Escape"); await page.waitForTimeout(400);
+});
 await browser.close();
