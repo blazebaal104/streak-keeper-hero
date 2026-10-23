@@ -41,11 +41,18 @@ class MainActivity : ComponentActivity() {
         vm.deepLink.value = intent.getStringExtra("open")
         vm.onTestPushQueued = { uid, n ->
             Notifier.ensureChannel(this)
-            if (Notifier.allowed(this)) { Notifier.showNow(this, uid, n); true } else { explicitAsk = true; ask(); false }
+            when {
+                !Notifier.allowed(this) -> { explicitAsk = true; ask(); false }
+                // instant push is on: the test travels the real way (server → Firebase → phone); safety net after 10 s
+                Notifier.fcm -> { Notifier.pollSoon(this, 10); true }
+                else -> { Notifier.showNow(this, uid, n); true }
+            }
         }
         lifecycleScope.launch { vm.enableNotifications.collect { explicitAsk = true; ask() } }
         // like the web: ask for notifications once, then keep the background check running
         Notifier.ensureChannel(this)
+        Notifier.fcm = com.sbo.app.notify.Push.available(this)
+        com.sbo.app.notify.Push.register(this)
         if (Notifier.allowed(this)) Notifier.schedule(this) else ask()
         setContent { HomeScreen(vm) }
     }

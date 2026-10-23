@@ -104,7 +104,7 @@ fun HomeScreen(vm: HomeViewModel) {
     val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     androidx.compose.runtime.DisposableEffect(owner) {
         val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
-            when (e) { androidx.lifecycle.Lifecycle.Event.ON_RESUME -> { vm.foreground = true; vm.refresh() }; androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> vm.foreground = false; else -> {} }
+            when (e) { androidx.lifecycle.Lifecycle.Event.ON_RESUME -> { vm.foreground = true; com.sbo.app.notify.Notifier.foreground = true; vm.refresh() }; androidx.lifecycle.Lifecycle.Event.ON_PAUSE -> { vm.foreground = false; com.sbo.app.notify.Notifier.foreground = false }; else -> {} }
         }
         owner.lifecycle.addObserver(obs)
         onDispose { owner.lifecycle.removeObserver(obs) }
@@ -328,7 +328,7 @@ fun HomeContent(
             val me = p
             if (me != null) {
                 Pop(showProfile) { ProfileDialog(me, s.badges, onClose = { showProfile = false }, onUpdate = onUpdateProfile, onSlot = { showProfile = false; inventory = it }, onSignOut = { showProfile = false; onSignOut() }, onToast = { toast.show(it) }) }
-                Pop(showSettings) { SettingsDialog(me, onClose = { showSettings = false }, onUpdate = onUpdateProfile, onToast = { toast.show(it) }, onEnableNotifications = onEnableNotifications, onTestPush = { onTestPush(); toast.show("Notifica di prova inviata: arriva entro un minuto. Puoi anche chiudere l'app.") }, pzCard = {
+                Pop(showSettings) { SettingsDialog(me, onClose = { showSettings = false }, onUpdate = onUpdateProfile, onToast = { toast.show(it) }, onEnableNotifications = onEnableNotifications, onTestPush = { onTestPush(); toast.show(if (com.sbo.app.notify.Notifier.fcm) "Notifica di prova inviata: arriva tra un paio di secondi. Prova anche a chiudere l'app." else "Notifica di prova inviata.") }, pzCard = {
                     ZeroSettingsCard(zv, onStart = { quiz = "start" }, onQuit = {
                         if (zv.day <= 7) toast.show("Il Progetto Zero dura almeno 7 giorni. Potrai disattivarlo tra ${8 - zv.day} giorni.") else confirmQuit = true
                     }, onLimit = { v -> zero.save(patch("start_limit" to v, "limit_set_at" to java.time.Instant.now().toString())) { toast.show("Limite settimanale: $v") } },

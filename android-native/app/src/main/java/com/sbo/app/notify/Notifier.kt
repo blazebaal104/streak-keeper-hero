@@ -30,7 +30,7 @@ import java.time.LocalTime
 import java.util.concurrent.TimeUnit
 
 /**
- * System notifications without Firebase: a background job reads the same queue the web push uses
+ * Safety net for system notifications: a background job reads the same queue the web push uses
  * (scheduled_notifications: messages, badges, invites, reminders…), plus Coach Zero's new messages and the
  * evening "streak at risk" reminder, and shows them as Android notifications. Runs every 15 minutes
  * (Android's minimum for background jobs) and right away whenever the app goes to the background.
@@ -38,6 +38,32 @@ import java.util.concurrent.TimeUnit
 object Notifier {
     private const val CHANNEL = "sbo"
     private const val PREFS = "sbo-notify"
+
+    /** App on screen / chat currently open (no notification for the chat you're reading). */
+    @Volatile var foreground = false
+    @Volatile var openChat: String? = null
+    /** Instant push (FCM) is set up on this phone. */
+    @Volatile var fcm = false
+    /** Called when a push lands while the app is running (the screen refreshes at once). */
+    @Volatile var onPush: (() -> Unit)? = null
+
+    /**
+     * Shows one queued notification (from FCM or the background check) exactly once:
+     * both paths use the server row id, so the same message never pops up twice.
+     */
+    fun showQueued(ctx: Context, id: String, title: String, body: String, tag: String?, url: String?) {
+        onPush?.invoke()
+        val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        synchronized(this) {
+            val seen = prefs.getString("shown", "")!!.split(',').filter { it.isNotEmpty() }
+            if (id in seen) return
+            prefs.edit().putString("shown", (seen.takeLast(300) + id).joinToString(",")).apply()
+        }
+        if (foreground && tag != null && openChat != null && tag == "dm:$openChat") return
+        // one notification per conversation (like WhatsApp): a new message replaces the previous one of the same chat
+        val nid = (tag?.takeIf { it.startsWith("dm:") || it.startsWith("clan:") } ?: id).hashCode()
+        show(ctx, nid, title, body, openOf(url))
+    }
 
     fun ensureChannel(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
@@ -82,7 +108,7 @@ object Notifier {
 
     /** Show a queue row right away (test push) and move the cursor so the background job won't repeat it. */
     fun showNow(ctx: Context, uid: String, n: com.sbo.app.data.ScheduledNotification) {
-        show(ctx, n.id.hashCode(), n.title, n.body, openOf(n.url))
+        showQueued(ctx, n.id, n.title, n.body, n.tag, n.url)
         val prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val cur = prefs.getString("after:$uid", null)
         if (cur == null || Instant.parse(normIso(n.deliver_at)) > Instant.parse(normIso(cur))) prefs.edit().putString("after:$uid", n.deliver_at).apply()
@@ -99,29 +125,10 @@ object Notifier {
         // 1) the server's notification queue
         val after = prefs.getString("after:$uid", null) ?: now.minusSeconds(3600).toString().also { prefs.edit().putString("after:$uid", it).apply() }
         val due = runCatching { Supa.dueNotifications(uid, after, now.toString()) }.getOrNull() ?: return
-        due.forEach { n -> show(ctx, n.id.hashCode(), n.title, n.body, openOf(n.url)) }
+        due.forEach { n -> showQueued(ctx, n.id, n.title, n.body, n.tag, n.url) }
         due.lastOrNull()?.let { prefs.edit().putString("after:$uid", it.deliver_at).apply() }
-        // 2) Coach Zero (written by the server, shown by the web app itself)
-        runCatching {
-            val msgs = Supa.agentMessages(uid).filter { it.kind != "user" && it.read_at == null }
-            val seen = prefs.getString("coach:$uid", null)
-            val fresh = if (seen == null) emptyList() else msgs.filter { it.created_at > seen }
-            fresh.takeLast(3).forEach { m -> show(ctx, m.id.hashCode(), "🏋️ Coach Zero", m.content.take(140), "agent") }
-            (msgs.lastOrNull()?.created_at ?: seen ?: now.toString()).let { prefs.edit().putString("coach:$uid", it).apply() }
-        }
-        // 3) evening reminder: the fire streak dies tonight (web scheduleStreakReminder: after 18:00, once a day)
-        runCatching {
-            val p = Supa.profile(uid)
-            if (!p.notif_streak || !p.notifications_enabled) return@runCatching
-            val today = LocalDate.now().toString()
-            if (LocalTime.now().hour < 18 || prefs.getString("streak:$uid", null) == today) return@runCatching
-            val ev = Supa.events(uid)
-            val fire = Streaks.fire(ev)
-            if (fire > 0 && Streaks.countToday(ev) == 0) {
-                prefs.edit().putString("streak:$uid", today).apply()
-                show(ctx, 7001, "💧 Non perdere la streak!", "${p.username}, sei a $fire giorni. Un tap oggi la mantiene viva.", null)
-            }
-        }
+        // Coach Zero's automatic messages and the evening "streak at risk" reminder are sent by the server now
+        // (only what matters reaches the lock screen: messages, invites, new friends, medals, streak about to die).
     }
 }
 

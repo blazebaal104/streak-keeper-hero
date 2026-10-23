@@ -103,8 +103,11 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
         )
     }
     var openChatWith: String? = null
+        set(v) { field = v; com.sbo.app.notify.Notifier.openChat = v }
 
     init {
+        // a push arrived while the app is open: refresh right away instead of waiting for the next check
+        com.sbo.app.notify.Notifier.onPush = { viewModelScope.launch { refresh() } }
         refresh()
         viewModelScope.launch {
             var badgesChecked = false
@@ -124,7 +127,10 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
         val id = uid ?: return
         val st = _s.value
         val unread = runCatching { Supa.unreadCounts(id) }.getOrNull() ?: return
+        // with instant push on, the system notification already told the user: no duplicate toast
+        val pushOn = com.sbo.app.notify.Notifier.fcm
         for ((from, n) in unread) {
+            if (pushOn) break
             if (n > (st.social.unread[from] ?: 0) && from != openChatWith) {
                 val name = st.social.friends.firstOrNull { it.profile.id == from }?.profile?.username ?: runCatching { Supa.usernameOf(from) }.getOrDefault("Un amico")
                 val last = runCatching { Supa.dms(id, from).lastOrNull { it.sender_id == from }?.content }.getOrNull()
@@ -132,9 +138,9 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
             }
         }
         val inv = runCatching { Supa.incomingInvites(id) }.getOrNull()
-        if (inv != null && inv.size > st.social.invites.size) notices.tryEmit("🛡️ Nuovo invito al clan!" to "Apri gli inviti per rispondere.")
+        if (!pushOn && inv != null && inv.size > st.social.invites.size) notices.tryEmit("🛡️ Nuovo invito al clan!" to "Apri gli inviti per rispondere.")
         val friends = runCatching { Supa.friends(id) }.getOrNull()
-        if (friends != null && st.social.loaded && friends.size > st.social.friends.size) notices.tryEmit("👥 Nuovo amico aggiunto!" to null)
+        if (!pushOn && friends != null && st.social.loaded && friends.size > st.social.friends.size) notices.tryEmit("👥 Nuovo amico aggiunto!" to null)
         if (unread != st.social.unread || (inv?.size ?: 0) != st.social.invites.size || (friends?.size ?: 0) != st.social.friends.size) refresh()
         else if (ZeroView(st.zero, id, st.events).active) reloadAgent()
     }
@@ -142,6 +148,7 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
     fun refresh() = viewModelScope.launch {
         try {
             val id = uid ?: Supa.ensureUser() ?: run { _s.update { it.copy(loading = false, error = "login") }; return@launch }
+            if (uid == null) runCatching { com.sbo.app.notify.Push.register(com.sbo.app.SboApp.ctx) } // this phone receives instant pushes for this account
             uid = id
             val p = Supa.profile(id)
             val ev = Supa.events(id)
@@ -176,13 +183,7 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
 
     fun add() = viewModelScope.launch {
         val id = uid ?: return@launch
-        // web handleAdd: crossing the daily limit for the first time today schedules a "shame" push 10 minutes later
-        val st = _s.value
-        val p = st.profile
-        if (p != null && p.notifications_enabled && !ZeroView(st.zero, id, st.events).active && st.today + 1 >= st.limit && st.today < st.limit && !prevOverLimit) {
-            prevOverLimit = true
-            runCatching { Supa.schedulePush(id, java.time.Instant.now().plusSeconds(600), "💧 SBO", Phrases.overLimitShame(p.username), "over-limit-shame") }
-        }
+        // (the old delayed "shame" push is gone: only important notifications now)
         runCatching { Supa.addEvent(id) }
         refresh()
     }
@@ -299,7 +300,7 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
     }
     fun setRole(target: String, role: String) = act { Supa.setClanRole(target, role); null }
     fun kick(target: String) = act { Supa.kickMember(target); null }
-    fun signOut() = viewModelScope.launch { runCatching { Supa.signOut() }; uid = null; _s.value = HomeState(); refresh() }
+    fun signOut() = viewModelScope.launch { runCatching { com.sbo.app.notify.Push.unregister(com.sbo.app.SboApp.ctx) }; runCatching { Supa.signOut() }; uid = null; _s.value = HomeState(); refresh() }
 
     fun leaveClan() = viewModelScope.launch {
         val id = uid ?: return@launch
