@@ -421,7 +421,8 @@ private fun AmbientMood(mode: String, duck: () -> Float = { 0f }) {
     val t = rememberInfiniteTransition(label = "mood")
     val k by t.animateFloat(0.75f, 1f, infiniteRepeatable(tween(if (mode == "fire") 4200 else 6000), RepeatMode.Reverse), label = "k")
     Canvas(Modifier.fillMaxSize()) {
-        val kk = k * (1f - 0.6f * duck())
+        // on Halloween night the fire mood stays at the edges so the purple sky still shows
+        val kk = k * (1f - 0.6f * duck()) * (if (Sbo.holiday == "halloween") 0.5f else 1f)
         val edge = if (mode == "fire") Color(0xFFF97316).copy(alpha = 0.30f * kk) else Color(0xFF38BDF8).copy(alpha = 0.24f * kk)
         val w = size.width * 0.32f
         drawRect(Brush.horizontalGradient(0f to edge, 1f to Color.Transparent, startX = 0f, endX = w))

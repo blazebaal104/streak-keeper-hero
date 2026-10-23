@@ -139,7 +139,7 @@ fun HalloweenNight(modifier: Modifier = Modifier) {
 
 private fun DrawScope.fog(at: Offset, s: Size) {
     // two radial ellipses (60% x 100%) anchored at the bottom, at 30% and 75%
-    listOf(0.3f to Color(0x33BEAAE6), 0.75f to Color(0x24A0C8B4)).forEach { (cx, c) ->
+    listOf(0.3f to Color(0x33B49AE6), 0.75f to Color(0x24A0B4C8)).forEach { (cx, c) ->
         val rx = s.width * 0.6f; val ry = s.height
         val center = Offset(at.x + s.width * cx, at.y + s.height)
         withTransform({ scale(1f, ry / rx, pivot = center) }) {
@@ -150,8 +150,8 @@ private fun DrawScope.fog(at: Offset, s: Size) {
 
 private fun DrawScope.cobweb(corner: Offset, side: Float, mirror: Boolean) {
     val k = side / 100f
-    val col = Color(0x38E6DCFF)
-    val sw = 0.8f * k
+    val col = Color(0x26E6DCFF)
+    val sw = 0.6f * k
     val rays = listOf(0, 15, 30, 45, 60, 75, 90)
     fun p(r: Float, deg: Float): Offset {
         val a = deg * PI.toFloat() / 180f
@@ -260,15 +260,15 @@ private class Graveyard {
 fun HalloweenDrop(size: Int = 72) {
     Box(Modifier.size(size.dp)) {
         Box(Modifier.fillMaxSize().drawBehind {
-            drawCircle(Brush.radialGradient(0f to Color(0x73F97316), 1f to Color.Transparent), radius = this.size.minDimension * 0.62f)
+            drawCircle(Brush.radialGradient(0f to Color(0x26F97316), 1f to Color.Transparent), radius = this.size.minDimension * 0.6f)
         })
         Image(painterResource(R.drawable.sbo_logo), "SBO", modifier = Modifier.fillMaxSize())
         val hat = remember {
             listOf(svg("M30 64 L52 6 Q56 0 60 8 L72 64 Z"), svg("M31 58 L71 58 L72 64 L30 64 Z"))
         }
         Canvas(
-            Modifier.offset(x = (size * 0.22f).dp, y = (-size * 0.12f).dp)
-                .size(width = (size * 0.62f).dp, height = (size * 0.62f * 0.8f).dp).graphicsLayer { rotationZ = -10f },
+            Modifier.offset(x = (size * 0.26f).dp, y = (-size * 0.17f).dp)
+                .size(width = (size * 0.52f).dp, height = (size * 0.52f * 0.8f).dp).graphicsLayer { rotationZ = -10f },
         ) {
             val k = this.size.width / 100f
             scale(k, k, pivot = Offset.Zero) {
@@ -294,7 +294,7 @@ fun HalloweenBanner() {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         HalloweenDrop(64)
-        Spacer(Modifier.width(16.dp))
+        Spacer(Modifier.width(4.dp))
         Column {
             Text("Notte di Halloween 🦇", fontFamily = SpaceGrotesk, fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.45).sp)
             Text("Solo per oggi SBO si è travestito. A mezzanotte torna tutto normale.", color = Sbo.mutedFg, fontSize = 12.sp, lineHeight = 16.sp)
