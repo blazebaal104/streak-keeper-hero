@@ -87,6 +87,7 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-messaging")
+    implementation("androidx.fragment:fragment-ktx:1.8.5") // firebase pulls an old fragment; activity-result needs >= 1.3
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.9.0")
 
     implementation("androidx.media3:media3-exoplayer:1.5.0")
