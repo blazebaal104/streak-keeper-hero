@@ -351,7 +351,7 @@ internal fun Chart(dates: List<LocalDate>, series: List<ChartSeries>, height: In
                 drawCircle(Color.White, 5.dp.toPx(), p); drawCircle(sr.color, 4.dp.toPx(), p)
             }
             // tooltip box: #0f172a, 1px #334155, radius 8, 12px text, label = the day key, then "Name : value" in each colour
-            val pad = 10.dp.toPx(); val vpad = 16.dp.toPx(); val gap = 8.dp.toPx()
+            val pad = 10.dp.toPx(); val vpad = 14.dp.toPx(); val gap = 8.dp.toPx()
             val title = measurer.measure(dates[a].toString(), tipStyle)
             val rows = series.map { measurer.measure("${it.name} : ${fmtValue(it.values[a])}", tipStyle.copy(color = it.color)) }
             val w = maxOf(title.size.width, rows.maxOf { it.size.width }) + pad * 2

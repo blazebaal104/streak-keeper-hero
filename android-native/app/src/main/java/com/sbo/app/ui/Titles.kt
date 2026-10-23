@@ -252,7 +252,7 @@ private fun TitleGroup(title: String, list: List<TitleDef>, total: Int, unit: St
                     .border(1.dp, if (on) Sbo.primary else Sbo.border, RoundedCornerShape(20.dp))
                     .then(if (owned) Modifier.clickable { onEquip(if (on) null else t.id) } else Modifier)
                     .alpha(if (owned) 1f else 0.5f)
-                    .padding(horizontal = 10.dp, vertical = if (owned) 10.dp else 9.5.dp),
+                    .padding(horizontal = 10.dp, vertical = if (owned) 11.5.dp else 9.5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (owned) Text(t.emoji, fontSize = 16.sp, lineHeight = 24.sp)

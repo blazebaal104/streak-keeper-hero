@@ -328,7 +328,6 @@ fun FriendProfileDialog(friend: Profile, onClose: () -> Unit, onChat: () -> Unit
                     MonthGrid(month, today, byDay, Int.MAX_VALUE, onPrev = { month = month.minusMonths(1) }, onNext = { month = month.plusMonths(1) }, onDay = null)
                 }
             }
-            Spacer(Modifier.height(6.dp))
             Column {
                 UpperLabel("Andamento (30gg)")
                 Spacer(Modifier.height(8.dp))
@@ -463,12 +462,16 @@ fun ConfirmDialog(question: String, confirm: String, onClose: () -> Unit, onConf
 /** Progetto Zero box at the top of the settings (web: rounded-2xl, primary/40 border, primary/10 fill, blurred glow top-right). */
 @Composable
 fun PzCard(active: Boolean, desc: String, extra: @Composable () -> Unit = {}, onToggle: (Boolean) -> Unit) {
-    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Sbo.primary.copy(alpha = 0.10f)).border(1.dp, Sbo.primary.copy(alpha = 0.4f), RoundedCornerShape(28.dp))) {
-        Box(
-            Modifier.align(Alignment.TopEnd).padding(0.dp).size(160.dp).drawBehind {
-                drawCircle(androidx.compose.ui.graphics.Brush.radialGradient(0f to Sbo.primary.copy(alpha = 0.28f), 1f to Color.Transparent, center = androidx.compose.ui.geometry.Offset(size.width * 0.75f, size.height * 0.25f), radius = size.width * 0.5f), radius = size.width * 0.5f, center = androidx.compose.ui.geometry.Offset(size.width * 0.75f, size.height * 0.25f))
-            },
-        )
+    Box(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)).background(Sbo.primary.copy(alpha = 0.10f))
+            .drawBehind {
+                // web: a 96px primary/30 circle at -32px,-32px of the top-right corner, blurred 40px
+                val c = androidx.compose.ui.geometry.Offset(size.width + 16.dp.toPx(), 16.dp.toPx())
+                val rad = 48.dp.toPx() + 40.dp.toPx()
+                drawCircle(androidx.compose.ui.graphics.Brush.radialGradient(0f to Sbo.primary.copy(alpha = 0.30f), 0.45f to Sbo.primary.copy(alpha = 0.18f), 1f to Color.Transparent, center = c, radius = rad), radius = rad, center = c)
+            }
+            .border(1.dp, Sbo.primary.copy(alpha = 0.4f), RoundedCornerShape(28.dp)),
+    ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

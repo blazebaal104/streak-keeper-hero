@@ -258,7 +258,7 @@ private fun Header(p: Profile, fire: Int, ice: Int, invites: Int, onProfile: () 
             Avatar(p, 44)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(p.username, fontFamily = SpaceGrotesk, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.45).sp, maxLines = 1)
+                Text(p.username, fontFamily = SpaceGrotesk, fontSize = 18.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.45).sp, maxLines = 1)
                 val title = Titles.byId(p.equipped_title)
                 if (title != null) TitleBadge(title, "xs")
                 else Text(p.friend_code, color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp, fontFamily = FontFamily.Monospace)
