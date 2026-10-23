@@ -136,6 +136,19 @@ await step("auth", async () => {
   await pg.screenshot({ path: "shots/web-auth-login.png" });
   await a.close();
 });
+// Halloween night (dev override on): home and login
+await step("halloween", async () => {
+  for (const [name, url] of [["home", "/"], ["auth", "/auth?login=1"]]) {
+    const h = await browser.newContext({ viewport: { width: 412, height: 915 }, deviceScaleFactor: 2.625, isMobile: true, hasTouch: true });
+    await h.addInitScript(() => { try { localStorage.setItem("sbo:devHoliday", "halloween"); } catch {} });
+    const pg = await h.newPage();
+    await pg.goto("https://sbo-dev.perlospam696.workers.dev" + url, { waitUntil: "networkidle" });
+    await pg.waitForTimeout(name === "home" ? 7000 : 2500);
+    await pg.screenshot({ path: `shots/web-halloween-${name}.png` });
+    if (name === "home") { await pg.waitForTimeout(3200); await pg.screenshot({ path: "shots/web-halloween-home-2.png" }); }
+    await h.close();
+  }
+});
 // the native app's coach API on the dev worker: without a token it must answer 401 JSON
 await step("api", async () => {
   const fs = await import("node:fs");
