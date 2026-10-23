@@ -128,14 +128,14 @@ fun AuthScreen(onSignedIn: () -> Unit) {
         ) {
             Column(
                 Modifier.widthIn(max = 448.dp).fillMaxWidth().clip(RoundedCornerShape(24.dp)).background(Sbo.card.copy(alpha = 0.9f))
-                    .border(1.dp, Sbo.border.copy(alpha = 0.5f), RoundedCornerShape(24.dp)).padding(32.dp),
+                    .border(1.dp, Sbo.border, RoundedCornerShape(24.dp)).padding(32.dp),
             ) {
-                Column(Modifier.fillMaxWidth().padding(bottom = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.drawBehind {
-                        drawCircle(Brush.radialGradient(0f to Sbo.dropGlow.copy(alpha = 0.45f), 1f to Color.Transparent, center = center, radius = size.width * 0.8f), size.width * 0.8f)
+                        drawCircle(Brush.radialGradient(0f to Sbo.dropGlow.copy(alpha = 0.15f), 1f to Color.Transparent, center = center, radius = size.width * 0.5f), size.width * 0.5f)
                     }) { Image(painterResource(R.drawable.sbo_logo), "SBO", modifier = Modifier.size(72.dp)) }
                     Spacer(Modifier.height(16.dp))
-                    Text("SBO", fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.75).sp)
+                    Text("SBO", fontFamily = SpaceGrotesk, fontSize = 30.sp, lineHeight = 36.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.75).sp)
                     Spacer(Modifier.height(4.dp))
                     Text(when (mode) { "signup" -> "Crea il tuo account"; "login" -> "Bentornato"; else -> "Recupera la password" }, color = Sbo.mutedFg, fontSize = 14.sp, textAlign = TextAlign.Center)
                 }
@@ -182,14 +182,14 @@ fun AuthScreen(onSignedIn: () -> Unit) {
 private fun Field(label: String, value: String, onChange: (String) -> Unit, placeholder: String, type: KeyboardType, secret: Boolean = false, enabled: Boolean = true, big: Boolean = false) {
     Column {
         Text(label, fontSize = 14.sp, lineHeight = 14.sp, fontWeight = FontWeight.Medium)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(3.dp))
         val style = if (big) TextStyle(fontFamily = Inter, fontSize = 18.sp, color = Sbo.foreground, textAlign = TextAlign.Center, letterSpacing = 5.4.sp)
         else TextStyle(fontFamily = Inter, fontSize = 16.sp, color = Sbo.foreground.copy(alpha = if (enabled) 1f else 0.5f))
         BasicTextField(
             value, onChange, enabled = enabled, singleLine = true, textStyle = style, cursorBrush = SolidColor(Sbo.primary),
             visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = KeyboardOptions(keyboardType = type),
-            modifier = Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(18.dp)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(18.dp)).padding(horizontal = 12.dp),
+            modifier = Modifier.fillMaxWidth().height(36.dp).clip(RoundedCornerShape(18.dp)).background(Color.White.copy(alpha = 0.05f)).border(1.dp, Color.White.copy(alpha = 0.10f), RoundedCornerShape(18.dp)).padding(horizontal = 12.dp),
             decorationBox = { inner ->
                 Box(Modifier.fillMaxSize(), contentAlignment = if (big) Alignment.Center else Alignment.CenterStart) {
                     if (value.isEmpty() && placeholder.isNotEmpty()) Text(placeholder, style = style.copy(color = Sbo.mutedFg))
