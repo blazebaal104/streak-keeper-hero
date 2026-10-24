@@ -42,7 +42,9 @@ async function accessToken(sa: SA): Promise<string> {
 }
 
 Deno.serve(async () => {
-  const raw = Deno.env.get("FCM_SERVICE_ACCOUNT");
+  // the Firebase key lives in the database vault (or an env secret), readable only with the service role
+  let raw = Deno.env.get("FCM_SERVICE_ACCOUNT");
+  if (!raw) raw = (await admin.rpc("fcm_service_account")).data ?? undefined;
   if (!raw) return Response.json({ ok: false, error: "FCM_SERVICE_ACCOUNT not set" }, { status: 200 });
   const sa = JSON.parse(raw) as SA;
   const { data: rows, error } = await admin.rpc("claim_fcm_batch", { _limit: 100 });
