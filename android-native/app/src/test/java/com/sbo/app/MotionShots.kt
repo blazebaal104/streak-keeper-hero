@@ -104,4 +104,31 @@ class MotionShots {
         rule.setContent { HomeContent(HomeState(loading = false, error = "login"), {}, {}, holiday = "halloween") }
         frames("halloweenauth", 800)
     }
+
+    @Test fun update() {
+        val r = com.sbo.app.update.AppRelease("com.sbo.app", 2000, "2.0.57", "https://example.invalid/sbo.apk", "🎃 Aggiornamento di Halloween", "Stanotte SBO si traveste: luna, pipistrelli, la strega sulla scopa e il cimitero. Solo per il 31 ottobre!")
+        rule.mainClock.autoAdvance = false
+        rule.setContent {
+            CompositionLocalProvider(LocalFireStill provides R.drawable.fire_still_2) {
+                androidx.compose.foundation.layout.Box {
+                    HomeContent(state(0, 0), {}, {}, today = day)
+                    com.sbo.app.ui.UpdateDialog(r, onLater = {})
+                }
+            }
+        }
+        frames("update", 900)
+    }
+    @Test fun updateProgress() {
+        val r = com.sbo.app.update.AppRelease("com.sbo.app", 2000, "2.0.57", "https://example.invalid/sbo.apk", "🎃 Aggiornamento di Halloween", "Stanotte SBO si traveste: luna, pipistrelli, la strega sulla scopa e il cimitero. Solo per il 31 ottobre!")
+        rule.mainClock.autoAdvance = false
+        rule.setContent {
+            CompositionLocalProvider(LocalFireStill provides R.drawable.fire_still_2) {
+                androidx.compose.foundation.layout.Box {
+                    HomeContent(state(0, 0), {}, {}, today = day)
+                    com.sbo.app.ui.UpdateDialog(r, onLater = {}, preview = 0.42f)
+                }
+            }
+        }
+        frames("updatedl", 900)
+    }
 }

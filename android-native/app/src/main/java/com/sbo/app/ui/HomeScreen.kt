@@ -111,6 +111,22 @@ fun HomeScreen(vm: HomeViewModel) {
     }
     // Coach check-in once a day on open (web: localStorage sbo:pzTick:<day>)
     val ctx = androidx.compose.ui.platform.LocalContext.current
+    // in-app updates: checked on open, on every return to the app and every 10 minutes while it's on screen
+    var release by remember { mutableStateOf<com.sbo.app.update.AppRelease?>(null) }
+    var later by remember { mutableStateOf<Int?>(null) }
+    val resumed = remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    androidx.compose.runtime.DisposableEffect(owner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e -> if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) resumed.intValue++ }
+        owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
+    }
+    LaunchedEffect(resumed.intValue, s.profile?.id) {
+        while (true) {
+            com.sbo.app.update.Updater.check(ctx)?.let { release = it }
+            kotlinx.coroutines.delay(10 * 60_000L)
+        }
+    }
+    release?.takeIf { it.version_code != later }?.let { r -> UpdateDialog(r, onLater = { later = r.version_code }) }
     val zv = ZeroView(s.zero, s.profile?.id, s.events)
     LaunchedEffect(zv.active) {
         if (!zv.active) return@LaunchedEffect
@@ -302,7 +318,6 @@ fun HomeContent(
                     ) { t ->
                     // AnimatedContent lays children out in a Box: tabs emit several siblings, keep them stacked
                     Column(Modifier.fillMaxWidth()) {
-                    if (t == 0 && holiday == "halloween") { HalloweenBanner(); Spacer(Modifier.height(32.dp)) }
                     when (t) {
                         0 -> if (zv.active && zv.plan != null) ZeroHome(s, zv, add, onUndo, onReassess = { quiz = "reassess" },
                                 onWorkout = { if (zv.plan.rest || zv.todayWD?.completed == true) showCustom = true else showPlan = true },
