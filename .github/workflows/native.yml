@@ -35,9 +35,11 @@ jobs:
           if [ $rc -ne 0 ]; then grep -E "^e: |error:|What went wrong|Could not|FAILED|Exception" shots/build.log | head -30 | while IFS= read -r l; do echo "::error::$l"; done; fi
           exit 0
       - uses: actions/upload-artifact@v4
-        with: { name: native, path: shots }
+        continue-on-error: true
+        with: { name: native, path: shots, retention-days: 1 }
       - uses: actions/upload-artifact@v4
-        with: { name: apk, path: android-native/app/build/outputs/apk/dev/debug/app-dev-debug.apk, if-no-files-found: ignore }
+        continue-on-error: true
+        with: { retention-days: 1, name: apk, path: android-native/app/build/outputs/apk/dev/debug/app-dev-debug.apk, if-no-files-found: ignore }
   release:
     needs: native
     runs-on: ubuntu-24.04
