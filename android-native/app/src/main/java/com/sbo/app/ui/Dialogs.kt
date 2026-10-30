@@ -269,7 +269,7 @@ fun SettingsDialog(p: Profile, onClose: () -> Unit, onUpdate: (Profile, JsonObje
             }
             SboButton("Attiva notifiche del sistema", Lucide.Bell, variant = "secondary", onClick = onEnableNotifications)
             SboButton("Invia notifica di prova", variant = "ghost", fontSize = 12, onClick = onTestPush)
-            if (com.sbo.app.holiday.Holiday.enabledInBuild) {
+            if (com.sbo.app.holiday.Holiday.devToggle) {
                 // dev app only (web: the 🎃 button in the DEV strip)
                 val ctx = androidx.compose.ui.platform.LocalContext.current
                 val opts = listOf("halloween", "none", "auto")

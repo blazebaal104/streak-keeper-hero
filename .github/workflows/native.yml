@@ -91,6 +91,7 @@ jobs:
           disable-animations: false
           script: bash android-native/ci/shots.sh
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         if: always()
         with: { name: device, path: shots, if-no-files-found: ignore }
   web:
@@ -102,6 +103,7 @@ jobs:
           mkdir -p shots && cd android-native/ci && npm init -y >/dev/null && npm i playwright@1.48.2 >/dev/null && npx playwright install --with-deps chromium >/dev/null
           cd ../.. && node android-native/ci/web-shot.mjs
       - uses: actions/upload-artifact@v4
+        continue-on-error: true
         with: { name: web, path: shots }
   publish:
     needs: [native, web, device]

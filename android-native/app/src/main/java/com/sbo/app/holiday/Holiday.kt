@@ -21,21 +21,23 @@ import java.time.ZoneId
 
 /**
  * Holidays (port of the web sbo-holiday.ts). Halloween = 31 October, 00:00 → 1 November 00:00 local time.
- * For now only the dev app dresses up: there it's on by default and can be switched on / off / auto
- * from Settings (web: the 🎃 button in the DEV strip). The official app is untouched.
+ * Both apps dress up on the day by themselves. The dev app is on by default and can be switched
+ * on / off / auto from Settings (web: the 🎃 button in the DEV strip); the official app follows the calendar.
  */
 object Holiday {
     const val HALLOWEEN = "halloween"
     private const val PREFS = "sbo"
     private const val KEY = "devHoliday" // "auto" | "halloween" | "none"
 
-    /** Holidays are only switched on in this build (dev app). */
-    val enabledInBuild: Boolean get() = BuildConfig.DEV
+    /** Holidays are on in every build (official: by the calendar only). */
+    val enabledInBuild: Boolean get() = true
+    /** Dev app only: manual on / off / auto switch in Settings. */
+    val devToggle: Boolean get() = BuildConfig.DEV
 
     fun at(d: LocalDate): String? = if (d.monthValue == 10 && d.dayOfMonth == 31) HALLOWEEN else null
 
     fun override(ctx: Context): String =
-        if (!enabledInBuild) "auto" else ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, HALLOWEEN) ?: HALLOWEEN
+        if (!devToggle) "auto" else ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, HALLOWEEN) ?: HALLOWEEN
 
     /** Bumped when the dev override changes, so the screen re-reads it. */
     var version by mutableStateOf(0)
