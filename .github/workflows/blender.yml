@@ -31,8 +31,13 @@ jobs:
       - name: Render
         run: |
           cd android-native/blender
-          OUT=$PWD/out python render.py ${{ matrix.group }} 2>&1 | grep -E "rendered|Error|Traceback|File \"|line [0-9]+" || true
-          ls out | wc -l
+          set +e
+          OUT=$PWD/out python render.py ${{ matrix.group }} > render.log 2>&1
+          rc=$?
+          grep -E "rendered" render.log | tail -3
+          n=$(ls out 2>/dev/null | grep -c png)
+          echo "::notice::rc=$rc pngs=$n"
+          if [ $rc -ne 0 ] || [ "$n" = "0" ]; then grep -vE "^Fra|Sample|Updating|Synchroniz|Compiling|Loading" render.log | tail -25 | while IFS= read -r l; do echo "::error::$l"; done; exit 1; fi
       - name: Pack + commit
         run: |
           python android-native/blender/pack.py android-native/blender/out android-native/app/src/main/res/drawable-nodpi
