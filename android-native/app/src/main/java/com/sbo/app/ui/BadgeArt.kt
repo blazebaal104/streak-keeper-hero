@@ -116,7 +116,8 @@ fun BadgeArt(def: BadgeDef, side: Dp? = 64.dp, locked: Boolean = false, modifier
             }.graphicsLayer { alpha = 0.5f } else Modifier),
             contentAlignment = Alignment.Center,
         ) {
-            Text(def.emoji, fontSize = (px.value * 0.46f).sp, lineHeight = (px.value * 0.5f).sp, textAlign = TextAlign.Center)
+            if (def.category == "nnn") com.sbo.app.nnn.NnnEmblem(Modifier.fillMaxSize(0.82f))
+            else Text(def.emoji, fontSize = (px.value * 0.46f).sp, lineHeight = (px.value * 0.5f).sp, textAlign = TextAlign.Center)
         }
         // sparkles ✦
         for (i in 0 until sparkles) {

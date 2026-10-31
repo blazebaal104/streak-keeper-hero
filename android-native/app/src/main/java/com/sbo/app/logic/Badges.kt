@@ -56,10 +56,13 @@ object Badges {
     )
     val ALL = FIRE + ICE + WORKOUT
 
+    /** No Nut November winner (one per year): legendary, purple and gold. */
+    fun nnn(year: Int) = BadgeDef("nnn", year, Tier.legendary, "Vincitore NNN $year", "🔒", listOf(c(0x4c1d95), c(0x7c3aed), c(0xa855f7), c(0xfacc15)), ring(0xe9d5ff, .9f))
+
     /** Old rows use category "streak" for fire medals. */
     fun def(category: String, threshold: Int): BadgeDef? =
         ALL.firstOrNull { it.category == category && it.threshold == threshold }
-            ?: if (category == "streak") FIRE.firstOrNull { it.threshold == threshold } else null
+            ?: if (category == "streak") FIRE.firstOrNull { it.threshold == threshold } else if (category == "nnn") nnn(threshold) else null
 
     fun sameGroup(rowCategory: String, group: String) = rowCategory == group || (group == "fire" && rowCategory == "streak")
 }

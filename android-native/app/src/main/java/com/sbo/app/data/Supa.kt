@@ -225,6 +225,13 @@ object Supa {
     private suspend fun rpc1(fn: String, key: String, value: String) {
         client.postgrest.rpc(fn, kotlinx.serialization.json.buildJsonObject { put(key, kotlinx.serialization.json.JsonPrimitive(value)) })
     }
+    /** NNN: (still standing, everyone in the challenge) for the year. */
+    suspend fun nnnStanding(year: Int): Pair<Int, Int> {
+        val o = client.postgrest.rpc("nnn_standing", kotlinx.serialization.json.buildJsonObject { put("_year", kotlinx.serialization.json.JsonPrimitive(year)) })
+            .decodeAs<kotlinx.serialization.json.JsonObject>()
+        fun n(k: String) = (o[k] as? kotlinx.serialization.json.JsonPrimitive)?.content?.toIntOrNull() ?: 0
+        return n("up") to n("all")
+    }
     suspend fun acceptInvite(id: String) = rpc1("accept_clan_invite", "_invite_id", id)
     suspend fun declineInvite(id: String) = rpc1("decline_clan_invite", "_invite_id", id)
     suspend fun kickMember(target: String) = rpc1("kick_clan_member", "_target", target)

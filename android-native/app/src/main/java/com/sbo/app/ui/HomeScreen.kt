@@ -198,6 +198,11 @@ fun HomeContent(
     var firePulse by remember { mutableIntStateOf(0) }
     val moodDuck = remember { Animatable(0f) } // the ambient fire mood steps back while the pulse beats
     var inventory by remember { mutableStateOf(openInventory) }
+    // No Nut November: the add button is buried under protections (dev build only, until reviewed)
+    val nnnCtl = remember { com.sbo.app.nnn.NnnController() }
+    val nnnDay = com.sbo.app.nnn.Nnn.forcedToday ?: today
+    val nnnOn = com.sbo.app.nnn.Nnn.active(nnnDay)
+    val nnnStanding = nnnOn && com.sbo.app.nnn.Nnn.fallDay(s.events, nnnDay.year) == null
     val zv = remember(s.zero, s.events, s.profile?.id, today) { ZeroView(s.zero, s.profile?.id, s.events, today) }
     var quiz by remember { mutableStateOf<String?>(if (open == "quiz") "start" else null) }
     var showPlan by remember { mutableStateOf(open == "plan") }
@@ -267,8 +272,8 @@ fun HomeContent(
       } else {
         rain.burst()
         if (s.ice > 0) shatter++
-        if (s.fire > 0) firePulse++
-        s.profile?.takeIf { it.notifications_enabled }?.let { pr ->
+        if (s.fire > 0 && !nnnOn) firePulse++
+        s.profile?.takeIf { it.notifications_enabled && !nnnOn }?.let { pr ->
             val n = pr.username
             when {
                 s.today + 1 >= s.limit -> toastRef.value?.show("🌊 Fermati un attimo", com.sbo.app.logic.Phrases.slowdown(n))
@@ -319,10 +324,14 @@ fun HomeContent(
                     // AnimatedContent lays children out in a Box: tabs emit several siblings, keep them stacked
                     Column(Modifier.fillMaxWidth()) {
                     when (t) {
-                        0 -> if (zv.active && zv.plan != null) ZeroHome(s, zv, add, onUndo, onReassess = { quiz = "reassess" },
+                        0 -> {
+                            if (nnnStanding) com.sbo.app.nnn.NnnHome(p.id, s.fire, s.ice, nnnDay, nnnCtl)
+                            else if (zv.active && zv.plan != null) ZeroHome(s, zv, add, onUndo, onReassess = { quiz = "reassess" },
                                 onWorkout = { if (zv.plan.rest || zv.todayWD?.completed == true) showCustom = true else showPlan = true },
                                 onToggle = toggleExercise, onSkip = skipExercise, onCustom = { showCustom = true }, onExpand = { showPlan = true }) { inventory = it }
                             else HomeTab(s, add, onUndo, shatter) { inventory = it }
+                            if (com.sbo.app.BuildConfig.DEV) DevNnnPill { nnnCtl.debug = true }
+                        }
                         1 -> CalendarTab(s.events, s.limit, today, zero = zv.takeIf { it.active }) { dayEdit = it }
                         2 -> TrendTab(s.events, today, tip30 = tip30, tip90 = tip90, zero = zv.takeIf { it.active })
                         else -> SocialTab(
@@ -340,6 +349,7 @@ fun HomeContent(
             }
             DropRainOverlay(rain)
             FirePulse(firePulse, moodDuck)
+            if (com.sbo.app.nnn.Nnn.enabledInBuild) com.sbo.app.nnn.NnnLayer(nnnCtl, p?.id, s.fire, s.ice, nnnDay, s.badges) { onAdd() }
             val me = p
             if (me != null) {
                 Pop(showProfile) { ProfileDialog(me, s.badges, onClose = { showProfile = false }, onUpdate = onUpdateProfile, onSlot = { showProfile = false; inventory = it }, onSignOut = { showProfile = false; onSignOut() }, onToast = { toast.show(it) }) }
@@ -421,7 +431,7 @@ fun HomeContent(
             }
             if (p != null) PopOf(inventory) { slot -> InventoryDialog(
                 slot, p, s.badges, onClose = { inventory = null },
-                titles = { TitlesSection(s.events.size, com.sbo.app.ui.Titles.cleanDays(s.events, today), p.equipped_title) { id -> onUpdateProfile(p.copy(equipped_title = id), patch("equipped_title" to id)) } },
+                titles = { TitlesSection(s.events.size, com.sbo.app.ui.Titles.cleanDays(s.events, today), p.equipped_title, special = s.badges.filter { it.category == "nnn" }.map { com.sbo.app.ui.Titles.nnn(it.threshold) }) { id -> onUpdateProfile(p.copy(equipped_title = id), patch("equipped_title" to id)) } },
             ) { id ->
                 onEquip(slot, id); inventory = null
             } }
@@ -579,6 +589,18 @@ private fun TabsBar(selected: Int, onSelect: (Int) -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+/** DEV build: opens the NNN review panel. */
+@Composable
+private fun DevNnnPill(onClick: () -> Unit) {
+    Box(Modifier.fillMaxWidth().padding(top = 18.dp), contentAlignment = Alignment.Center) {
+        Text(
+            "🧪 Test NNN (solo dev)", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.clip(RoundedCornerShape(18.dp)).background(Color(0xFF2A2A31)).border(1.dp, Color(0xFFFF5252).copy(alpha = 0.5f), RoundedCornerShape(18.dp)).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 9.dp),
+        )
     }
 }
 

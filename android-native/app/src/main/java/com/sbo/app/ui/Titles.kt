@@ -97,7 +97,9 @@ object Titles {
         TitleDef("ice", 730, Tier.legendary, "Entità Glaciale Oltre il Tempo", "🪐", listOf(c(0xffffff), c(0xbae6fd), c(0x6366f1), c(0x0f172a))),
     )
     val ALL = FIRE + ICE
-    fun byId(id: String?) = ALL.firstOrNull { it.id == id }
+    /** Exclusive title for the NNN winners of [year]: legendary purple with a light sweep. */
+    fun nnn(year: Int) = TitleDef("nnn", year, Tier.legendary, "Vincitore NNN $year", "🏆", listOf(c(0xe9d5ff), c(0xc084fc), c(0x9333ea), c(0x6d28d9)))
+    fun byId(id: String?) = ALL.firstOrNull { it.id == id } ?: id?.takeIf { it.startsWith("nnn:") }?.substringAfter(":")?.toIntOrNull()?.let { nnn(it) }
     fun current(list: List<TitleDef>, total: Int) = list.lastOrNull { total >= it.threshold }
     fun next(list: List<TitleDef>, total: Int) = list.firstOrNull { total < it.threshold }
 
@@ -174,7 +176,7 @@ private fun Label(text: String) = Text(text.uppercase(), color = Sbo.mutedFg, fo
 
 /** Titles section at the bottom of the medal inventory (web TitlesSection). */
 @Composable
-fun TitlesSection(totalEvents: Int, totalClean: Int, equipped: String?, onEquip: (String?) -> Unit) {
+fun TitlesSection(totalEvents: Int, totalClean: Int, equipped: String?, special: List<TitleDef> = emptyList(), onEquip: (String?) -> Unit) {
     val eq = Titles.byId(equipped)
     Spacer(Modifier.height(24.dp))
     Box(Modifier.fillMaxWidth().height(1.dp).background(Sbo.border))
@@ -201,6 +203,27 @@ fun TitlesSection(totalEvents: Int, totalClean: Int, equipped: String?, onEquip:
         }
         Spacer(Modifier.height(4.dp))
         Text("Appare sotto il tuo nome. Tocca un titolo sbloccato qui sotto per equipaggiarlo.", color = Sbo.mutedFg, fontSize = 10.sp, lineHeight = 14.sp)
+    }
+    if (special.isNotEmpty()) {
+        Spacer(Modifier.height(16.dp))
+        Label("🏆 Titoli esclusivi")
+        Spacer(Modifier.height(8.dp))
+        special.forEach { t ->
+            val on = equipped == t.id
+            Row(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).then(if (on) Modifier.background(Sbo.primary.copy(alpha = 0.10f)) else Modifier)
+                    .border(1.dp, if (on) Sbo.primary else Color(0xFFA855F7).copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                    .clickable { onEquip(if (on) null else t.id) }.padding(horizontal = 10.dp, vertical = 11.5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(t.emoji, fontSize = 16.sp, lineHeight = 24.sp)
+                Spacer(Modifier.width(8.dp))
+                Column(Modifier.weight(1f)) {
+                    TitleBadge(t, "sm")
+                    Text("${t.tierLabel} · NNN ${t.threshold} completata", color = Sbo.mutedFg, fontSize = 10.sp, lineHeight = 14.sp)
+                }
+            }
+        }
     }
     TitleGroup("🔥 Titoli di fuoco", Titles.FIRE, totalEvents, "eventi", equipped, onEquip)
     TitleGroup("❄️ Titoli di ghiaccio", Titles.ICE, totalClean, "giorni puliti", equipped, onEquip)

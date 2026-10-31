@@ -28,7 +28,7 @@ jobs:
         run: |
           set +e
           mkdir -p shots
-          timeout 1200 gradle -p android-native assembleDevDebug testDevDebugUnitTest -Proborazzi.test.record=true --no-daemon > shots/build.log 2>&1
+          timeout 2100 gradle -p android-native assembleDevDebug testDevDebugUnitTest -Proborazzi.test.record=true --no-daemon > shots/build.log 2>&1
           rc=$?
           cp android-native/app/build/shots/*.png shots/ 2>/dev/null
           find android-native/app/build/test-results -name "*.xml" -exec cp {} shots/ \; 2>/dev/null
