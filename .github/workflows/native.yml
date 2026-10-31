@@ -43,8 +43,8 @@ jobs:
           git config user.name "github-actions[bot]" && git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
           git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
           for i in 1 2 3; do
-            git fetch -q --depth 1 origin ci-shots && git reset -q --soft FETCH_HEAD || true
-            git add -A && git commit -q -m "Native shots $D" ; git push -q origin ci-shots && break; sleep 5
+            git fetch -q --depth 1 origin ci-shots && git reset -q FETCH_HEAD || true
+            git add "$D" && git commit -q -m "Native shots $D" ; git push -q origin ci-shots && break; sleep 5
           done
       - uses: actions/upload-artifact@v4
         continue-on-error: true
@@ -133,5 +133,5 @@ jobs:
           git init -q && git checkout -q -b ci-shots
           git config user.name "github-actions[bot]" && git config user.email "41898333+github-actions[bot]@users.noreply.github.com"
           git remote add origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
-          git fetch -q --depth 1 origin ci-shots && git reset -q --soft FETCH_HEAD || true
-          git add -A && git commit -q -m "Screenshots $D (${{ github.sha }})" && git push -q origin ci-shots
+          git fetch -q --depth 1 origin ci-shots && git reset -q FETCH_HEAD || true
+          git add "$D" && git commit -q -m "Screenshots $D (${{ github.sha }})" && git push -q origin ci-shots
