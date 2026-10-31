@@ -19,7 +19,7 @@ import kotlin.random.Random
  * For now only the dev app has it; there a DEV panel can force every moment of the month for review.
  */
 object Nnn {
-    val enabledInBuild: Boolean get() = BuildConfig.DEV
+    val enabledInBuild: Boolean get() = true
 
     /** Dev review override: null = follow the calendar, else the forced date. */
     var forcedToday by mutableStateOf<LocalDate?>(null)
