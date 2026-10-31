@@ -90,9 +90,10 @@ class NnnShots {
     /** Each protection at each of its steps (2 per row), drawn over a dark plate, for close inspection. */
     @Test fun protections() {
         rule.mainClock.autoAdvance = false
-        Kind.entries.forEach { k ->
-            val rows = (k.steps + 1) / 2
-            rule.setContent {
+        val cur = androidx.compose.runtime.mutableStateOf(Kind.entries[0])
+        rule.setContent {
+                val k = cur.value
+                val rows = (k.steps + 1) / 2
                 val tex = rememberTextures()
                 Column(Modifier.fillMaxSize().background(Color(0xFF0B0B0E)).padding(6.dp)) {
                     Text("${k.label} · ${k.steps} tocchi", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(6.dp))
@@ -112,7 +113,9 @@ class NnnShots {
                         }
                     }
                 }
-            }
+        }
+        Kind.entries.forEach { k ->
+            cur.value = k
             rule.mainClock.advanceTimeBy(100)
             cap("kind-${k.name.lowercase()}")
         }
@@ -157,9 +160,11 @@ class NnnShots {
     }
 
     @Test fun fallen() {
+        val cur = androidx.compose.runtime.mutableStateOf(3)
+        rule.mainClock.autoAdvance = false
+        rule.setContent { androidx.compose.runtime.key(cur.value) { NnnFallen(cur.value) {} } }
         listOf(3, 11, 23, 30).forEach { d ->
-            rule.mainClock.autoAdvance = false
-            rule.setContent { NnnFallen(d) {} }
+            cur.value = d
             rule.mainClock.advanceTimeBy(6500)
             cap("fallen-after-${d - 1}")
         }
