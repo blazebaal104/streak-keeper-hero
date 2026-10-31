@@ -34,6 +34,7 @@ import com.sbo.app.logic.Badges
 import com.sbo.app.nnn.Kind
 import com.sbo.app.nnn.Nnn
 import com.sbo.app.nnn.NnnBreach
+import com.sbo.app.nnn.drawPile
 import com.sbo.app.nnn.NnnKickoff
 import com.sbo.app.nnn.NnnVictory
 import com.sbo.app.ui.BadgeArt
@@ -95,7 +96,7 @@ class NnnShots {
             Box(Modifier.fillMaxSize().background(Color(0xFF0B0B0E))) {
                 Canvas(Modifier.fillMaxSize()) {
                     drawCircle(Color(0xFFFF6D00), size.width * 0.22f, center)
-                    com.sbo.app.nnn.drawPile(sp, kinds, cur.value, 0, center, size.width * 0.88f, clock.value, 7)
+                    drawPile(sp, kinds, cur.value, 0, center, size.width * 0.88f, clock.value, 7)
                 }
                 Text("${cur.value}: ${kinds[cur.value].label}", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(12.dp))
             }
