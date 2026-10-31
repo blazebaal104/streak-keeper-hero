@@ -1,5 +1,6 @@
 package com.sbo.app.nnn
 
+import androidx.compose.ui.graphics.drawscope.rotate
 import android.graphics.BitmapFactory
 import android.graphics.BitmapShader
 import android.graphics.Matrix
@@ -189,7 +190,7 @@ fun DrawScope.chain(a: Offset, b: Offset, link: Float, sag: Float = 0f) {
         val c = Offset(a.x + dx * t, a.y + dy * t + sag * 4f * t * (1 - t))
         val flat = i % 2 == 0
         val w = link; val h = if (flat) link * 0.58f else link * 0.24f
-        androidx.compose.ui.graphics.drawscope.rotate(ang, c) {
+        rotate(ang, c) {
             val r = Rect(Offset(c.x - w / 2, c.y - h / 2), Size(w, h))
             drawOval(Color.Black.copy(alpha = 0.5f), r.topLeft + Offset(link * 0.08f, link * 0.12f), r.size, style = Stroke(link * 0.2f))
             drawOval(chrome(r, 70f, dark = !flat), r.topLeft, r.size, style = Stroke(link * 0.19f))

@@ -592,7 +592,6 @@ private fun TabsBar(selected: Int, onSelect: (Int) -> Unit) {
     }
 }
 
-@Composable
 /** DEV build: opens the NNN review panel. */
 @Composable
 private fun DevNnnPill(onClick: () -> Unit) {

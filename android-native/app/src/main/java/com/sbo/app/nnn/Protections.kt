@@ -354,7 +354,7 @@ private fun DrawScope.keypad(step: Int, c: Offset, u: Float, tex: Textures, t: F
     drawRoundRect(Color.White.copy(alpha = 0.08f), lcd.topLeft, Size(lcd.width, lcd.height / 2), CornerRadius(2f * u))
     // keys
     val keys = listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "✱", "0", "#")
-    val pressed = code.take(step.coerceAtMost(4)).toSet()
+    val pressed = code.take(step.coerceAtMost(4)).map { it.toString() }.toSet()
     keys.forEachIndexed { i, k ->
         val kc = c + Offset((i % 3 - 1) * 20f * u, -10f * u + (i / 3) * 15f * u)
         val down = k in pressed && step <= 4 && k == code.getOrNull(step - 1)?.toString()
