@@ -73,6 +73,10 @@ object NnnPhrases {
         "Hai guardato quel pulsante blindato per un mese intero e non l'hai toccato. Questa è disciplina vera, non chiacchiere.",
         "La medaglia e il titolo \"Vincitore NNN $year\" sono tuoi. Mettili in bella vista: te li sei guadagnati. Sono fiero di te, campione.",
     )
+    /** Whispered next to the button when you stop tapping: letter by letter, dim, close. */
+    val whisper = listOf("premilo…", "nessuno lo saprà…", "solo un attimo…", "dai…", "te lo meriti…", "ancora uno strato…", "chi vuoi prendere in giro…")
+    val whisperFinal = listOf("ora…", "è lì. nudo.", "un tocco solo…", "lo vuoi. lo sai.", "premi…")
+
     val reminders = listOf(
         "Apri SBO per controllare i numeri o parlare con Coach Zero. Non per aggiungere eventi.",
         "Se premi quel pulsante, lo sa tutto il gruppo.",

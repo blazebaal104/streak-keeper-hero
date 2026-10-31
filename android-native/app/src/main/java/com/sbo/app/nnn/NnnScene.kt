@@ -24,6 +24,9 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.sin
@@ -61,6 +64,8 @@ fun neon(t: Float, seed: Float): Float {
 fun NnnBackdrop(modifier: Modifier = Modifier, day: Int) {
     val clock = rememberClock()
     val tex = rememberTextures()
+    // every sign is drawn ONCE into a bitmap (ropes included), then only rotated each frame
+    val signCache = remember { HashMap<Int, Pair<ImageBitmap, ImageBitmap?>>() }
     Canvas(modifier.fillMaxSize()) {
         val t = clock.value
         val w = size.width; val h = size.height; val d = density
@@ -82,14 +87,38 @@ fun NnnBackdrop(modifier: Modifier = Modifier, day: Int) {
             val anchor = Offset(w * s.x, 0f)
             val len = if (s.rope < 0f) -s.rope * h else s.rope * d
             val omega = sqrt(9.81f / (len / d / 160f)).coerceIn(1.2f, 3.2f)
-            val ang = s.amp * sin(t * omega + s.phase) + 2.2f * sin(t * 0.37f + i)
-            if (s.dim < 1f) drawIntoCanvas { it.saveLayer(Rect(0f, 0f, w, h), androidx.compose.ui.graphics.Paint().apply { alpha = s.dim }) }
-            rotate(ang, anchor) { hangingSign(s, anchor, len, d, tex, t) }
-            if (s.dim < 1f) drawIntoCanvas { it.restore() }
+            // a pendulum that never repeats: the breeze changes its strength and nudges its timing
+            val drive = 0.55f + 0.45f * noise1(t * 0.13f + i * 3f, i + 1)
+            val ang = s.amp * drive * sin(t * omega + s.phase + 1.4f * noise1(t * 0.07f, i + 11)) + 2.2f * noise1(t * 0.31f + i, i + 21)
+            val key = signs.indexOf(s) * 100000 + w.toInt()
+            val (on, off) = signCache.getOrPut(key) { bakeSign(s, len, this, tex) }
+            val x0 = anchor.x - on.width / 2f
+            rotate(ang, anchor) {
+                if (off != null) {
+                    val k = neon(t, 9.1f)
+                    drawImage(off, Offset(x0, 0f), alpha = s.dim)
+                    drawImage(on, Offset(x0, 0f), alpha = s.dim * k)
+                } else drawImage(on, Offset(x0, 0f), alpha = s.dim)
+            }
         }
         // banner rippling in the wind
         windBanner(Offset(w * 0.03f, h * 0.915f), Offset(w * 0.97f, h * 0.91f), 28f * d, t, "NO NUT NOVEMBER · NO NUT NOVEMBER · NO NUT NOVEMBER")
     }
+}
+
+/** Renders one hanging sign (rope + plate) into a bitmap, hook at the top centre. Hazard boards get lit + unlit versions. */
+private fun bakeSign(s: SignSpec, len: Float, scope: DrawScope, tex: Textures): Pair<ImageBitmap, ImageBitmap?> {
+    val d = scope.density
+    val bw = (260f * d * s.scale.coerceAtLeast(0.6f)).toInt(); val bh = (len + 180f * d * s.scale.coerceAtLeast(0.6f)).toInt()
+    fun bake(t: Float): ImageBitmap {
+        val img = ImageBitmap(bw, bh)
+        CanvasDrawScope().draw(scope.drawContext.density, scope.layoutDirection, androidx.compose.ui.graphics.Canvas(img), Size(bw.toFloat(), bh.toFloat())) {
+            hangingSign(s, Offset(bw / 2f, 0f), len, d, tex, t)
+        }
+        img.prepareToDraw()
+        return img
+    }
+    return if (s.type == 2) bake(-1f) to bake(-2f) else bake(-1f) to null
 }
 
 private class SignSpec(val x: Float, val rope: Float, val amp: Float, val phase: Float, val type: Int, val scale: Float, val dim: Float = 1f)
@@ -160,7 +189,7 @@ private fun DrawScope.hangingSign(s: SignSpec, anchor: Offset, len: Float, d: Fl
                     x += 24f * d
                 }
             }
-            val on = neon(t, 9.1f)
+            val on = if (t == -2f) 0.12f else 1f // baked lit / unlit, crossfaded per frame
             label("NON PREMERE", pl.center + Offset(0f, -1f * d), 17f * d * s.scale / 0.8f, Color(0xFFFF1744).copy(alpha = 0.4f + 0.6f * on), letter = 0.14f)
             drawIntoCanvas { cv ->
                 val pp = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
@@ -175,9 +204,13 @@ private fun DrawScope.hangingSign(s: SignSpec, anchor: Offset, len: Float, d: Fl
     }
 }
 
-/** Big glowing neon lettering: blurred halos + bright core tube. */
+/** Neon lettering, baked once per text/size/colour into a bitmap (blurred halos + tube) and only faded per frame. */
+private val neonCache = HashMap<String, ImageBitmap>()
+
 fun DrawScope.neonText(text: String, c: Offset, sizePx: Float, color: Color, k: Float, d: Float, spacing: Float = 0.06f) {
-    drawIntoCanvas { cv ->
+    val key = "$text|${sizePx.toInt()}|${color.value}|$spacing"
+    val img = neonCache.getOrPut(key) {
+        if (neonCache.size > 40) neonCache.clear()
         fun paint(alpha: Int, blur: Float, col: Int, stroke: Float) = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
             this.color = col; this.alpha = alpha; textSize = sizePx; textAlign = android.graphics.Paint.Align.CENTER
             typeface = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD); letterSpacing = spacing
@@ -185,12 +218,23 @@ fun DrawScope.neonText(text: String, c: Offset, sizePx: Float, color: Color, k: 
             if (stroke > 0f) { style = android.graphics.Paint.Style.STROKE; strokeWidth = stroke }
         }
         val col = android.graphics.Color.rgb((color.red * 255).toInt(), (color.green * 255).toInt(), (color.blue * 255).toInt())
-        val y = c.y + sizePx * 0.35f
-        cv.nativeCanvas.drawText(text, c.x, y, paint((90 * k).toInt(), sizePx * 0.22f, col, 0f))
-        cv.nativeCanvas.drawText(text, c.x, y, paint((150 * k).toInt(), sizePx * 0.06f, col, sizePx * 0.03f))
-        cv.nativeCanvas.drawText(text, c.x, y, paint((255 * k).toInt(), 0f, col, sizePx * 0.022f))
-        cv.nativeCanvas.drawText(text, c.x, y, paint((230 * k).toInt(), 0f, android.graphics.Color.rgb(255, 225, 225), sizePx * 0.008f))
+        val pad = sizePx * 0.5f
+        val tw = paint(255, 0f, col, 0f).measureText(text)
+        val bw = (tw + pad * 2).toInt().coerceAtLeast(1); val bh = (sizePx * 1.3f + pad * 2).toInt()
+        val bmp = android.graphics.Bitmap.createBitmap(bw, bh, android.graphics.Bitmap.Config.ARGB_8888)
+        val cv = android.graphics.Canvas(bmp)
+        val x = bw / 2f; val y = pad + sizePx * 0.98f
+        cv.drawText(text, x, y, paint(90, sizePx * 0.22f, col, 0f))
+        cv.drawText(text, x, y, paint(150, sizePx * 0.06f, col, sizePx * 0.03f))
+        cv.drawText(text, x, y, paint(255, 0f, col, sizePx * 0.022f))
+        cv.drawText(text, x, y, paint(230, 0f, android.graphics.Color.rgb(255, 225, 225), sizePx * 0.008f))
+        bmp.prepareToDraw()
+        bmp.asImageBitmap()
     }
+    // same placement as before: c.y is where the old baseline - 0.35·size sat
+    val baseline = c.y + sizePx * 0.35f
+    val pad = sizePx * 0.5f
+    drawImage(img, Offset(c.x - img.width / 2f, baseline - pad - sizePx * 0.98f), alpha = k.coerceIn(0f, 1f))
 }
 
 /** A cloth banner hung between two points, rippling: vertical waves travel along it with light/dark folds. */
@@ -208,13 +252,27 @@ fun DrawScope.windBanner(a: Offset, b: Offset, hgt: Float, t: Float, text: Strin
         val q = Path().apply { moveTo(p0.x, p0.y); lineTo(p1.x + 0.5f, p1.y); lineTo(p1.x + 0.5f, p1.y + hgt); lineTo(p0.x, p0.y + hgt); close() }
         drawPath(q, Color(0.48f * shade, 0.02f * shade, 0.06f * shade))
     }
-    // text following the first point heights (approximate)
-    drawIntoCanvas { cv ->
-        val path = android.graphics.Path().apply { moveTo(pts[0].x, pts[0].y + hgt * 0.68f); for (p in pts.drop(1)) lineTo(p.x, p.y + hgt * 0.68f) }
+    // printed text: baked once, drawn in vertical slices that follow the cloth's waves
+    val key = "banner|$text|${hgt.toInt()}"
+    val img = neonCache.getOrPut(key) {
         val pp = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
             color = android.graphics.Color.argb(230, 255, 230, 230); textSize = hgt * 0.5f; typeface = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD); letterSpacing = 0.18f
         }
-        cv.nativeCanvas.drawTextOnPath(text, path, hgt * 0.4f, 0f, pp)
+        val bw = pp.measureText(text).toInt() + 4; val bh = (hgt).toInt()
+        val bmp = android.graphics.Bitmap.createBitmap(bw.coerceAtLeast(1), bh.coerceAtLeast(1), android.graphics.Bitmap.Config.ARGB_8888)
+        android.graphics.Canvas(bmp).drawText(text, 2f, hgt * 0.68f, pp)
+        bmp.prepareToDraw(); bmp.asImageBitmap()
+    }
+    val x0 = pts[0].x + hgt * 0.4f
+    val slices = 24
+    val sw = img.width / slices
+    for (k in 0 until slices) {
+        val sx = x0 + k * sw
+        if (sx > pts.last().x - hgt * 0.4f) break
+        val f = ((sx - pts[0].x) / (pts.last().x - pts[0].x)).coerceIn(0f, 1f)
+        val yy = pts[(f * n).toInt().coerceIn(0, n)].y
+        drawImage(img, srcOffset = androidx.compose.ui.unit.IntOffset(k * sw, 0), srcSize = androidx.compose.ui.unit.IntSize(sw + 1, img.height),
+            dstOffset = androidx.compose.ui.unit.IntOffset(sx.toInt(), yy.toInt()), dstSize = androidx.compose.ui.unit.IntSize(sw + 1, img.height))
     }
     // ropes at the ends
     drawLine(Color(0xFF8D7550), a, a + Offset(-8f * density, -30f * density), 2.4f * density, StrokeCap.Round)

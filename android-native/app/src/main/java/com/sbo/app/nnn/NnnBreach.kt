@@ -3,6 +3,7 @@ package com.sbo.app.nnn
 import android.view.HapticFeedbackConstants
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -10,9 +11,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -23,11 +24,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -45,26 +48,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.sbo.app.R
@@ -72,304 +75,242 @@ import com.sbo.app.ui.StreakButton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
-import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.random.Random
 
-/** Side of the square the protections are drawn in (the 192 dp disc sits in the middle). */
-val NNN_AREA: Dp = 260.dp
+/** The real button's disc (StreakButton), the reference every sprite is sized against: sprite side = 2 discs. */
+private val DISC = 192.dp
 
-/** Per-layer tilt so the pile never looks stacked by a machine. */
-private fun tiltOf(seed: Int, i: Int) = ((seed * 31 + i * 97) % 23 - 11).toFloat()
-
-/**
- * Draws the protection pile: the next layers under the current one, the police tape at the bottom (its loose
- * end flapping from under everything) and the current layer at [step]. Only the top few are drawn: the rest
- * are hidden under them anyway.
- */
-fun DrawScope.drawPile(kinds: List<Kind>, layer: Int, step: Int, c: Offset, u: Float, tex: Textures, t: Float, seed: Int, shake: Float = 0f) {
-    if (layer >= kinds.size) return
-    val last = kinds.lastIndex
-    val visible = (layer..minOf(layer + 2, last)).toMutableList()
-    if (last !in visible) visible += last
-    for (i in visible.sortedDescending()) {
-        val k = kinds[i]
-        val st = if (i == layer) step else 0
-        val jitter = if (i == layer) Offset(sin(t * 90f) * shake * 3f * u, cos(t * 77f) * shake * 2f * u) else Offset.Zero
-        rotate(if (k == Kind.CRIME_TAPE) 0f else tiltOf(seed, i), c) {
-            drawProtection(k, st, c + jitter, u, tex, t, seed + i * 13)
-        }
-    }
-    // the tape's loose end flaps on top of everything still on the button
-    if (layer < last) crimeTail(c, u, t, seed + last * 13)
-}
-
-private const val FRONT = 5
-
-private class Debris(val kind: Kind?, val piece: Int, val step: Int, val at: Offset, val born: Float, val vx: Float, val vy: Float, val spin: Float, val tilt: Float, val seed: Int)
-private class Stamp(val text: String, val at: Offset, val rot: Float, val size: Float, val born: Float, val dir: Offset, val red: Boolean, val bg: Boolean = false)
+private class Flying(val img: ImageBitmap?, val at: Offset, val side: Float, val born: Float, val vx: Float, val vy: Float, val spin: Float, val tilt: Float, val color: Color = Color.White, val r: Float = 0f)
+private class Shout(val img: ImageBitmap, val at: Offset, val rot: Float, val born: Float, val dir: Offset)
 
 /**
- * The breach: tapping the protected button zooms it in until it's the only thing on screen. Every tap is one
- * real action on the outermost protection (a nail, a dial number, a bolt…); when it's off it's blown away,
- * jumping up and falling off screen. Every 2–3 layers the button grows (less each time), Coach Zero's red
- * stamps and messages pile up, and after the police tape the bare button waits for the final press: a
- * shockwave blows every word away and the button shrinks back to normal. [onFall] then records the event.
+ * The breach. Tapping the protected button on the home zooms it until it's the only thing left on a nearly black
+ * screen. Every tap is one real action on the outermost protection; when one comes off it jumps up and drops
+ * off the screen and the button grows a little. Coach Zero's red shouts keep piling up, the screen turns redder
+ * and redder. Once the last protection is gone, taps are ignored for a moment (no accidental press while
+ * spamming); the next deliberate press blows everything away and "NNN PERSA" rises from the dark.
  */
 @Composable
-fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> Unit, onExit: () -> Unit, startLayer: Int = 0) {
+fun NnnBreach(
+    kinds: List<Kind>, seed: Int, fire: Int, ice: Int, day: Int, from: Rect?,
+    onFall: () -> Unit, onDone: () -> Unit, startLayer: Int = 0,
+) {
     val view = LocalView.current
-    val tex = rememberTextures()
     val clock = rememberClock()
     val scope = rememberCoroutineScope()
     var layer by remember { mutableIntStateOf(startLayer) }
     var step by remember { mutableIntStateOf(0) }
     var removed by remember { mutableIntStateOf(0) }
-    var growthLevel by remember { mutableIntStateOf(0) }
+    var phase by remember { mutableStateOf("dig") } // dig | bare | blast | lost
+    var lockedUntil by remember { mutableFloatStateOf(0f) }
     var lastTap by remember { mutableFloatStateOf(0f) }
-    var phase by remember { mutableStateOf("dig") } // dig | blast | done
-    val debris = remember { mutableStateListOf<Debris>() }
-    val stamps = remember { mutableStateListOf<Stamp>() }
+    val flying = remember { mutableStateListOf<Flying>() }
+    val shouts = remember { mutableStateListOf<Shout>() }
     val bubbles = remember { mutableStateListOf<Pair<String, Float>>() }
-    val zoom = remember { Animatable(0f) }      // 0 = home size, 1 = filling the screen
-    val grow = remember { Animatable(0f) }      // growth on top of the zoom
+    val zoom = remember { Animatable(0f) }      // 0 = where it sat on the home, 1 = centre stage
+    val grow = remember { Animatable(0f) }      // extra size earned by every layer removed
     val shake = remember { Animatable(0f) }
     val blast = remember { Animatable(0f) }
     val flash = remember { Animatable(0f) }
-    val tapTimes = remember { ArrayList<Float>() }
+    val red = remember { Animatable(0f) }       // how red the whole screen has turned
     val r = remember { Random(seed * 7 + 3) }
-    val growEvery = remember { List(20) { if ((seed + it) % 3 == 0) 3 else 2 } }
-    var nextGrowAt by remember { mutableIntStateOf(growEvery[0]) }
-    BackHandler(enabled = phase == "dig") { onExit() }
+    val sprites = rememberSprites(kinds, layer)
+    val stamps = remember { StampMaker(view.context) }
+    BackHandler(enabled = phase == "dig" || phase == "bare") { onDone() }
     LaunchedEffect(Unit) {
         lastTap = clock.value
-        zoom.animateTo(1f, spring(dampingRatio = 0.78f, stiffness = 140f))
+        zoom.animateTo(1f, spring(dampingRatio = 0.86f, stiffness = 170f))
+    }
+    // the shouting never stops while you dig: more and faster the deeper you get
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay((1400 - removed * 70L).coerceAtLeast(320L))
+            if (phase == "dig" || phase == "bare") shouts += stamps.next(r, clock.value, removed)
+        }
     }
 
-    BoxWithConstraints(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.0f))) {
-        val wPx = constraints.maxWidth.toFloat()
-        val hPx = constraints.maxHeight.toFloat()
-        val density = androidx.compose.ui.platform.LocalDensity.current.density
-        val area = NNN_AREA.value * density
-        val homeScale = 0.92f
-        val fullScale = (wPx * 0.62f / area).coerceAtMost(hPx * 0.36f / area) // leaves room to grow to ~full width
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val density = LocalDensity.current.density
+        val wPx = constraints.maxWidth.toFloat(); val hPx = constraints.maxHeight.toFloat()
+        val discPx = DISC.value * density
+        val target = Offset(wPx / 2f, hPx * 0.53f)
+        val start = from?.center ?: target
+        val startScale = (from?.width?.div(discPx * 2f) ?: 0.92f).coerceIn(0.4f, 1.2f)
+        val fullScale = (wPx * 0.56f / discPx).coerceAtMost(hPx * 0.3f / discPx)
+        fun center(): Offset = start + (target - start) * zoom.value
         fun scaleNow(): Float {
-            val z = zoom.value
-            val g = grow.value
-            val base = homeScale + (fullScale - homeScale) * z
-            return base * (1f + 0.55f * g) * (1f - 0.35f * blast.value.coerceIn(0f, 1f) * if (phase == "blast") 1f else 0f)
+            val base = startScale + (fullScale - startScale) * zoom.value
+            return base * (1f + 0.62f * grow.value)
         }
-        val center = Offset(wPx / 2f, hPx * 0.52f)
-
-        fun spawnStamp(now: Float, big: Boolean = false) {
-            if (stamps.size > 46) stamps.removeAt(0)
-            val text = NnnPhrases.stamp(r)
-            val sz = (if (big) 32f else 17f + r.nextFloat() * 14f) * density
-            val tw = text.length * sz * 0.62f + 10f * density
-            fun overlap(c: Offset): Float = stamps.filter { !it.bg }.takeLast(FRONT).sumOf { o ->
-                val ow = o.text.length * o.size * 0.62f + 10f * density
-                val ox = (minOf(c.x + tw / 2, o.at.x + ow / 2) - maxOf(c.x - tw / 2, o.at.x - ow / 2)).coerceAtLeast(0f)
-                val oy = (minOf(c.y + sz * 0.7f, o.at.y + o.size * 0.7f) - maxOf(c.y - sz * 0.7f, o.at.y - o.size * 0.7f)).coerceAtLeast(0f)
-                (ox * oy).toDouble()
-            }.toFloat()
-            val at = List(16) { Offset(wPx * (0.1f + 0.8f * r.nextFloat()), hPx * (0.26f + 0.6f * r.nextFloat())) }.minBy { overlap(it) }
-            val ang = atan2(at.y - center.y, at.x - center.x)
-            // no free spot: it goes to the dim background layer instead of printing over another phrase
-            val bg = overlap(at) > 0f
-            // keep every phrase fully on screen with a 16dp margin
-            val half = (if (bg) tw * 0.8f else tw) / 2f + 16f * density
-            val atIn = Offset(if (half * 2 >= wPx) wPx / 2 else at.x.coerceIn(half, wPx - half), at.y)
-            stamps += Stamp(text, atIn, (r.nextFloat() - 0.5f) * 22f, if (bg) sz * 0.8f else sz, now, Offset(cos(ang), sin(ang)), r.nextFloat() < 0.85f, bg)
-        }
+        stamps.bounds(wPx, hPx, density)
 
         fun tap() {
             val now = clock.value
             lastTap = now
-            tapTimes += now; while (tapTimes.isNotEmpty() && now - tapTimes.first() > 2f) tapTimes.removeAt(0)
-            if (phase != "dig") return
-            if (layer >= kinds.size) { // the bare button: final press
-                phase = "blast"
-                view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
-                scope.launch { flash.snapTo(1f); flash.animateTo(0f, tween(900)) }
-                scope.launch {
-                    blast.animateTo(1f, tween(1400, easing = FastOutSlowInEasing))
-                    phase = "done"
-                    delay(250)
+            when (phase) {
+                "bare" -> {
+                    if (now < lockedUntil) return // still spamming from the last layer: not a real press
+                    phase = "blast"
+                    view.performHapticFeedback(HapticFeedbackConstants.LONG_PRESS)
                     onFall()
+                    scope.launch { flash.snapTo(1f); flash.animateTo(0f, tween(700)) }
+                    scope.launch { grow.animateTo(0f, spring(dampingRatio = 0.6f, stiffness = 140f)) }
+                    scope.launch {
+                        blast.animateTo(1f, tween(1100, easing = FastOutSlowInEasing))
+                        phase = "lost"
+                    }
+                    return
                 }
-                scope.launch { grow.animateTo(0f, spring(dampingRatio = 0.55f, stiffness = 120f)) }
-                scope.launch { zoom.animateTo(0f, tween(1300, easing = FastOutSlowInEasing)) }
-                return
+                "dig" -> Unit
+                else -> return
             }
             val k = kinds[layer]
             step++
             view.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            scope.launch { shake.snapTo(1f); shake.animateTo(0f, tween(220)) }
-            val sc = scaleNow()
-            val u = area / 100f * sc
-            // small parts flying off on intermediate steps
-            smallPiece(k, step)?.let { (piece, off) ->
-                val n = if (piece == PIECE_SHARD) 9 else 1
-                repeat(n) { j ->
-                    debris += Debris(null, piece, 0, center + Offset(off.x * u, off.y * u), now, (r.nextFloat() - 0.5f) * 900f * density / 2.6f, -(500f + r.nextFloat() * 500f) * density / 2.6f, (r.nextFloat() - 0.5f) * 900f, r.nextFloat() * 360f, seed + j)
-                }
+            scope.launch { shake.snapTo(1f); shake.animateTo(0f, tween(200)) }
+            val c = center(); val side = discPx * 2f * scaleNow()
+            // a puff of dust/chips from where you hit it
+            repeat(7) {
+                val a = r.nextFloat() * 2f * PI.toFloat()
+                flying += Flying(null, c + Offset(cos(a), sin(a)) * side * 0.12f, 0f, now, cos(a) * (200f + r.nextFloat() * 380f) * density / 2.6f, -(300f + r.nextFloat() * 500f) * density / 2.6f, 0f, 0f,
+                    if (r.nextBoolean()) Color(0xFFBDB7AE) else Color(0xFF6E6A66), (1.5f + r.nextFloat() * 2.5f) * density)
             }
-            // spamming fills the screen with stamps
-            val rate = tapTimes.size / 2f
-            if (r.nextFloat() < (rate / 7f).coerceIn(0.08f, 0.9f)) spawnStamp(now)
+            if (r.nextFloat() < 0.55f + removed * 0.03f) shouts += stamps.next(r, now, removed)
             if (step >= k.steps) {
-                // the whole layer is blown off: jumps up, spins, falls off screen
+                // the whole thing is torn off: it jumps up, spins, and drops off the bottom of the screen
                 view.performHapticFeedback(if (android.os.Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.LONG_PRESS)
-                debris += Debris(k, -1, k.steps - 1, center, now, (r.nextFloat() - 0.5f) * 900f * density / 2.6f, -(1900f + r.nextFloat() * 300f) * density / 2.6f, (if (r.nextBoolean()) 1f else -1f) * (280f + r.nextFloat() * 260f), tiltOf(seed, layer), seed + layer * 13)
+                val img = sprites[sprites.name(k, (k.steps - 1).let { if (k == Kind.TAPE) 1 else it }, kinds.getOrNull(layer + 1))]
+                flying += Flying(img, c, side, now, (r.nextFloat() - 0.5f) * 900f * density / 2.6f, -(1800f + r.nextFloat() * 300f) * density / 2.6f, (if (r.nextBoolean()) 1f else -1f) * (220f + r.nextFloat() * 200f), tiltOf(seed, layer))
                 layer++; step = 0; removed++
-                spawnStamp(now, big = true)
+                shouts += stamps.next(r, now, removed, big = true)
                 if (removed % 2 == 0) {
                     val recent = bubbles.takeLast(4).map { it.first }.toSet()
                     bubbles += (NnnPhrases.coach.filter { it !in recent }.shuffled(r).firstOrNull() ?: NnnPhrases.coachLine(r)) to now
                 }
-                if (removed >= nextGrowAt) {
-                    growthLevel++
-                    nextGrowAt += growEvery[growthLevel.coerceAtMost(growEvery.lastIndex)]
-                    // big jumps at first, smaller and smaller: 1 - 0.68^n
-                    scope.launch { grow.animateTo(1f - 0.68f.pow(growthLevel), spring(dampingRatio = 0.62f, stiffness = 260f)) }
-                }
+                scope.launch { grow.animateTo(1f - 0.86f.pow(removed), spring(dampingRatio = 0.55f, stiffness = 220f)) }
+                scope.launch { red.animateTo((removed / kinds.size.toFloat()).coerceAtMost(1f), tween(900)) }
+                if (layer >= kinds.size) { phase = "bare"; lockedUntil = now + 1.3f }
             }
         }
 
-        // backdrop: darkness swallowing the app, red pulse
+        // ---------------- the scene (one canvas: everything is a bitmap or a cheap primitive)
         Canvas(Modifier.fillMaxSize()) {
             val t = clock.value
             val z = zoom.value
-            drawRect(Color.Black.copy(alpha = 0.88f * z))
-            drawRect(Brush.radialGradient(0f to Color(0xFF5A0010).copy(alpha = (0.35f + 0.12f * sin(t * 3f)) * z), 1f to Color.Transparent, center = center, radius = hPx * 0.6f))
+            drawRect(Color.Black.copy(alpha = 0.95f * z))
+            val c = center()
+            // the screen bleeds red as you go deeper
+            val rd = red.value
+            drawRect(Brush.radialGradient(0f to Color(0xFF7A0012).copy(alpha = (0.18f + 0.5f * rd + 0.08f * sin(t * 3f) * rd) * z), 1f to Color(0xFF2A0006).copy(alpha = (0.1f + 0.55f * rd) * z), center = c, radius = hPx * 0.75f))
         }
-        // the real button, scaled with everything else
+        // the real button underneath, scaled along with the pile
         Box(
             Modifier.fillMaxSize().graphicsLayer {
-                val s = scaleNow()
-                scaleX = s / homeScale * 0.92f; scaleY = s / homeScale * 0.92f
-                translationY = center.y - hPx / 2f
+                val s = scaleNow() * (1f - 0.12f * blast.value)
+                scaleX = s; scaleY = s
+                val c = center(); translationX = c.x - wPx / 2f; translationY = c.y - hPx / 2f
+                alpha = 1f - blast.value
             },
             contentAlignment = Alignment.Center,
         ) { StreakButton(fire, ice, onPress = {}) }
-        // protections, debris, stamps, shockwave
-        Canvas(
-            Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { tap() } },
-        ) {
+        Canvas(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { tap() } }) {
             val t = clock.value
-            val s = scaleNow()
-            val u = area / 100f * s
-            if (phase == "dig") drawPile(kinds, layer, step, center, u, tex, t, seed, shake.value)
-            // flying debris
+            val c = center()
+            val side = discPx * 2f * scaleNow()
+            val sh = shake.value
+            if (phase == "dig") drawPile(sprites, kinds, layer, step, c, side, t, seed, Offset(sin(t * 90f) * sh * 4f * density, cos(t * 77f) * sh * 3f * density))
+            // torn-off layers and chips flying with gravity
             val g = 9000f * density / 2.6f
-            debris.removeAll { t - it.born > 3.5f }
-            for (d in debris) {
-                val dt = t - d.born
-                val p = d.at + Offset(d.vx * dt, d.vy * dt + 0.5f * g * dt * dt)
-                if (p.y > size.height + 400f * density) continue
-                translate(p.x - d.at.x, p.y - d.at.y) {
-                    rotate(d.tilt + d.spin * dt, d.at) {
-                        if (d.kind != null) drawProtection(d.kind, d.step, d.at, u, tex, t, d.seed)
-                        else drawPiece(d.piece, d.at, u, tex, d.seed)
-                    }
-                }
+            flying.removeAll { t - it.born > 2.2f }
+            for (f in flying) {
+                val dt = t - f.born
+                val p = f.at + Offset(f.vx * dt, f.vy * dt + 0.5f * g * dt * dt)
+                if (p.y > size.height + f.side) continue
+                if (f.img != null) rotate(f.tilt + f.spin * dt, p) { sprite(f.img, p, f.side) }
+                else drawCircle(f.color.copy(alpha = (1f - dt / 1.2f).coerceIn(0f, 1f)), f.r, p)
             }
-            // red stamps piling up (blown outwards by the shockwave)
+            // Coach Zero's shouts, piling up; the shockwave flings them out
             val b = blast.value
-            (stamps.withIndex().sortedBy { if (it.value.bg) 0 else 1 }).forEach { (i, st) ->
-                val age = t - st.born
-                val pop = (age / 0.16f).coerceIn(0f, 1f)
-                // only the newest few stay at full strength; older and overflow ones sink back, small and faint
-                val fgRank = if (st.bg) Int.MAX_VALUE else stamps.subList(i, stamps.size).count { !it.bg } - 1
-                val depth = if (fgRank < FRONT) 0f else 1f
-                // the faint back layer: only the latest dozen, soft and see-through
-                if (depth > 0f && stamps.size - i > FRONT + 12) return@forEach
-                val sc = (1.9f - 0.9f * (1f - (1f - pop) * (1f - pop))) * (1f - 0.25f * depth)
-                val fly = b * b * 2600f * density
-                val away = if (phase != "dig") st.dir * fly else Offset.Zero
-                val a = (pop * (1f - 0.78f * depth) * (1f - b * b)).coerceIn(0f, 1f)
-                if (a <= 0f) return@forEach
-                if (phase != "dig" && b > 0.02f) for (k in 1..3) { // motion trail along the blast radius
-                    val back = st.at + st.dir * (fly * (1f - k * 0.12f))
-                    rotate(st.rot, back) { stampText(st.text, back, st.size * sc, a * 0.18f / k, st.red) }
-                }
-                rotate(st.rot + b * 90f * st.dir.x, st.at + away) {
-                    stampText(st.text, st.at + away, st.size * sc, a, st.red, blur = if (depth > 0f) 3f * density else 0f)
+            for (s in shouts) {
+                val age = t - s.born
+                val pop = (age / 0.14f).coerceIn(0f, 1f)
+                val sc = 1.7f - 0.7f * (1f - (1f - pop) * (1f - pop))
+                val away = if (phase == "blast" || phase == "lost") s.dir * (b * b * 2400f * density) else Offset.Zero
+                val a = (pop * (1f - b)).coerceIn(0f, 1f)
+                if (a <= 0f) continue
+                val p = s.at + away
+                rotate(s.rot + b * 60f * s.dir.x, p) {
+                    val w = s.img.width * sc; val h = s.img.height * sc
+                    drawImage(s.img, srcOffset = IntOffset.Zero, srcSize = IntSize(s.img.width, s.img.height), dstOffset = IntOffset((p.x - w / 2).roundToInt(), (p.y - h / 2).roundToInt()), dstSize = IntSize(w.roundToInt(), h.roundToInt()), alpha = a)
                 }
             }
-            // final press: shockwave rings + red flash
-            if (phase != "dig") {
+            if (phase == "blast" || phase == "lost") {
                 val e = 1f - (1f - b) * (1f - b) * (1f - b)
-                val rr = e * maxOf(size.width, size.height) * 1.25f
-                // white-hot core
-                drawCircle(Brush.radialGradient(0f to Color.White.copy(alpha = flash.value), 0.35f to Color(0xFFFFE0E0).copy(alpha = flash.value * 0.7f), 1f to Color.Transparent, center = center, radius = (0.15f + e) * size.width * 0.7f), (0.15f + e) * size.width * 0.7f, center)
-                // pressure ring: bright leading edge, dark refraction band behind, red halo
-                drawCircle(Brush.radialGradient(0.80f to Color.Transparent, 0.90f to Color.Black.copy(alpha = 0.35f * (1f - b)), 0.97f to Color.White.copy(alpha = 0.95f * (1f - b)), 1f to Color.Transparent, center = center, radius = rr.coerceAtLeast(1f)), rr.coerceAtLeast(1f), center)
-                drawCircle(Color(0xFFFF5252).copy(alpha = (1f - b) * 0.85f), rr * 1.04f, center, style = Stroke(18f * density * (1f - b) + 1f))
-                drawCircle(Color(0xFFFF8A80).copy(alpha = (1f - b) * 0.5f), rr * 0.62f, center, style = Stroke(5f * density * (1f - b) + 1f))
-                drawRect(Color(0xFFFF1744).copy(alpha = flash.value * 0.22f))
-                drawRect(Color.White.copy(alpha = flash.value.pow(6) * 0.9f))
-                // radial spray: sparks and shards streaking out from the button
+                val rr = e * maxOf(size.width, size.height) * 1.2f
+                drawCircle(Brush.radialGradient(0f to Color.White.copy(alpha = flash.value), 0.4f to Color(0xFFFFD0C0).copy(alpha = flash.value * 0.6f), 1f to Color.Transparent, center = c, radius = (0.12f + e) * size.width * 0.8f), (0.12f + e) * size.width * 0.8f, c)
+                drawCircle(Color(0xFFFF5252).copy(alpha = (1f - b) * 0.85f), rr, c, style = Stroke(16f * density * (1f - b) + 1f))
+                drawCircle(Color.White.copy(alpha = (1f - b) * 0.7f), rr * 0.86f, c, style = Stroke(5f * density * (1f - b) + 1f))
                 val sr = Random(seed + 77)
-                for (k in 0 until 64) {
+                for (k in 0 until 48) {
                     val a = sr.nextFloat() * 2f * PI.toFloat()
-                    val sp = 0.35f + sr.nextFloat() * 0.9f
-                    val dist = e * maxOf(size.width, size.height) * sp
-                    val dirv = Offset(cos(a), sin(a))
-                    val head = center + dirv * dist
-                    val tail = center + dirv * (dist * (0.72f + 0.1f * sr.nextFloat()))
-                    val hot = k % 3 != 0
-                    val col = if (hot) Color(0xFFFFE082) else Color(0xFFFF5252)
-                    drawLine(col.copy(alpha = (1f - b).coerceIn(0f, 1f)), tail, head, (if (hot) 2.2f else 4f) * density * (1f - 0.6f * b), StrokeCap.Round)
-                    if (!hot) rotate(a * 57f + b * 400f, head) { drawRect(Color(0xFF8E959C).copy(alpha = 1f - b), head - Offset(4f * density, 2f * density), Size(8f * density, 4f * density)) }
+                    val dist = e * maxOf(size.width, size.height) * (0.35f + sr.nextFloat() * 0.9f)
+                    val dir = Offset(cos(a), sin(a))
+                    drawLine((if (k % 3 == 0) Color(0xFFFF5252) else Color(0xFFFFE082)).copy(alpha = (1f - b).coerceIn(0f, 1f)), c + dir * dist * 0.75f, c + dir * dist, 3f * density * (1f - 0.6f * b))
                 }
+                drawRect(Color.White.copy(alpha = flash.value * flash.value * 0.7f))
             }
         }
-        // after 5 s of doubt: a big pulsing dare right under the button
-        Canvas(Modifier.fillMaxSize()) {
-            val t = clock.value
-            val idle = t - lastTap
-            if (idle > 5f && phase == "dig") {
-                val k = ((idle - 5f) / 0.6f).coerceIn(0f, 1f)
-                val pulse = 1f + 0.06f * sin(t * 5f)
-                val y = size.height - 132f * density // low, in the free band above the reply bar
-                val last = layer >= kinds.size
-                scale(pulse, Offset(size.width / 2, y)) {
-                    neonText(if (last) "ULTIMO TOCCO" else "PREMILO", Offset(size.width / 2, y), 40f * density, Color(0xFFFF1744), k * (0.8f + 0.2f * sin(t * 5f)), density, spacing = 0.14f)
-                }
-                neonText(if (last) "PENSACI BENE." else "LO SAI CHE VUOI FARLO.", Offset(size.width / 2, y + 36f * density), 15f * density, Color.White, k * 0.9f, density, spacing = 0.2f)
-            }
-        }
-        // Coach Zero writing, and you can't answer (on a solid scrim so stamps never show between bubbles)
+        // the whisper: when you stop, something next to the button tells you what to do
+        if (phase == "dig" || phase == "bare") Whisper(clock, { lastTap }, phase == "bare", Modifier.graphicsLayer {
+            val c = center(); val s = scaleNow()
+            translationX = (c.x + discPx * s * 0.62f).coerceAtMost(wPx - 150f * density)
+            translationY = c.y + discPx * s * 0.45f
+            alpha = zoom.value
+        })
+        // Coach Zero writing, and you can't answer
         Box(Modifier.fillMaxWidth().height(230.dp).graphicsLayer { alpha = zoom.value * (1f - blast.value) }.background(Brush.verticalGradient(0f to Color(0xF2050506), 0.72f to Color(0xD9050506), 1f to Color.Transparent)))
         Column(
             Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 46.dp, bottom = 10.dp).graphicsLayer {
                 alpha = zoom.value * (1f - blast.value); translationY = -blast.value * 600f
             },
             verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) { bubbles.takeLast(3).forEach { (text, born) -> CoachBubble(text, born, clock) } }
+        Row(
+            Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 18.dp, start = 16.dp, end = 16.dp).fillMaxWidth().height(44.dp)
+                .graphicsLayer { alpha = zoom.value * (1f - blast.value) }
+                .clip(RoundedCornerShape(22.dp)).background(Color(0xFF151518)).border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(22.dp)).padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            bubbles.takeLast(3).forEach { (text, born) -> CoachBubble(text, born, clock) }
+            Text("🔒", fontSize = 14.sp)
+            Spacer(Modifier.width(8.dp))
+            Text("Non puoi rispondere: dovresti uscire da qui.", color = Color.White.copy(alpha = 0.45f), fontSize = 13.sp)
         }
-        // hint after 5 s of doubt, and the locked reply bar
-        Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 18.dp).graphicsLayer { alpha = zoom.value * (1f - blast.value) }, horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(12.dp))
-            Row(
-                Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(44.dp).clip(RoundedCornerShape(22.dp)).background(Color(0xFF151518)).border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(22.dp)).padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("🔒", fontSize = 14.sp)
-                Spacer(Modifier.width(8.dp))
-                Text("Non puoi rispondere: dovresti uscire da qui.", color = Color.White.copy(alpha = 0.45f), fontSize = 13.sp)
-            }
-        }
-        // escape hatch while digging
         if (phase == "dig") Text(
             "Esci", color = Color.White.copy(alpha = 0.55f), fontSize = 13.sp,
             modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 4.dp, end = 4.dp).clip(CircleShape)
-                .clickable(remember { MutableInteractionSource() }, null) { onExit() }.padding(10.dp).graphicsLayer { alpha = zoom.value },
+                .clickable(remember { MutableInteractionSource() }, null) { onDone() }.padding(10.dp).graphicsLayer { alpha = zoom.value },
         )
+        if (phase == "lost") NnnLost(day, onDone)
+    }
+}
+
+/** The pile on the home: the real button under its protections, the tape's end swinging. */
+@Composable
+fun ProtectedButton(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, modifier: Modifier = Modifier, onBounds: (Rect) -> Unit = {}, onTap: () -> Unit) {
+    val sprites = rememberSprites(kinds, 0)
+    val clock = rememberClock()
+    Box(
+        modifier.requiredSize(DISC * 1.84f).onGloballyPositioned { onBounds(it.boundsInRoot()) }.pointerInput(Unit) { detectTapGestures { onTap() } },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.requiredSize(340.dp, DISC + 56.dp).graphicsLayer { scaleX = 0.92f; scaleY = 0.92f }, contentAlignment = Alignment.Center) { StreakButton(fire, ice, onPress = {}) }
+        Canvas(Modifier.requiredSize(DISC * 1.84f)) {
+            drawPile(sprites, kinds, 0, 0, center, size.width, clock.value, seed)
+        }
     }
 }
 
@@ -392,101 +333,69 @@ private fun CoachBubble(text: String, born: Float, clock: androidx.compose.runti
     }
 }
 
-/** A red rubber-stamp shout: heavy condensed caps with a dark outline and a soft glow. */
-fun DrawScope.stampText(text: String, at: Offset, sizePx: Float, alpha: Float, red: Boolean, blur: Float = 0f) {
-    drawIntoCanvas { c ->
-        val tf = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD)
-        val col = if (red) android.graphics.Color.rgb(255, 23, 68) else android.graphics.Color.WHITE
-        val glow = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            color = col; this.alpha = (110 * alpha).toInt(); textSize = sizePx; textAlign = android.graphics.Paint.Align.CENTER; typeface = tf
-            maskFilter = android.graphics.BlurMaskFilter(sizePx * 0.35f, android.graphics.BlurMaskFilter.Blur.NORMAL); letterSpacing = 0.04f
-        }
-        val outline = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            color = android.graphics.Color.BLACK; this.alpha = (220 * alpha).toInt(); textSize = sizePx; textAlign = android.graphics.Paint.Align.CENTER; typeface = tf
-            style = android.graphics.Paint.Style.STROKE; strokeWidth = sizePx * 0.12f; strokeJoin = android.graphics.Paint.Join.ROUND; letterSpacing = 0.04f
-        }
-        val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
-            color = col; this.alpha = (255 * alpha).toInt(); textSize = sizePx; textAlign = android.graphics.Paint.Align.CENTER; typeface = tf; letterSpacing = 0.04f
-            if (blur > 0f) maskFilter = android.graphics.BlurMaskFilter(blur, android.graphics.BlurMaskFilter.Blur.NORMAL)
-        }
-        val y = at.y + sizePx * 0.35f
-        if (blur > 0f) { c.nativeCanvas.drawText(text, at.x, y, fill); return@drawIntoCanvas } // soft back layer: no outline, no halo
-        c.nativeCanvas.drawText(text, at.x, y, glow)
-        c.nativeCanvas.drawText(text, at.x, y, outline)
-        c.nativeCanvas.drawText(text, at.x, y, fill)
-    }
-}
-
-// ---------------------------------------------------------------- small flying parts
-
-const val PIECE_NAIL = 0
-const val PIECE_BOLT = 1
-const val PIECE_SHARD = 2
-const val PIECE_TIE = 3
-const val PIECE_BRICK = 4
-const val PIECE_BAG = 5
-const val PIECE_TAPE = 6
-const val PIECE_POLICE = 7
-
-/** Which small part flies off at intermediate [step] of [k] (offset in units from the centre), if any. */
-private fun smallPiece(k: Kind, step: Int): Pair<Int, Offset>? = when (k) {
-    Kind.BEAM -> if (step < 3) PIECE_NAIL to Offset(if (step == 1) -42f else 42f, 0f) else null
-    Kind.STEEL_PLATE -> if (step <= 4) PIECE_BOLT to listOf(Offset(-40f, -40f), Offset(40f, -40f), Offset(40f, 40f), Offset(-40f, 40f))[step - 1] else null
-    Kind.GLASS_CASE -> if (step == 2) PIECE_SHARD to Offset(0f, 4f) else null
-    Kind.ZIP_TIES -> if (step < 3) PIECE_TIE to Offset(40f, 0f) else null
-    Kind.BRICKS -> if (step < 4) PIECE_BRICK to listOf(Offset(-10f, -10f), Offset(18f, -24f), Offset(4f, 16f))[step - 1] else null
-    Kind.SANDBAGS -> if (step < 3) PIECE_BAG to Offset(0f, -14f) else null
-    Kind.DUCT_TAPE -> if (step < 3) PIECE_TAPE to Offset(0f, 0f) else null
-    Kind.CRIME_TAPE -> if (step < 3) PIECE_POLICE to Offset(0f, 0f) else null
-    else -> null
-}
-
-private fun DrawScope.drawPiece(piece: Int, c: Offset, u: Float, tex: Textures, seed: Int) {
-    when (piece) {
-        PIECE_NAIL -> {
-            drawLine(chrome(androidx.compose.ui.geometry.Rect(c, 12f * u), 0f), c, c + Offset(0f, 22f * u), 1.6f * u, StrokeCap.Round)
-            nail(c, 3.6f * u, false)
-        }
-        PIECE_BOLT -> {
-            drawRect(chrome(androidx.compose.ui.geometry.Rect(c, 10f * u), 90f), c + Offset(-2f * u, 0f), Size(4f * u, 16f * u))
-            for (k in 0 until 6) drawLine(Color.Black.copy(alpha = 0.4f), c + Offset(-2f * u, (2f + k * 2.4f) * u), c + Offset(2f * u, (3.2f + k * 2.4f) * u), 0.5f * u)
-            bolt(c, 5.2f * u)
-        }
-        PIECE_SHARD -> {
-            val r = Random(seed)
-            val p = Path().apply { moveTo(c.x, c.y); lineTo(c.x + (6f + r.nextFloat() * 10f) * u, c.y + r.nextFloat() * 6f * u); lineTo(c.x + r.nextFloat() * 6f * u, c.y + (8f + r.nextFloat() * 10f) * u); close() }
-            drawPath(p, Color(0x88D7F3FF)); drawPath(p, Color.White.copy(alpha = 0.8f), style = Stroke(0.5f * u))
-        }
-        PIECE_TIE -> {
-            drawLine(Color(0xFF151618), c, c + Offset(28f * u, 6f * u), 4.6f * u, StrokeCap.Butt)
-            drawRoundRect(Color(0xFF0E0F10), c + Offset(-5f * u, -4f * u), Size(10f * u, 8f * u))
-        }
-        PIECE_BRICK -> {
-            val b = androidx.compose.ui.geometry.Rect(c.x - 12f * u, c.y - 6f * u, c.x + 12f * u, c.y + 6f * u)
-            solid(Path().apply { addRect(b) }, tex.brush("red_brick", 120f * u, 0f, Offset(seed * 9f, 0f), Color(0xFF8E3B2A)), b, 0.8f * u)
-        }
-        PIECE_BAG -> {
-            val p = Path().apply { addOval(androidx.compose.ui.geometry.Rect(c.x - 34f * u, c.y - 18f * u, c.x + 34f * u, c.y + 18f * u)) }
-            solid(p, tex.brush("hessian_230", 34f * u, 0f, Offset.Zero, Color(0xFFB09A72)), androidx.compose.ui.geometry.Rect(c.x - 34f * u, c.y - 18f * u, c.x + 34f * u, c.y + 18f * u), 2f * u, tint = Color(0xFFE2CFA6))
-        }
-        PIECE_TAPE -> {
-            val b = androidx.compose.ui.geometry.Rect(c.x - 60f * u, c.y - 9f * u, c.x + 60f * u, c.y + 9f * u)
-            drawRect(Brush.verticalGradient(0f to Color(0xFFC3C8CD), 1f to Color(0xFF8E949A), startY = b.top, endY = b.bottom), b.topLeft, b.size)
-        }
-        PIECE_POLICE -> tapeStrip(c + Offset(-70f * u, 0f), c + Offset(70f * u, 0f), 14f * u, u, seed.toFloat())
-    }
-}
-
-/** The protected button as seen on the NNN home: the pile on top of the real button, slightly breathing. */
+/**
+ * The whisper next to the button: after a few seconds of hesitation, dim italic words type themselves out
+ * letter by letter, linger, and fade — like someone leaning in to your ear.
+ */
 @Composable
-fun ProtectedButton(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, modifier: Modifier = Modifier, onTap: () -> Unit) {
-    val tex = rememberTextures()
-    val clock = rememberClock()
-    Box(modifier.requiredSize(NNN_AREA + 60.dp).pointerInput(Unit) { detectTapGestures { onTap() } }, contentAlignment = Alignment.Center) {
-        Box(Modifier.graphicsLayer { scaleX = 0.92f; scaleY = 0.92f }, contentAlignment = Alignment.Center) { StreakButton(fire, ice, onPress = {}) }
-        Canvas(Modifier.requiredSize(NNN_AREA + 60.dp)) {
-            val u = NNN_AREA.toPx() / 100f * 0.92f
-            drawPile(kinds, 0, 0, center, u, tex, clock.value, seed)
+private fun Whisper(clock: androidx.compose.runtime.State<Float>, lastTap: () -> Float, bare: Boolean, modifier: Modifier) {
+    var text by remember { mutableStateOf("") }
+    var alpha by remember { mutableFloatStateOf(0f) }
+    LaunchedEffect(bare) {
+        val lines = if (bare) NnnPhrases.whisperFinal else NnnPhrases.whisper
+        var i = 0
+        while (true) {
+            delay(250)
+            if (clock.value - lastTap() < 5f) { text = ""; alpha = 0f; continue }
+            val line = lines[i++ % lines.size]
+            alpha = 1f
+            for (n in 1..line.length) {
+                if (clock.value - lastTap() < 5f) break
+                text = line.take(n)
+                delay(if (line[n - 1] == ' ') 40L else 70L + (n * 37 % 50))
+            }
+            delay(1600)
+            repeat(10) { alpha -= 0.1f; delay(45) }
+            text = ""; delay(700)
         }
+    }
+    Box(modifier) {
+        Text(
+            text, color = Color(0xFFB9B4BE).copy(alpha = 0.78f * alpha.coerceIn(0f, 1f)), fontSize = 17.sp, lineHeight = 22.sp,
+            fontFamily = FontFamily.Serif, fontStyle = FontStyle.Italic, letterSpacing = 0.6.sp, modifier = Modifier.widthIn(max = 150.dp),
+        )
+    }
+}
+
+/** Coach Zero's shouts, each pre-rendered once into a small bitmap (glow + outline + fill) so drawing them is free. */
+private class StampMaker(ctx: android.content.Context) {
+    private val tf = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD)
+    private var w = 1000f; private var h = 2000f; private var d = 2.6f
+    fun bounds(w: Float, h: Float, d: Float) { this.w = w; this.h = h; this.d = d }
+
+    fun next(r: Random, now: Float, depth: Int, big: Boolean = false): Shout {
+        val text = NnnPhrases.stamp(r)
+        val size = (if (big) 34f else 16f + r.nextFloat() * (14f + depth)) * d
+        val red = r.nextFloat() < 0.82f
+        val img = render(text, size, red)
+        val at = Offset(w * (0.08f + 0.84f * r.nextFloat()), h * (0.22f + 0.66f * r.nextFloat()))
+        val ang = kotlin.math.atan2(at.y - h * 0.53f, at.x - w / 2f)
+        return Shout(img, at, (r.nextFloat() - 0.5f) * 26f, now, Offset(cos(ang), sin(ang)))
+    }
+
+    private fun render(text: String, size: Float, red: Boolean): ImageBitmap {
+        val col = if (red) android.graphics.Color.rgb(255, 23, 68) else android.graphics.Color.WHITE
+        val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = col; textSize = size; typeface = tf; letterSpacing = 0.04f; textAlign = android.graphics.Paint.Align.CENTER }
+        val tw = fill.measureText(text)
+        val pad = size * 0.6f
+        val bw = (tw + pad * 2).toInt().coerceAtLeast(1); val bh = (size * 1.2f + pad * 2).toInt()
+        val bmp = android.graphics.Bitmap.createBitmap(bw, bh, android.graphics.Bitmap.Config.ARGB_8888)
+        val c = android.graphics.Canvas(bmp)
+        val x = bw / 2f; val y = bh / 2f + size * 0.35f
+        c.drawText(text, x, y, android.graphics.Paint(fill).apply { alpha = 110; maskFilter = android.graphics.BlurMaskFilter(size * 0.35f, android.graphics.BlurMaskFilter.Blur.NORMAL) })
+        c.drawText(text, x, y, android.graphics.Paint(fill).apply { color = android.graphics.Color.BLACK; alpha = 220; style = android.graphics.Paint.Style.STROKE; strokeWidth = size * 0.12f; strokeJoin = android.graphics.Paint.Join.ROUND })
+        c.drawText(text, x, y, fill)
+        bmp.prepareToDraw()
+        return bmp.asImageBitmap()
     }
 }

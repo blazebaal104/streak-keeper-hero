@@ -34,11 +34,8 @@ import com.sbo.app.logic.Badges
 import com.sbo.app.nnn.Kind
 import com.sbo.app.nnn.Nnn
 import com.sbo.app.nnn.NnnBreach
-import com.sbo.app.nnn.NnnFallen
 import com.sbo.app.nnn.NnnKickoff
 import com.sbo.app.nnn.NnnVictory
-import com.sbo.app.nnn.drawProtection
-import com.sbo.app.nnn.rememberTextures
 import com.sbo.app.ui.BadgeArt
 import com.sbo.app.ui.HomeContent
 import com.sbo.app.ui.HomeState
@@ -87,38 +84,28 @@ class NnnShots {
 
     @Test fun kickoffOnHome() { home(1, seenKickoff = false); frames("kickoff-home", 900, 5000) }
 
-    /** Each protection at each of its steps (2 per row), drawn over a dark plate, for close inspection. */
-    @Test fun protections() {
+    /** The pile as on the home, for every layer depth (sprites rendered in Blender). */
+    @Test fun piles() {
+        val kinds = Nnn.sequence("d0", 2026)
         rule.mainClock.autoAdvance = false
-        val cur = androidx.compose.runtime.mutableStateOf(Kind.entries[0])
+        val cur = androidx.compose.runtime.mutableStateOf(0)
         rule.setContent {
-                val k = cur.value
-                val rows = (k.steps + 1) / 2
-                val tex = rememberTextures()
-                Column(Modifier.fillMaxSize().background(Color(0xFF0B0B0E)).padding(6.dp)) {
-                    Text("${k.label} · ${k.steps} tocchi", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(6.dp))
-                    for (row in 0 until rows) Row {
-                        for (col in 0..1) {
-                            val st = row * 2 + col
-                            Box(Modifier.size(199.dp, 199.dp).padding(3.dp).background(Brush.radialGradient(listOf(Color(0xFF2A1015), Color(0xFF0B0B0E)))), contentAlignment = Alignment.TopStart) {
-                                if (st < k.steps) {
-                                    Canvas(Modifier.fillMaxSize()) {
-                                        val c = Offset(size.width / 2, size.height / 2)
-                                        drawCircle(Color(0xFFFF6D00), size.minDimension * 0.30f, c)
-                                        drawProtection(k, st, c, size.minDimension / 100f * 0.78f, tex, 1.3f, 7)
-                                    }
-                                    Text("tocco ${st + 1}", color = Color.White.copy(alpha = 0.7f), fontSize = 11.sp, modifier = Modifier.padding(4.dp))
-                                }
-                            }
-                        }
-                    }
+            val sp = com.sbo.app.nnn.rememberSprites(kinds, cur.value)
+            val clock = com.sbo.app.nnn.rememberClock()
+            Box(Modifier.fillMaxSize().background(Color(0xFF0B0B0E))) {
+                Canvas(Modifier.fillMaxSize()) {
+                    drawCircle(Color(0xFFFF6D00), size.width * 0.22f, center)
+                    com.sbo.app.nnn.drawPile(sp, kinds, cur.value, 0, center, size.width * 0.88f, clock.value, 7)
                 }
+                Text("${cur.value}: ${kinds[cur.value].label}", color = Color.White, fontSize = 16.sp, modifier = Modifier.padding(12.dp))
+            }
         }
-        Kind.entries.forEach { k ->
-            rule.runOnUiThread { cur.value = k }
+        for (l in 0 until kinds.size) {
+            rule.runOnUiThread { cur.value = l }
             androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()
+            Thread.sleep(400) // sprites decode off the main thread
             rule.mainClock.advanceTimeBy(100); rule.mainClock.advanceTimeBy(100)
-            cap("kind-${k.name.lowercase()}")
+            cap("pile-${"%02d".format(l)}-${kinds[l].id}")
         }
     }
 
@@ -127,7 +114,7 @@ class NnnShots {
         val kinds = Nnn.sequence("d0", 2026)
         rule.mainClock.autoAdvance = false
         var fell = false
-        rule.setContent { CompositionLocalProvider(LocalFireStill provides R.drawable.fire_still_2) { NnnBreach(kinds, 1234, 12, 0, onFall = { fell = true }, onExit = {}) } }
+        rule.setContent { CompositionLocalProvider(LocalFireStill provides R.drawable.fire_still_2) { NnnBreach(kinds, 1234, 12, 0, day = 6, from = null, onFall = { fell = true }, onDone = {}) } }
         frames("breach-zoom", 60, 160, 300, 600, 1200)
         rule.mainClock.advanceTimeBy(5200); cap("breach-idle-hint")
         val total = kinds.sumOf { it.steps }
@@ -156,14 +143,14 @@ class NnnShots {
     @Test fun breachLastLayers() {
         val kinds = Nnn.sequence("d0", 2026)
         rule.mainClock.autoAdvance = false
-        rule.setContent { CompositionLocalProvider(LocalFireStill provides R.drawable.fire_still_2) { NnnBreach(kinds, 99, 12, 0, onFall = {}, onExit = {}, startLayer = Nnn.LAYERS - 1) } }
+        rule.setContent { CompositionLocalProvider(LocalFireStill provides R.drawable.fire_still_2) { NnnBreach(kinds, 99, 12, 0, day = 6, from = null, onFall = {}, onDone = {}, startLayer = Nnn.LAYERS - 1) } }
         frames("tape", 1200, 1600, 2000)
     }
 
     @Test fun fallen() {
         val cur = androidx.compose.runtime.mutableStateOf(3)
         rule.mainClock.autoAdvance = false
-        rule.setContent { androidx.compose.runtime.key(cur.value) { NnnFallen(cur.value) {} } }
+        rule.setContent { androidx.compose.runtime.key(cur.value) { com.sbo.app.nnn.NnnLost(cur.value) {} } }
         listOf(3, 11, 23, 30).forEach { d ->
             rule.runOnUiThread { cur.value = d }
             androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()
@@ -171,7 +158,7 @@ class NnnShots {
             cap("fallen-after-${d - 1}")
         }
     }
-    @Test fun fallenMotion() { rule.mainClock.autoAdvance = false; rule.setContent { NnnFallen(3) {} }; frames("fallen-motion", 200, 700, 1800, 3200) }
+    @Test fun fallenMotion() { rule.mainClock.autoAdvance = false; rule.setContent { com.sbo.app.nnn.NnnLost(3) {} }; frames("fallen-motion", 200, 700, 1800, 3200) }
 
     @Test fun victory() {
         rule.mainClock.autoAdvance = false

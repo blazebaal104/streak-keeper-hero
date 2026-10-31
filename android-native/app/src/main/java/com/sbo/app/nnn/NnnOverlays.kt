@@ -32,6 +32,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -116,33 +118,64 @@ fun NnnKickoff(onAccept: () -> Unit) {
     }
 }
 
-/** Right after the fall: the verdict and Coach Zero's reaction, harsher the sooner you broke. */
+/**
+ * The fall. Everything has been blown away; out of the black, "NNN PERSA" rises from far behind the screen,
+ * tilting up and settling with a heavy overshoot. Then Coach Zero starts writing right over it — the title sinks
+ * back into the dark behind his messages — harsher the sooner you broke.
+ */
 @Composable
-fun NnnFallen(day: Int, onClose: () -> Unit) {
+fun NnnLost(day: Int, onClose: () -> Unit) {
     BackHandler { onClose() }
     val lasted = (day - 1).coerceAtLeast(0)
-    val clock = rememberClock()
-    val enter = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { enter.animateTo(1f, tween(500)) }
-    Box(Modifier.fillMaxSize().graphicsLayer { alpha = enter.value }.background(Color(0xF5070000)).clickable(remember { MutableInteractionSource() }, null) {}) {
-        Canvas(Modifier.fillMaxSize()) {
-            val t = clock.value
-            drawRect(Brush.radialGradient(0f to Color(0xFF700010).copy(alpha = 0.55f + 0.1f * sin(t * 2f)), 1f to Color.Transparent, center = Offset(size.width / 2, size.height * 0.18f), radius = size.height * 0.55f))
-            neonText("NNN PERSA", Offset(size.width / 2, size.height * 0.12f), size.width * 0.15f, Color(0xFFFF1744), neon(t, 2.2f), density)
-            val mid = Offset(size.width / 2, size.height * 0.33f)
-            val uu = size.width / 260f
-            tapeStrip(Offset(-20f * uu, mid.y - 70f * uu), Offset(size.width + 20f * uu, mid.y + 40f * uu), 26f * uu, uu, t * 0.2f)
-            tapeStrip(Offset(-20f * uu, mid.y + 50f * uu), Offset(size.width + 20f * uu, mid.y - 60f * uu), 26f * uu, uu, t * 0.2f + 0.5f)
-            val knot = Offset(size.width * 0.5f, mid.y - 8f * uu)
-            rotate(100f, knot) { flappingTape(knot, uu, t, 5, 120f, 14f) }
-            neonText(if (lasted == 0) "IL PRIMO GIORNO" else "DOPO $lasted ${if (lasted == 1) "GIORNO" else "GIORNI"}", Offset(size.width / 2, size.height * 0.12f + size.width * 0.13f), size.width * 0.06f, Color(0xFFFFCDD2), 0.85f, density, spacing = 0.25f)
+    val black = remember { Animatable(0f) }
+    val rise = remember { Animatable(0f) }
+    val sub = remember { Animatable(0f) }
+    val sink = remember { Animatable(0f) }
+    var coach by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        black.animateTo(1f, tween(420, easing = FastOutSlowInEasing))
+        rise.animateTo(1f, spring(dampingRatio = 0.58f, stiffness = 55f))
+    }
+    LaunchedEffect(Unit) {
+        delay(1150); sub.animateTo(1f, tween(500, easing = FastOutSlowInEasing))
+        delay(500); coach = true
+        sink.animateTo(1f, tween(900, easing = FastOutSlowInEasing))
+    }
+    val density = LocalDensity.current.density
+    Box(Modifier.fillMaxSize().graphicsLayer { alpha = black.value }.background(Color.Black).clickable(remember { MutableInteractionSource() }, null) {}) {
+        // a low red glow behind the title (static gradient: costs nothing)
+        Box(Modifier.fillMaxSize().graphicsLayer { alpha = rise.value.coerceIn(0f, 1f) * (1f - 0.55f * sink.value) }
+            .background(Brush.radialGradient(0f to Color(0xFF5C0010), 0.55f to Color(0xFF1A0004), 1f to Color.Black, center = Offset.Unspecified, radius = 900f)))
+        Column(
+            Modifier.fillMaxWidth().align(Alignment.Center).padding(bottom = 120.dp).graphicsLayer {
+                val k = rise.value
+                // from deep behind the glass: tiny, tilted back, dark → full size, upright
+                val s = 0.18f + 0.82f * k
+                scaleX = s * (1f - 0.08f * sink.value); scaleY = s * (1f - 0.08f * sink.value)
+                rotationX = (1f - k).coerceAtLeast(-0.2f) * 75f
+                cameraDistance = 14f * density
+                translationY = (1f - k) * 160f * density - sink.value * 40f * density
+                alpha = (k * 1.8f).coerceIn(0f, 1f) * (1f - 0.62f * sink.value)
+                compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+            },
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            val glow = androidx.compose.ui.text.TextStyle(shadow = androidx.compose.ui.graphics.Shadow(Color(0xFFFF1744), Offset.Zero, 46f))
+            Text("NNN", color = Color(0xFFFF2D55), fontSize = 112.sp, lineHeight = 112.sp, fontWeight = FontWeight.Black, letterSpacing = 6.sp, style = glow)
+            Text("PERSA", color = Color(0xFFFFE3E8), fontSize = 54.sp, lineHeight = 58.sp, fontWeight = FontWeight.Black, letterSpacing = 14.sp, style = glow)
+            Spacer(Modifier.height(14.dp))
+            Text(
+                if (lasted == 0) "IL PRIMO GIORNO" else "DOPO $lasted ${if (lasted == 1) "GIORNO" else "GIORNI"}",
+                color = Color.White.copy(alpha = 0.7f), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 5.sp,
+                modifier = Modifier.graphicsLayer { alpha = sub.value; translationY = (1f - sub.value) * 18f * density },
+            )
         }
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp), verticalArrangement = Arrangement.Bottom) {
-            CoachLines(NnnPhrases.reaction(lasted), angry = lasted < 15 || lasted >= 29)
+            if (coach) CoachLines(NnnPhrases.reaction(lasted), angry = lasted < 15 || lasted >= 29, startDelay = 150)
             Spacer(Modifier.height(14.dp))
-            Text("Tutto il gruppo è stato avvisato.", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())
+            Text("Tutto il gruppo è stato avvisato.", color = Color.White.copy(alpha = 0.45f), fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().graphicsLayer { alpha = sink.value })
             Spacer(Modifier.height(10.dp))
-            SboButton("Ok…", variant = "secondary", onClick = onClose)
+            Box(Modifier.graphicsLayer { alpha = sink.value }) { SboButton("Ok…", variant = "secondary", onClick = onClose) }
             Spacer(Modifier.height(18.dp))
         }
     }

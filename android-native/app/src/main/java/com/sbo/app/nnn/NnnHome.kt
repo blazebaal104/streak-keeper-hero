@@ -50,6 +50,7 @@ class NnnController {
     var victory by mutableStateOf<Int?>(null)
     var medal by mutableStateOf(false)
     var debug by mutableStateOf(false)
+    var from by mutableStateOf<androidx.compose.ui.geometry.Rect?>(null)   // where the pile sits on the home
 }
 
 /**
@@ -66,7 +67,7 @@ fun NnnHome(userId: String, fire: Int, ice: Int, today: LocalDate, ctl: NnnContr
         NnnBackdrop(Modifier.matchParentSize(), today.dayOfMonth)
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(238.dp))
-            ProtectedButton(kinds, seed, fire, ice) { ctl.preview = false; ctl.startLayer = 0; ctl.breach = true }
+            ProtectedButton(kinds, seed, fire, ice, onBounds = { ctl.from = it }) { ctl.preview = false; ctl.startLayer = 0; ctl.breach = true }
             Spacer(Modifier.height(36.dp))
             Text(
                 NnnPhrases.reminders[today.dayOfMonth % NnnPhrases.reminders.size], color = Color.White.copy(alpha = 0.78f), fontSize = 13.sp, lineHeight = 18.sp,
@@ -94,15 +95,11 @@ fun NnnLayer(ctl: NnnController, userId: String?, fire: Int, ice: Int, today: Lo
     val kinds = remember(userId, year, Nnn.seedSalt) { Nnn.sequence(userId ?: "x", year) }
     val seed = remember(userId, Nnn.seedSalt) { ((userId ?: "x").hashCode() + Nnn.seedSalt * 977) and 0xffff }
     if (ctl.breach) NnnBreach(
-        kinds, seed, fire, ice, startLayer = ctl.startLayer,
-        onExit = { ctl.breach = false },
-        onFall = {
-            ctl.breach = false
-            if (!ctl.preview) onRealFall()
-            ctl.fallenDay = today.dayOfMonth
-        },
+        kinds, seed, fire, ice, day = today.dayOfMonth, from = ctl.from, startLayer = ctl.startLayer,
+        onFall = { if (!ctl.preview) onRealFall() },
+        onDone = { ctl.breach = false },
     )
-    ctl.fallenDay?.let { d -> NnnFallen(d) { ctl.fallenDay = null } }
+    ctl.fallenDay?.let { d -> NnnLost(d) { ctl.fallenDay = null } }
     if (ctl.kickoff) NnnKickoff { Nnn.markKickoff(ctx, year); ctl.kickoff = false }
     ctl.victory?.let { y -> NnnVictory(y) { Nnn.markParty(ctx, y); ctl.victory = null } }
     Pop(ctl.medal) {

@@ -43,16 +43,16 @@ object Nnn {
     }
 
     /**
-     * Protection sequence for this user, in removal order: different for everyone, stable through the month.
-     * The police tape is always the last one, right on the button (its loose end flaps out from under the pile).
+     * Protection sequence for this user, outermost first: different for everyone, stable through the month.
+     * The police tape always comes first: it is wound round the whole pile, so it's the first thing to tear off.
      */
     fun sequence(userId: String, year: Int): List<Kind> {
         val r = Random((userId + year + seedSalt).hashCode())
-        val pool = Kind.entries.filter { it != Kind.CRIME_TAPE }.shuffled(r)
-        return pool.take(LAYERS - 1) + Kind.CRIME_TAPE
+        val pool = Kind.entries.filter { it != Kind.TAPE }.shuffled(r)
+        return listOf(Kind.TAPE) + pool.take(LAYERS - 1)
     }
 
-    /** Number of layers on the button (outermost included). Enough to feel endless, few enough to finish. */
+    /** Number of layers on the button (tape included). Enough to feel endless, few enough to finish. */
     const val LAYERS = 14
 
     private const val SEEN = "nnn-seen"
@@ -63,29 +63,25 @@ object Nnn {
 }
 
 /**
- * Every protection is a different everyday object that really is used to lock or seal something.
- * [steps] = the real actions needed to get it off, one tap each; the last one always lifts the object away.
+ * Every protection is a real everyday object that really is used to lock or seal something, pre-rendered in
+ * Blender at every tap state (res/drawable-nodpi/nnn_<id>_<state>.webp). [steps] = the real actions needed to get
+ * it off, one tap each; the last one always lifts the object away.
  */
-enum class Kind(val label: String, val steps: Int) {
-    BEAM("Trave inchiodata", 3),            // 2 nails out, beam off
-    CHAIN_PADLOCK("Catena con lucchetto", 3), // key in and turn, shackle open, chain unwound
-    SAFE("Cassaforte a combinazione", 6),   // dial right, left, right (3 numbers), handle, door open, safe away
-    DUCT_TAPE("Nastro americano", 3),      // three strips peeled
-    STEEL_PLATE("Piastra d'acciaio imbullonata", 5), // 4 bolts, plate off
-    U_LOCK("Lucchetto a U", 3),             // key, shackle pulled, lock off
-    ZIP_TIES("Fascette", 3),                // each tie snipped
-    BARBED_WIRE("Filo spinato", 3),         // 2 cuts, coil pulled away
-    GLASS_CASE("Teca di vetro", 3),         // crack, shatter, frame away
-    KEYPAD("Serratura a codice", 6),        // 4 digits, enter, door open
-    HANDCUFFS("Manette", 3),                // 2 cuffs unlocked, cuffs off
-    ROPE("Corda annodata", 3),              // loosen knot, pull through, unwrap
-    GRATE("Grata con chiavistello", 3),     // slide bolt, lift latch, swing open
-    COMBO_PADLOCK("Lucchetto a rotelle", 6), // 4 wheels, pull open, off
-    RATCHET_STRAP("Cinghia a cricchetto", 3), // release lever, open ratchet, pull strap
-    STRETCH_WRAP("Pellicola", 3),           // tear, unwind twice
-    BOX("Scatola sigillata", 4),            // cut tape, flap, flap, lift
-    SANDBAGS("Sacchi di sabbia", 3),        // one bag at a time
-    BRICKS("Muro di mattoni", 4),           // three bricks knocked out, wall collapses
-    BELT("Cintura di cuoio", 3),            // unbuckle, pull through, off
-    CRIME_TAPE("Nastro della polizia", 3);  // three strips torn
+enum class Kind(val id: String, val label: String, val steps: Int) {
+    TAPE("tape", "Nastro della polizia", 3),          // cut, unwind half, pull it all off
+    SAFE("safe", "Cassaforte a combinazione", 6),    // 4 numbers, handle (door opens), safe away
+    BEAM("beam", "Assi inchiodate", 3),              // 2 nails yanked, planks off
+    STEEL_PLATE("steel_plate", "Piastra imbullonata", 5), // 4 bolts, plate off
+    CHAIN_PADLOCK("chain_padlock", "Catena con lucchetto", 3), // key, shackle open, chain off
+    HANDCUFFS("handcuffs", "Manette", 3),            // cuff 1, cuff 2, off
+    U_LOCK("u_lock", "Lucchetto a U", 3),            // key, shackle out, off
+    ZIP_TIES("zip_ties", "Fascette", 3),             // snip, snip, snip
+    BARBED_WIRE("barbed_wire", "Filo spinato", 3),   // cut, cut, pull away
+    GLASS_CASE("glass_case", "Teca d'emergenza", 3), // crack, smash, away
+    ROPE("rope", "Corda annodata", 3),               // loosen knot, untie, unwind
+    GRATE("grate", "Grata con chiavistello", 3),     // slide bolt, swing door, away
+    BOX("box", "Scatola sigillata", 4),              // slit tape, flap, flap, lift
+    SANDBAGS("sandbags", "Sacchi di sabbia", 3),     // one bag at a time
+    BRICKS("bricks", "Muro di mattoni", 4),          // three clusters knocked out, wall down
+    DUCT_TAPE("duct_tape", "Nastro americano", 3);   // three strips ripped
 }
