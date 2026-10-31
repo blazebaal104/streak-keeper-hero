@@ -652,8 +652,12 @@ fun DrawScope.tapeStrip(a: Offset, b: Offset, h: Float, u: Float, phase: Float) 
                 x += h * 2.2f; k++
             }
             drawRect(Color.White.copy(alpha = 0.85f), Offset(rect.left, a.y - h * 0.26f), Size(len, h * 0.52f))
-            var tx = rect.left + 8f * u
-            while (tx < rect.right) { label("POLIZIA · NON OLTREPASSARE", Offset(tx + 34f * u, a.y), h * 0.34f, Color(0xFF111111), letter = 0.05f); tx += 74f * u }
+            // spacing from the real text width, so the lettering never overlaps whatever the tape height
+            val txt = "POLIZIA · NON OLTREPASSARE"
+            val fs = h * 0.34f
+            val tw = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { textSize = fs; typeface = android.graphics.Typeface.DEFAULT_BOLD; letterSpacing = 0.05f }.measureText(txt)
+            var tx = rect.left + h * 0.4f
+            while (tx < rect.right) { label(txt, Offset(tx + tw / 2, a.y), fs, Color(0xFF111111), letter = 0.05f); tx += tw + h * 0.9f }
             // plastic sheen + slight wrinkle shading
             drawRect(Brush.verticalGradient(0f to Color.White.copy(alpha = 0.35f), 0.35f to Color.Transparent, 1f to Color.Black.copy(alpha = 0.15f), startY = rect.top, endY = rect.bottom), rect.topLeft, rect.size)
             for (j in 0 until 5) {

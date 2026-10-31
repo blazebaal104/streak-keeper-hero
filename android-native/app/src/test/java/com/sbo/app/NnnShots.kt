@@ -115,8 +115,9 @@ class NnnShots {
                 }
         }
         Kind.entries.forEach { k ->
-            cur.value = k
-            rule.mainClock.advanceTimeBy(100)
+            rule.runOnUiThread { cur.value = k }
+            androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()
+            rule.mainClock.advanceTimeBy(100); rule.mainClock.advanceTimeBy(100)
             cap("kind-${k.name.lowercase()}")
         }
     }
@@ -164,7 +165,8 @@ class NnnShots {
         rule.mainClock.autoAdvance = false
         rule.setContent { androidx.compose.runtime.key(cur.value) { NnnFallen(cur.value) {} } }
         listOf(3, 11, 23, 30).forEach { d ->
-            cur.value = d
+            rule.runOnUiThread { cur.value = d }
+            androidx.compose.runtime.snapshots.Snapshot.sendApplyNotifications()
             rule.mainClock.advanceTimeBy(6500)
             cap("fallen-after-${d - 1}")
         }
