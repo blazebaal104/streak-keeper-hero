@@ -127,7 +127,7 @@ fun TitleBadge(t: TitleDef, variant: String = "sm", modifier: Modifier = Modifie
     val tr = rememberInfiniteTransition(label = "title")
     val flowP by tr.animateFloat(0f, 1f, infiniteRepeatable(tween(4000, easing = LinearEasing)), label = "flow")
     val glow by tr.animateFloat(0f, 1f, infiniteRepeatable(tween(1400, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "glow")
-    val sheen by tr.animateFloat(0f, 1f, infiniteRepeatable(keyframes { durationMillis = 3600; 0f at 0 using FastOutSlowInEasing; 1f at 1080; 1f at 3600 }), label = "sheen")
+    val sheen by tr.animateFloat(0f, 1f, infiniteRepeatable(keyframes { durationMillis = 3000; 0f at 0 using FastOutSlowInEasing; 1f at 650; 1f at 3000 }), label = "sheen")
     val spark = tr.animateFloat(0f, 1000f, infiniteRepeatable(tween(1_000_000, easing = LinearEasing)), label = "spark")
     Row(
         modifier.clip(RoundedCornerShape(2.dp)).drawWithContent {
@@ -158,10 +158,15 @@ fun TitleBadge(t: TitleDef, variant: String = "sm", modifier: Modifier = Modifie
                     drawRect(brush, blendMode = BlendMode.SrcIn)
                     if (sheenOn) {
                         // light band sweeping left → right across the letters only (clipped to the glyphs)
-                        val bw = 34.dp.toPx()
-                        val x = -bw + (w + 2f * bw) * sheen
+                        // narrow bright diagonal glint (~20% of the title) with a soft halo around it
+                        val bw = w * 0.2f
+                        val x = -bw * 1.5f + (w + bw * 3f) * sheen
                         drawRect(
-                            Brush.linearGradient(0f to Color.Transparent, 0.5f to Color.White.copy(alpha = 0.95f), 1f to Color.Transparent, start = Offset(x, 0f), end = Offset(x + bw, size.height * 0.4f)),
+                            Brush.linearGradient(0f to Color.Transparent, 0.5f to Color.White.copy(alpha = 0.45f), 1f to Color.Transparent, start = Offset(x - bw, 0f), end = Offset(x + bw * 2f, size.height * 0.5f)),
+                            blendMode = BlendMode.SrcAtop,
+                        )
+                        drawRect(
+                            Brush.linearGradient(0f to Color.Transparent, 0.42f to Color.White, 0.58f to Color.White, 1f to Color.Transparent, start = Offset(x, 0f), end = Offset(x + bw, size.height * 0.5f)),
                             blendMode = BlendMode.SrcAtop,
                         )
                     }

@@ -99,8 +99,6 @@ private val signs = listOf(
     // far ones first: smaller, dimmer, on long ropes down the sides behind the pile
     SignSpec(0.07f, -0.40f, 5f, 1.3f, 1, 0.46f, 0.55f),
     SignSpec(0.93f, -0.47f, 6f, 5.2f, 0, 0.46f, 0.55f),
-    SignSpec(0.3f, 4f, 6f, 3.3f, 0, 0.42f, 0.45f),
-    SignSpec(0.71f, 2f, 7f, 0.9f, 1, 0.42f, 0.45f),
     // near ones
     SignSpec(0.13f, 8f, 7f, 0.3f, 0, 0.68f),
     SignSpec(0.87f, 6f, 8f, 4.0f, 1, 0.66f),

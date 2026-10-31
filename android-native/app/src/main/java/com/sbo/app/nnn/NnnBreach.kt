@@ -105,7 +105,7 @@ fun DrawScope.drawPile(kinds: List<Kind>, layer: Int, step: Int, c: Offset, u: F
 }
 
 private class Debris(val kind: Kind?, val piece: Int, val step: Int, val at: Offset, val born: Float, val vx: Float, val vy: Float, val spin: Float, val tilt: Float, val seed: Int)
-private class Stamp(val text: String, val at: Offset, val rot: Float, val size: Float, val born: Float, val dir: Offset, val red: Boolean)
+private class Stamp(val text: String, val at: Offset, val rot: Float, val size: Float, val born: Float, val dir: Offset, val red: Boolean, val bg: Boolean = false)
 
 /**
  * The breach: tapping the protected button zooms it in until it's the only thing on screen. Every tap is one
@@ -164,15 +164,17 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             val text = NnnPhrases.stamp(r)
             val sz = (if (big) 32f else 17f + r.nextFloat() * 14f) * density
             val tw = text.length * sz * 0.5f
-            fun overlap(c: Offset): Float = stamps.takeLast(14).sumOf { o ->
+            fun overlap(c: Offset): Float = stamps.filter { !it.bg }.takeLast(10).sumOf { o ->
                 val ow = o.text.length * o.size * 0.5f
                 val ox = (minOf(c.x + tw / 2, o.at.x + ow / 2) - maxOf(c.x - tw / 2, o.at.x - ow / 2)).coerceAtLeast(0f)
                 val oy = (minOf(c.y + sz / 2, o.at.y + o.size / 2) - maxOf(c.y - sz / 2, o.at.y - o.size / 2)).coerceAtLeast(0f)
                 (ox * oy).toDouble()
             }.toFloat()
-            val at = List(10) { Offset(wPx * (0.1f + 0.8f * r.nextFloat()), hPx * (0.26f + 0.6f * r.nextFloat())) }.minBy { overlap(it) }
+            val at = List(16) { Offset(wPx * (0.1f + 0.8f * r.nextFloat()), hPx * (0.26f + 0.6f * r.nextFloat())) }.minBy { overlap(it) }
             val ang = atan2(at.y - center.y, at.x - center.x)
-            stamps += Stamp(text, at, (r.nextFloat() - 0.5f) * 22f, sz, now, Offset(cos(ang), sin(ang)), r.nextFloat() < 0.85f)
+            // no free spot: it goes to the dim background layer instead of printing over another phrase
+            val bg = overlap(at) > 0f
+            stamps += Stamp(text, at, (r.nextFloat() - 0.5f) * 22f, if (bg) sz * 0.8f else sz, now, Offset(cos(ang), sin(ang)), r.nextFloat() < 0.85f, bg)
         }
 
         fun tap() {
@@ -213,10 +215,13 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             if (step >= k.steps) {
                 // the whole layer is blown off: jumps up, spins, falls off screen
                 view.performHapticFeedback(if (android.os.Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.LONG_PRESS)
-                debris += Debris(k, -1, k.steps - 1, center, now, (r.nextFloat() - 0.5f) * 900f * density / 2.6f, -(1700f + r.nextFloat() * 400f) * density / 2.6f, (if (r.nextBoolean()) 1f else -1f) * (280f + r.nextFloat() * 260f), tiltOf(seed, layer), seed + layer * 13)
+                debris += Debris(k, -1, k.steps - 1, center, now, (r.nextFloat() - 0.5f) * 900f * density / 2.6f, -(1900f + r.nextFloat() * 300f) * density / 2.6f, (if (r.nextBoolean()) 1f else -1f) * (280f + r.nextFloat() * 260f), tiltOf(seed, layer), seed + layer * 13)
                 layer++; step = 0; removed++
                 spawnStamp(now, big = true)
-                if (removed % 2 == 0) bubbles += NnnPhrases.coachLine(r) to now
+                if (removed % 2 == 0) {
+                    val recent = bubbles.takeLast(4).map { it.first }.toSet()
+                    bubbles += (NnnPhrases.coach.filter { it !in recent }.shuffled(r).firstOrNull() ?: NnnPhrases.coachLine(r)) to now
+                }
                 if (removed >= nextGrowAt) {
                     growthLevel++
                     nextGrowAt += growEvery[growthLevel.coerceAtMost(growEvery.lastIndex)]
@@ -251,7 +256,7 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             val u = area / 100f * s
             if (phase == "dig") drawPile(kinds, layer, step, center, u, tex, t, seed, shake.value)
             // flying debris
-            val g = 4200f * density / 2.6f
+            val g = 9000f * density / 2.6f
             debris.removeAll { t - it.born > 3.5f }
             for (d in debris) {
                 val dt = t - d.born
@@ -266,16 +271,16 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             }
             // red stamps piling up (blown outwards by the shockwave)
             val b = blast.value
-            stamps.forEachIndexed { i, st ->
+            (stamps.withIndex().sortedBy { if (it.value.bg) 0 else 1 }).forEach { (i, st) ->
                 val age = t - st.born
                 val pop = (age / 0.16f).coerceIn(0f, 1f)
                 val newer = stamps.size - 1 - i
-                val depth = (newer / 8f).coerceIn(0f, 1f)            // older ones sink back: smaller and dimmer
+                val depth = if (st.bg) 1f else (newer / 10f).coerceIn(0f, 1f) * 0.6f   // older and overflow ones sink back: smaller and dimmer
                 val sc = (1.9f - 0.9f * (1f - (1f - pop) * (1f - pop))) * (1f - 0.25f * depth)
                 val fly = b * b * 2600f * density
                 val away = if (phase != "dig") st.dir * fly else Offset.Zero
                 val a = (pop * (1f - 0.6f * depth) * (1f - b * b)).coerceIn(0f, 1f)
-                if (a <= 0f) return@forEachIndexed
+                if (a <= 0f) return@forEach
                 if (phase != "dig" && b > 0.02f) for (k in 1..3) { // motion trail along the blast radius
                     val back = st.at + st.dir * (fly * (1f - k * 0.12f))
                     rotate(st.rot, back) { stampText(st.text, back, st.size * sc, a * 0.18f / k, st.red) }
@@ -295,6 +300,21 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
                 drawCircle(Color(0xFFFF5252).copy(alpha = (1f - b) * 0.85f), rr * 1.04f, center, style = Stroke(18f * density * (1f - b) + 1f))
                 drawCircle(Color(0xFFFF8A80).copy(alpha = (1f - b) * 0.5f), rr * 0.62f, center, style = Stroke(5f * density * (1f - b) + 1f))
                 drawRect(Color(0xFFFF1744).copy(alpha = flash.value * 0.22f))
+                drawRect(Color.White.copy(alpha = flash.value * flash.value * flash.value * 0.85f))
+                // radial spray: sparks and shards streaking out from the button
+                val sr = Random(seed + 77)
+                for (k in 0 until 64) {
+                    val a = sr.nextFloat() * 2f * PI.toFloat()
+                    val sp = 0.35f + sr.nextFloat() * 0.9f
+                    val dist = e * maxOf(size.width, size.height) * sp
+                    val dirv = Offset(cos(a), sin(a))
+                    val head = center + dirv * dist
+                    val tail = center + dirv * (dist * (0.72f + 0.1f * sr.nextFloat()))
+                    val hot = k % 3 != 0
+                    val col = if (hot) Color(0xFFFFE082) else Color(0xFFFF5252)
+                    drawLine(col.copy(alpha = (1f - b).coerceIn(0f, 1f)), tail, head, (if (hot) 2.2f else 4f) * density * (1f - 0.6f * b), StrokeCap.Round)
+                    if (!hot) rotate(a * 57f + b * 400f, head) { drawRect(Color(0xFF8E959C).copy(alpha = 1f - b), head - Offset(4f * density, 2f * density), Size(8f * density, 4f * density)) }
+                }
             }
         }
         // after 5 s of doubt: a big pulsing dare right under the button

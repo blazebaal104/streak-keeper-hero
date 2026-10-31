@@ -219,7 +219,7 @@ private fun DrawScope.steelPlate(step: Int, c: Offset, u: Float, tex: Textures, 
 
 // 6 ─ U-lock (bike lock)
 private fun DrawScope.uLock(step: Int, c: Offset, u: Float) {
-    val out = if (step >= 2) 16f * u else 0f
+    val out = if (step >= 2) 36f * u else 0f
     val sh = Path().apply {
         moveTo(c.x - 34f * u, c.y + 26f * u - out)
         lineTo(c.x - 34f * u, c.y - 22f * u - out)
@@ -287,8 +287,12 @@ private fun DrawScope.barbedWire(step: Int, c: Offset, u: Float, seed: Int) {
             path.quadraticTo(x + 6f * u, y0 + (if ((x / u).toInt() % 2 == 0) -9f else 9f) * u + sag * (1 - k * k), nx, y0 + sag * (1 - k * k))
             x = nx
         }
-        drawPath(path, Color.Black.copy(alpha = 0.45f), style = Stroke(2.6f * u))
-        drawPath(path, chrome(box(c, 130f * u, 40f * u), 80f), style = Stroke(1.8f * u))
+        translate(1.2f * u, 3f * u) { drawPath(path, Color.Black.copy(alpha = 0.4f), style = Stroke(4f * u)) }
+        drawPath(path, Color(0xFF4A4F55), style = Stroke(3.6f * u))
+        drawPath(path, chrome(box(c, 130f * u, 40f * u), 80f), style = Stroke(2.6f * u))
+        // the second strand twisted round the first
+        drawPath(path, Color(0xFF2B2F33), style = Stroke(3.6f * u, pathEffect = PathEffect.dashPathEffect(floatArrayOf(1.2f * u, 2.6f * u))))
+        drawPath(path, Color.White.copy(alpha = 0.55f), style = Stroke(0.7f * u, pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.4f * u, 1.4f * u))))
         if (cut) continue
         // barbs every ~16u
         var bx = c.x - 58f * u
@@ -296,10 +300,11 @@ private fun DrawScope.barbedWire(step: Int, c: Offset, u: Float, seed: Int) {
             val bc = Offset(bx, y0 + (r.nextFloat() - 0.5f) * 4f * u)
             for (k in 0 until 4) {
                 val a = k * PI.toFloat() / 2 + PI.toFloat() / 4 + r.nextFloat() * 0.3f
-                drawLine(Color.Black.copy(alpha = 0.4f), bc + Offset(0.6f * u, 0.8f * u), bc + Offset(cos(a) * 6f * u + 0.6f * u, sin(a) * 6f * u + 0.8f * u), 1.4f * u, StrokeCap.Round)
-                drawLine(Color(0xFFA9AFB5), bc, bc + Offset(cos(a) * 6f * u, sin(a) * 6f * u), 1.1f * u, StrokeCap.Round)
+                drawLine(Color.Black.copy(alpha = 0.4f), bc + Offset(1f * u, 2f * u), bc + Offset(cos(a) * 9f * u + 1f * u, sin(a) * 9f * u + 2f * u), 2f * u, StrokeCap.Round)
+                drawLine(Color(0xFF6E757C), bc, bc + Offset(cos(a) * 9f * u, sin(a) * 9f * u), 1.9f * u, StrokeCap.Round)
+                drawLine(Color.White.copy(alpha = 0.6f), bc, bc + Offset(cos(a) * 8f * u, sin(a) * 8f * u), 0.6f * u, StrokeCap.Round)
             }
-            drawCircle(chrome(box(bc, 5f * u, 5f * u), 40f), 2.2f * u, bc)
+            drawCircle(chrome(box(bc, 7f * u, 7f * u), 40f), 3.2f * u, bc)
             bx += 16f * u
         }
     }
@@ -387,12 +392,21 @@ private fun DrawScope.handcuffs(step: Int, c: Offset, u: Float) {
             val ring = Path().apply { addOval(Rect(cc, 21f * u)) }
             val ringInner = Path().apply { addOval(Rect(cc, 15f * u)) }
             val band = Path().apply { op(ring, ringInner, androidx.compose.ui.graphics.PathOperation.Difference) }
-            if (open) rotate(-40f, cc + Offset(0f, -18f * u)) { solid(band, chrome(Rect(cc, 21f * u), 60f), Rect(cc, 21f * u), 1.2f * u, gloss = 0.4f) }
+            if (open) rotate(if (i == 0) -115f else 115f, cc + Offset(0f, -18f * u)) { solid(band, chrome(Rect(cc, 21f * u), 60f), Rect(cc, 21f * u), 1.2f * u, gloss = 0.4f) }
             else solid(band, chrome(Rect(cc, 21f * u), 60f), Rect(cc, 21f * u), 1.2f * u, gloss = 0.4f)
             // lock box
             val lb = rr(cc + Offset(0f, -18f * u), 22f * u, 12f * u, 2f * u)
             solid(lb, chrome(box(cc + Offset(0f, -18f * u), 22f * u, 12f * u), 20f, dark = true), box(cc + Offset(0f, -18f * u), 22f * u, 12f * u), 1f * u)
             drawCircle(Color.Black, 1.6f * u, cc + Offset(0f, -18f * u))
+        }
+    }
+    // the little key, sitting in the lock it just opened
+    if (step >= 1) {
+        val kc = (if (step >= 2) r else l) + Offset(0f, -18f * u)
+        rotate(if (step >= 2) 12f else -12f, if (step >= 2) r else l) {
+            drawLine(chrome(box(kc, 4f * u, 22f * u), 0f), kc, kc + Offset(0f, -16f * u), 2.4f * u, StrokeCap.Round)
+            drawCircle(chrome(box(kc + Offset(0f, -20f * u), 10f * u, 10f * u), 30f), 4.6f * u, kc + Offset(0f, -20f * u), style = Stroke(2f * u))
+            drawRect(chrome(box(kc, 6f * u, 3f * u), 90f), Offset(kc.x, kc.y - 6f * u), Size(4f * u, 2.2f * u))
         }
     }
 }
@@ -482,7 +496,7 @@ private fun DrawScope.comboPadlock(step: Int, c: Offset, u: Float) {
 
 // 15 ─ orange ratchet strap
 private fun DrawScope.ratchetStrap(step: Int, c: Offset, u: Float) {
-    val slack = if (step >= 2) 10f * u else 0f
+    val slack = if (step >= 2) 26f * u else 0f
     rotate(-18f, c) {
         val strap = Path().apply { moveTo(c.x - 80f * u, c.y - 9f * u); quadraticTo(c.x, c.y - 9f * u + slack, c.x + 80f * u, c.y - 9f * u); lineTo(c.x + 80f * u, c.y + 9f * u); quadraticTo(c.x, c.y + 9f * u + slack, c.x - 80f * u, c.y + 9f * u); close() }
         solid(strap, Brush.verticalGradient(0f to Color(0xFFFF8F1F), 0.5f to Color(0xFFE5650B), 1f to Color(0xFFB64D04), startY = c.y - 9f * u, endY = c.y + 9f * u), box(c, 160f * u, 18f * u), 1.1f * u, gloss = 0.25f)
@@ -669,7 +683,7 @@ private fun DrawScope.crimeTape(step: Int, c: Offset, u: Float, t: Float, seed: 
     }
     // the loose end: a cloth-like strip waving from the knot, always there while any strip remains
     // the long loose end streams down and away from the knot, on screen, waving in the wind
-    if (step < 3) { val k = c + Offset(58f * u, -24f * u); rotate(112f + 6f * sin(t * 0.9f), k) { flappingTape(k, u, t, seed, length = 150f, width = 15f) } }
+    if (step < 3) { val k = c + Offset(58f * u, -24f * u); rotate(18f + 5f * sin(t * 0.9f), k) { flappingTape(k, u, t, seed, length = 140f, width = 15f) } }
 }
 
 /** One straight piece of red/white police tape with printed text. */
@@ -705,37 +719,59 @@ fun DrawScope.tapeStrip(a: Offset, b: Offset, h: Float, u: Float, phase: Float) 
     }
 }
 
-/** A long loose piece of tape fluttering: a ribbon whose waves travel along it, flipping between front and back. */
+/** A long loose piece of tape fluttering: one continuous printed ribbon whose waves travel along it, twisting to show its back, torn at the end. */
 fun DrawScope.flappingTape(anchor: Offset, u: Float, t: Float, seed: Int, length: Float = 120f, width: Float = 13f) {
-    val n = 34
+    val n = 48
     val pts = ArrayList<Offset>(n + 1)
     val tw = ArrayList<Float>(n + 1)
     for (i in 0..n) {
         val s = i / n.toFloat()
         val x = anchor.x + s * length * u * 0.92f
         // gravity droop + travelling waves (two frequencies) growing toward the free end
-        val y = anchor.y + s * s * 22f * u + sin(t * 6.2f - s * 9f + seed) * 11f * u * s + sin(t * 11.3f - s * 15f) * 4f * u * s
+        val y = anchor.y + s * s * 18f * u + sin(t * 6.2f - s * 9f + seed) * 10f * u * s + sin(t * 11.3f - s * 15f) * 3.5f * u * s
         pts += Offset(x, y)
-        tw += cos(t * 5.1f - s * 7.5f + seed) // twist: <0 shows the back side
+        tw += cos(t * 5.1f - s * 6.5f + seed) * (0.35f + 0.65f * s) + (1f - s) * 0.65f // twist grows toward the free end
     }
-    for (i in 0 until n) {
-        val p0 = pts[i]; val p1 = pts[i + 1]
-        val d = p1 - p0
+    val left = ArrayList<Offset>(n + 1); val right = ArrayList<Offset>(n + 1)
+    for (i in 0..n) {
+        val d = pts[minOf(i + 1, n)] - pts[maxOf(i - 1, 0)]
         val l = d.getDistance().coerceAtLeast(0.001f)
         val nx = -d.y / l; val ny = d.x / l
-        val w0 = width * u / 2 * kotlin.math.abs(tw[i]).coerceAtLeast(0.12f)
-        val w1 = width * u / 2 * kotlin.math.abs(tw[i + 1]).coerceAtLeast(0.12f)
-        val quad = Path().apply {
-            moveTo(p0.x + nx * w0, p0.y + ny * w0); lineTo(p1.x + nx * w1, p1.y + ny * w1)
-            lineTo(p1.x - nx * w1, p1.y - ny * w1); lineTo(p0.x - nx * w0, p0.y - ny * w0); close()
-        }
-        val stripe = (i / 2) % 2 == 0
-        val shade = 0.55f + 0.45f * kotlin.math.abs(tw[i])
-        val base = if (stripe) Color(0xFFD50000) else Color.White
-        drawPath(quad, Color(base.red * shade, base.green * shade, base.blue * shade))
-        if (tw[i] > 0.7f) drawPath(quad, Color.White.copy(alpha = 0.18f))
+        val hw = width * u / 2 * kotlin.math.abs(tw[i]).coerceIn(0.1f, 1f)
+        left += Offset(pts[i].x + nx * hw, pts[i].y + ny * hw); right += Offset(pts[i].x - nx * hw, pts[i].y - ny * hw)
     }
-    // torn end
-    val e = pts.last()
-    drawLine(Color.White.copy(alpha = 0.7f), e + Offset(0f, -width * u * 0.3f), e + Offset(2f * u, width * u * 0.3f), 0.8f * u)
+    fun quad(i: Int) = Path().apply { moveTo(left[i].x, left[i].y); lineTo(left[i + 1].x, left[i + 1].y); lineTo(right[i + 1].x, right[i + 1].y); lineTo(right[i].x, right[i].y); close() }
+    val ribbon = Path().apply { moveTo(left[0].x, left[0].y); for (i in 1..n) lineTo(left[i].x, left[i].y); for (i in n downTo 0) lineTo(right[i].x, right[i].y); close() }
+    // soft shadow, white base, then the diagonal red bands (one path, so no seams)
+    translate(1.5f * u, 4f * u) { drawPath(ribbon, Color.Black.copy(alpha = 0.28f)) }
+    drawPath(ribbon, Color(0xFFF4F4F4))
+    val red = Path()
+    for (i in 0 until n) if ((i / 3) % 2 == 0) red.addPath(Path().apply {
+        val a0 = left[i]; val a1 = left[i + 1]; val b0 = right[i]; val b1 = right[i + 1]
+        // slanted band: shift the far edge forward a little
+        moveTo(a0.x, a0.y); lineTo(a1.x, a1.y); lineTo(b1.x + (b1.x - b0.x) * 0.9f, b1.y + (b1.y - b0.y) * 0.9f); lineTo(b0.x + (b1.x - b0.x) * 0.9f, b0.y + (b1.y - b0.y) * 0.9f); close()
+    })
+    clipPath(ribbon) { drawPath(red, Color(0xFFD50000)) }
+    // light and shadow following the twist (grouped in a few tones to avoid seams)
+    val shade = Path(); val light = Path()
+    for (i in 0 until n) {
+        val k = tw[i]
+        if (kotlin.math.abs(k) < 0.45f) shade.addPath(quad(i))
+        else if (k > 0.85f) light.addPath(quad(i))
+    }
+    clipPath(ribbon) {
+        drawPath(shade, Color.Black.copy(alpha = 0.3f))
+        drawPath(light, Color.White.copy(alpha = 0.22f))
+        // back side shows when twisted over: slightly grey
+        for (i in 0 until n) if (tw[i] < 0f) drawPath(quad(i), Color(0xFF9E9E9E).copy(alpha = 0.18f))
+    }
+    // torn, frayed end: a few short jagged slivers
+    val eL = left[n]; val eR = right[n]; val dir = pts[n] - pts[n - 1]
+    val dl = dir.getDistance().coerceAtLeast(0.001f); val fwd = Offset(dir.x / dl, dir.y / dl)
+    for (j in 0..4) {
+        val f = j / 4f
+        val base = Offset(eL.x + (eR.x - eL.x) * f, eL.y + (eR.y - eL.y) * f)
+        val len = (1.5f + (j * 7 + seed) % 4 * 0.9f) * u
+        drawLine(if (j % 2 == 0) Color(0xFFD50000) else Color(0xFFF4F4F4), base, base + fwd * len, 1.1f * u, StrokeCap.Round)
+    }
 }
