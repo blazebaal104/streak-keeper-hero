@@ -178,7 +178,10 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             val ang = atan2(at.y - center.y, at.x - center.x)
             // no free spot: it goes to the dim background layer instead of printing over another phrase
             val bg = overlap(at) > 0f
-            stamps += Stamp(text, at, (r.nextFloat() - 0.5f) * 22f, if (bg) sz * 0.8f else sz, now, Offset(cos(ang), sin(ang)), r.nextFloat() < 0.85f, bg)
+            // keep every phrase fully on screen with a 16dp margin
+            val half = (if (bg) tw * 0.8f else tw) / 2f + 16f * density
+            val atIn = Offset(if (half * 2 >= wPx) wPx / 2 else at.x.coerceIn(half, wPx - half), at.y)
+            stamps += Stamp(text, atIn, (r.nextFloat() - 0.5f) * 22f, if (bg) sz * 0.8f else sz, now, Offset(cos(ang), sin(ang)), r.nextFloat() < 0.85f, bg)
         }
 
         fun tap() {
@@ -281,17 +284,19 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
                 // only the newest few stay at full strength; older and overflow ones sink back, small and faint
                 val fgRank = if (st.bg) Int.MAX_VALUE else stamps.subList(i, stamps.size).count { !it.bg } - 1
                 val depth = if (fgRank < FRONT) 0f else 1f
+                // the faint back layer: only the latest dozen, soft and see-through
+                if (depth > 0f && stamps.size - i > FRONT + 12) return@forEach
                 val sc = (1.9f - 0.9f * (1f - (1f - pop) * (1f - pop))) * (1f - 0.25f * depth)
                 val fly = b * b * 2600f * density
                 val away = if (phase != "dig") st.dir * fly else Offset.Zero
-                val a = (pop * (1f - 0.72f * depth) * (1f - b * b)).coerceIn(0f, 1f)
+                val a = (pop * (1f - 0.78f * depth) * (1f - b * b)).coerceIn(0f, 1f)
                 if (a <= 0f) return@forEach
                 if (phase != "dig" && b > 0.02f) for (k in 1..3) { // motion trail along the blast radius
                     val back = st.at + st.dir * (fly * (1f - k * 0.12f))
                     rotate(st.rot, back) { stampText(st.text, back, st.size * sc, a * 0.18f / k, st.red) }
                 }
                 rotate(st.rot + b * 90f * st.dir.x, st.at + away) {
-                    stampText(st.text, st.at + away, st.size * sc, a, st.red)
+                    stampText(st.text, st.at + away, st.size * sc, a, st.red, blur = if (depth > 0f) 3f * density else 0f)
                 }
             }
             // final press: shockwave rings + red flash
@@ -388,7 +393,7 @@ private fun CoachBubble(text: String, born: Float, clock: androidx.compose.runti
 }
 
 /** A red rubber-stamp shout: heavy condensed caps with a dark outline and a soft glow. */
-fun DrawScope.stampText(text: String, at: Offset, sizePx: Float, alpha: Float, red: Boolean) {
+fun DrawScope.stampText(text: String, at: Offset, sizePx: Float, alpha: Float, red: Boolean, blur: Float = 0f) {
     drawIntoCanvas { c ->
         val tf = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD)
         val col = if (red) android.graphics.Color.rgb(255, 23, 68) else android.graphics.Color.WHITE
@@ -402,8 +407,10 @@ fun DrawScope.stampText(text: String, at: Offset, sizePx: Float, alpha: Float, r
         }
         val fill = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
             color = col; this.alpha = (255 * alpha).toInt(); textSize = sizePx; textAlign = android.graphics.Paint.Align.CENTER; typeface = tf; letterSpacing = 0.04f
+            if (blur > 0f) maskFilter = android.graphics.BlurMaskFilter(blur, android.graphics.BlurMaskFilter.Blur.NORMAL)
         }
         val y = at.y + sizePx * 0.35f
+        if (blur > 0f) { c.nativeCanvas.drawText(text, at.x, y, fill); return@drawIntoCanvas } // soft back layer: no outline, no halo
         c.nativeCanvas.drawText(text, at.x, y, glow)
         c.nativeCanvas.drawText(text, at.x, y, outline)
         c.nativeCanvas.drawText(text, at.x, y, fill)
