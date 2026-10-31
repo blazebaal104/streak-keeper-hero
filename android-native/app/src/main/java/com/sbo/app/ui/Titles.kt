@@ -132,6 +132,12 @@ fun TitleBadge(t: TitleDef, variant: String = "sm", modifier: Modifier = Modifie
     Row(
         modifier.clip(RoundedCornerShape(2.dp)).drawWithContent {
             drawContent()
+            if (sheenOn && t.tier.rank >= Tier.legendary.rank) {
+                // bloom travelling with the glint on the letters
+                val gx = -size.width * 0.3f + size.width * 1.6f * sheen
+                val k = (1f - kotlin.math.abs(sheen - 0.5f) * 2f).coerceIn(0f, 1f) * if (sheen >= 1f) 0f else 1f
+                drawCircle(Brush.radialGradient(0f to Color.White.copy(alpha = 0.45f * k), 1f to Color.Transparent, center = Offset(gx, size.height / 2), radius = size.height * 1.3f), size.height * 1.3f, Offset(gx, size.height / 2))
+            }
             if (sparks) listOf(0.12f, 0.42f, 0.72f).forEachIndexed { i, left ->
                 val dur = 2f + i * 0.4f
                 val ph = (((spark.value - i * 0.5f) / dur) % 1f + 1f) % 1f

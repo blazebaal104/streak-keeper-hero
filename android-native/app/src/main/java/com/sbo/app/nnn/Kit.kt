@@ -147,7 +147,7 @@ fun DrawScope.nail(c: Offset, r: Float, pulled: Boolean) {
 }
 
 /** A thick cord along [pts] with twisted strands (rope, cables). */
-fun DrawScope.cord(pts: List<Offset>, w: Float, base: Color, dark: Color, twist: Float = 1f) {
+fun DrawScope.cord(pts: List<Offset>, w: Float, base: Color, dark: Color, twist: Float = 1f, fiber: Brush? = null) {
     if (pts.size < 2) return
     val path = Path().apply {
         moveTo(pts[0].x, pts[0].y)
@@ -160,6 +160,7 @@ fun DrawScope.cord(pts: List<Offset>, w: Float, base: Color, dark: Color, twist:
     drawPath(path, Color.Black.copy(alpha = 0.45f), style = Stroke(w * 1.1f, cap = StrokeCap.Round, join = StrokeJoin.Round))
     drawPath(path, dark, style = Stroke(w, cap = StrokeCap.Round, join = StrokeJoin.Round))
     drawPath(path, base, style = Stroke(w * 0.78f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+    if (fiber != null) drawPath(path, fiber, alpha = 0.55f, style = Stroke(w * 0.8f, cap = StrokeCap.Round, join = StrokeJoin.Round), blendMode = androidx.compose.ui.graphics.BlendMode.Multiply)
     // twisted strands: short diagonal ticks along the cord
     val pm = android.graphics.PathMeasure(path.asAndroidPath(), false)
     val len = pm.length

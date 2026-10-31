@@ -102,7 +102,11 @@ fun DrawScope.drawPile(kinds: List<Kind>, layer: Int, step: Int, c: Offset, u: F
             drawProtection(k, st, c + jitter, u, tex, t, seed + i * 13)
         }
     }
+    // the tape's loose end flaps on top of everything still on the button
+    if (layer < last) crimeTail(c, u, t, seed + last * 13)
 }
+
+private const val FRONT = 5
 
 private class Debris(val kind: Kind?, val piece: Int, val step: Int, val at: Offset, val born: Float, val vx: Float, val vy: Float, val spin: Float, val tilt: Float, val seed: Int)
 private class Stamp(val text: String, val at: Offset, val rot: Float, val size: Float, val born: Float, val dir: Offset, val red: Boolean, val bg: Boolean = false)
@@ -163,11 +167,11 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             if (stamps.size > 46) stamps.removeAt(0)
             val text = NnnPhrases.stamp(r)
             val sz = (if (big) 32f else 17f + r.nextFloat() * 14f) * density
-            val tw = text.length * sz * 0.5f
-            fun overlap(c: Offset): Float = stamps.filter { !it.bg }.sumOf { o ->
-                val ow = o.text.length * o.size * 0.5f
+            val tw = text.length * sz * 0.62f + 10f * density
+            fun overlap(c: Offset): Float = stamps.filter { !it.bg }.takeLast(FRONT).sumOf { o ->
+                val ow = o.text.length * o.size * 0.62f + 10f * density
                 val ox = (minOf(c.x + tw / 2, o.at.x + ow / 2) - maxOf(c.x - tw / 2, o.at.x - ow / 2)).coerceAtLeast(0f)
-                val oy = (minOf(c.y + sz / 2, o.at.y + o.size / 2) - maxOf(c.y - sz / 2, o.at.y - o.size / 2)).coerceAtLeast(0f)
+                val oy = (minOf(c.y + sz * 0.7f, o.at.y + o.size * 0.7f) - maxOf(c.y - sz * 0.7f, o.at.y - o.size * 0.7f)).coerceAtLeast(0f)
                 (ox * oy).toDouble()
             }.toFloat()
             val at = List(16) { Offset(wPx * (0.1f + 0.8f * r.nextFloat()), hPx * (0.26f + 0.6f * r.nextFloat())) }.minBy { overlap(it) }
@@ -274,12 +278,13 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             (stamps.withIndex().sortedBy { if (it.value.bg) 0 else 1 }).forEach { (i, st) ->
                 val age = t - st.born
                 val pop = (age / 0.16f).coerceIn(0f, 1f)
-                val newer = stamps.size - 1 - i
-                val depth = if (st.bg) 1f else (newer / 10f).coerceIn(0f, 1f) * 0.75f   // older and overflow ones sink back: smaller and dimmer
+                // only the newest few stay at full strength; older and overflow ones sink back, small and faint
+                val fgRank = if (st.bg) Int.MAX_VALUE else stamps.subList(i, stamps.size).count { !it.bg } - 1
+                val depth = if (fgRank < FRONT) 0f else 1f
                 val sc = (1.9f - 0.9f * (1f - (1f - pop) * (1f - pop))) * (1f - 0.25f * depth)
                 val fly = b * b * 2600f * density
                 val away = if (phase != "dig") st.dir * fly else Offset.Zero
-                val a = (pop * (1f - 0.6f * depth) * (1f - b * b)).coerceIn(0f, 1f)
+                val a = (pop * (1f - 0.72f * depth) * (1f - b * b)).coerceIn(0f, 1f)
                 if (a <= 0f) return@forEach
                 if (phase != "dig" && b > 0.02f) for (k in 1..3) { // motion trail along the blast radius
                     val back = st.at + st.dir * (fly * (1f - k * 0.12f))
@@ -324,7 +329,7 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             if (idle > 5f && phase == "dig") {
                 val k = ((idle - 5f) / 0.6f).coerceIn(0f, 1f)
                 val pulse = 1f + 0.06f * sin(t * 5f)
-                val y = (center.y + area * scaleNow() * 0.62f).coerceAtMost(size.height - 150f * density)
+                val y = size.height - 132f * density // low, in the free band above the reply bar
                 val last = layer >= kinds.size
                 scale(pulse, Offset(size.width / 2, y)) {
                     neonText(if (last) "ULTIMO TOCCO" else "PREMILO", Offset(size.width / 2, y), 40f * density, Color(0xFFFF1744), k * (0.8f + 0.2f * sin(t * 5f)), density, spacing = 0.14f)

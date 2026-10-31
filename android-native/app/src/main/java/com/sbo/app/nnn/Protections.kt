@@ -41,7 +41,7 @@ fun DrawScope.drawProtection(kind: Kind, step: Int, c: Offset, u: Float, tex: Te
         Kind.GLASS_CASE -> glassCase(step, c, u, seed)
         Kind.KEYPAD -> keypad(step, c, u, tex, t)
         Kind.HANDCUFFS -> handcuffs(step, c, u)
-        Kind.ROPE -> rope(step, c, u, seed)
+        Kind.ROPE -> rope(step, c, u, seed, tex)
         Kind.GRATE -> grate(step, c, u, tex)
         Kind.COMBO_PADLOCK -> comboPadlock(step, c, u)
         Kind.RATCHET_STRAP -> ratchetStrap(step, c, u)
@@ -115,7 +115,10 @@ private fun DrawScope.safe(step: Int, c: Offset, u: Float, tex: Textures, t: Flo
     solid(rr(c, w + 8f * u, h + 8f * u, 6f * u), tex.brush("blue_metal_plate", 120f * u, 0f, Offset(5f, 9f), Color(0xFF2E3A46)), box(c, w + 8f * u, h + 8f * u), 2.4f * u, tint = Color(0xFF454B52))
     if (step >= 5) {
         // door swung open on its left hinges: dark interior + door edge-on
-        drawRect(Brush.radialGradient(0f to Color(0xFF1B1F24), 1f to Color(0xFF050608), center = c, radius = w * 0.7f), b.topLeft, b.size)
+        drawRect(Brush.radialGradient(0f to Color(0xFFFFB300), 0.35f to Color(0xFFFF6D00), 0.75f to Color(0xFF5A1A00), 1f to Color(0xFF120604), center = c, radius = w * 0.75f), b.topLeft, b.size)
+        // the button inside, glowing, and the shelf it sits on
+        drawCircle(Brush.radialGradient(0f to Color(0xFFFFF3B0), 0.5f to Color(0xFFFF8F00), 1f to Color(0xFFB71C1C), center = c, radius = w * 0.3f), w * 0.3f, c)
+        drawRect(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.5f), 0.2f to Color.Transparent, startY = b.top, endY = b.bottom), b.topLeft, b.size)
         val door = Path().apply { moveTo(b.left, b.top); lineTo(b.left - 26f * u, b.top + 10f * u); lineTo(b.left - 26f * u, b.bottom - 10f * u); lineTo(b.left, b.bottom); close() }
         solid(door, tex.brush("blue_metal_plate", 120f * u), box(Offset(b.left - 13f * u, c.y), 26f * u, h), 2f * u, tint = Color(0xFF5A626B))
         return
@@ -412,19 +415,20 @@ private fun DrawScope.handcuffs(step: Int, c: Offset, u: Float) {
 }
 
 // 12 ─ rope tied round twice, big knot
-private fun DrawScope.rope(step: Int, c: Offset, u: Float, seed: Int) {
+private fun DrawScope.rope(step: Int, c: Offset, u: Float, seed: Int, tex: Textures) {
     val base = Color(0xFFC9A26A); val dark = Color(0xFF7A5A2E)
     val loose = step >= 1
+    val fib = tex.brush("hessian_230", 16f * u, 35f, Offset(seed * 3f, 0f), Color(0xFF9C7A48))
     for (k in 0 until 2) {
         val y = c.y + (k * 2 - 1) * 10f * u + if (loose) 6f * u else 0f
-        cord(listOf(Offset(c.x - 70f * u, y + 6f * u), Offset(c.x - 40f * u, y - 2f * u), Offset(c.x, y - 4f * u + (seed % 5) * 0.5f * u), Offset(c.x + 40f * u, y - 2f * u), Offset(c.x + 70f * u, y + 6f * u)), 8f * u, base, dark)
+        cord(listOf(Offset(c.x - 70f * u, y + 6f * u), Offset(c.x - 40f * u, y - 2f * u), Offset(c.x, y - 4f * u + (seed % 5) * 0.5f * u), Offset(c.x + 40f * u, y - 2f * u), Offset(c.x + 70f * u, y + 6f * u)), 11f * u, base, dark, fiber = fib)
     }
     // knot
     val kc = c + Offset(6f * u, -2f * u)
     if (step < 2) {
-        cord(listOf(kc + Offset(-12f * u, 8f * u), kc + Offset(-10f * u, -10f * u), kc + Offset(8f * u, -12f * u), kc + Offset(10f * u, 6f * u), kc + Offset(-6f * u, 10f * u)), 9f * u, base, dark)
-        cord(listOf(kc + Offset(4f * u, 6f * u), kc + Offset(10f * u, 26f * u + (if (loose) 8f else 0f) * u), kc + Offset(4f * u, 44f * u)), 8f * u, base, dark)
-        cord(listOf(kc + Offset(-4f * u, 6f * u), kc + Offset(-16f * u, 24f * u), kc + Offset(-24f * u, 40f * u)), 8f * u, base, dark)
+        cord(listOf(kc + Offset(-12f * u, 8f * u), kc + Offset(-10f * u, -10f * u), kc + Offset(8f * u, -12f * u), kc + Offset(10f * u, 6f * u), kc + Offset(-6f * u, 10f * u)), 12f * u, base, dark, fiber = fib)
+        cord(listOf(kc + Offset(4f * u, 6f * u), kc + Offset(10f * u, 26f * u + (if (loose) 8f else 0f) * u), kc + Offset(4f * u, 44f * u)), 11f * u, base, dark, fiber = fib)
+        cord(listOf(kc + Offset(-4f * u, 6f * u), kc + Offset(-16f * u, 24f * u), kc + Offset(-24f * u, 40f * u)), 11f * u, base, dark, fiber = fib)
         // frayed ends
         listOf(kc + Offset(4f * u, 44f * u), kc + Offset(-24f * u, 40f * u)).forEach { e -> for (j in -2..2) drawLine(base, e, e + Offset(j * 1.5f * u, 5f * u), 1f * u, StrokeCap.Round) }
     }
@@ -497,7 +501,7 @@ private fun DrawScope.comboPadlock(step: Int, c: Offset, u: Float) {
 // 15 ─ orange ratchet strap
 private fun DrawScope.ratchetStrap(step: Int, c: Offset, u: Float) {
     val slack = if (step >= 2) 26f * u else 0f
-    rotate(-18f, c) {
+    rotate(-18f, c) { translate(if (step >= 2) 22f * u else 0f, if (step >= 2) 8f * u else 0f) {
         val strap = Path().apply { moveTo(c.x - 80f * u, c.y - 9f * u); quadraticTo(c.x, c.y - 9f * u + slack, c.x + 80f * u, c.y - 9f * u); lineTo(c.x + 80f * u, c.y + 9f * u); quadraticTo(c.x, c.y + 9f * u + slack, c.x - 80f * u, c.y + 9f * u); close() }
         solid(strap, Brush.verticalGradient(0f to Color(0xFFFF8F1F), 0.5f to Color(0xFFE5650B), 1f to Color(0xFFB64D04), startY = c.y - 9f * u, endY = c.y + 9f * u), box(c, 160f * u, 18f * u), 1.1f * u, gloss = 0.25f)
         clipPath(strap) {
@@ -519,6 +523,7 @@ private fun DrawScope.ratchetStrap(step: Int, c: Offset, u: Float) {
             drawRoundRect(Color(0xFF151515), Offset(rc.x + 8f * u, rc.y - 11f * u), Size(9f * u, 22f * u), CornerRadius(2f * u))
         }
         drawCircle(chrome(box(rc + Offset(-12f * u, 0f), 10f * u, 10f * u), 60f, dark = true), 5f * u, rc + Offset(-12f * u, 0f))
+    }
     }
 }
 
@@ -652,8 +657,8 @@ private fun DrawScope.bricks(step: Int, c: Offset, u: Float, tex: Textures, seed
 private fun DrawScope.belt(step: Int, c: Offset, u: Float, tex: Textures) {
     val loose = step >= 1
     val strap = Path().apply {
-        moveTo(c.x - 78f * u, c.y - 9f * u); lineTo(c.x + (if (step >= 2) 30f else 78f) * u, c.y - 9f * u)
-        lineTo(c.x + (if (step >= 2) 30f else 78f) * u, c.y + 9f * u); lineTo(c.x - 78f * u, c.y + 9f * u); close()
+        moveTo(c.x - 78f * u, c.y - 9f * u); lineTo(c.x + (if (step >= 2) -2f else if (step >= 1) 40f else 78f) * u, c.y - 9f * u)
+        lineTo(c.x + (if (step >= 2) -2f else if (step >= 1) 40f else 78f) * u, c.y + 9f * u); lineTo(c.x - 78f * u, c.y + 9f * u); close()
     }
     rotate(14f, c) {
         solid(strap, tex.brush("brown_leather", 60f * u, 0f, Offset.Zero, Color(0xFF5A3A22)), box(c, 156f * u, 18f * u), 1.4f * u, tint = Color(0xFF8A5A36), gloss = 0.3f)
@@ -683,8 +688,19 @@ private fun DrawScope.crimeTape(step: Int, c: Offset, u: Float, t: Float, seed: 
     }
     // the loose end: a cloth-like strip waving from the knot, always there while any strip remains
     // the long loose end streams down and away from the knot, on screen, waving in the wind
-    // hangs from the lower-left knot and streams down beside the button, clear of any text around it
-    if (step < 3) { val k = c + Offset(-48f * u, 40f * u); rotate(100f + 7f * sin(t * 0.9f), k) { flappingTape(k, u, t, seed, length = 40f, width = 13f) } }
+    if (step < 3) crimeTail(c, u, t, seed)
+}
+
+/** The long loose end of the police tape: curls off the last strip and streams down, waving in the wind (always drawn on top). */
+fun DrawScope.crimeTail(c: Offset, u: Float, t: Float, seed: Int) {
+    val k = c + Offset(28f * u, -2f * u)
+    // the curl where it leaves the strip
+    rotate(-30f, k) {
+        drawOval(Color.Black.copy(alpha = 0.3f), Offset(k.x - 5f * u, k.y - 2f * u), Size(11f * u, 9f * u))
+        drawOval(Color(0xFFF4F4F4), Offset(k.x - 5.5f * u, k.y - 4f * u), Size(11f * u, 9f * u))
+        drawArc(Color(0xFFD50000), 200f, 140f, false, Offset(k.x - 5.5f * u, k.y - 4f * u), Size(11f * u, 9f * u), style = Stroke(2.6f * u))
+    }
+    rotate(88f + 6f * sin(t * 0.9f), k) { flappingTape(k + Offset(2f * u, 0f), u, t, seed, length = 74f, width = 14f) }
 }
 
 /** One straight piece of red/white police tape with printed text. */
@@ -744,7 +760,7 @@ fun DrawScope.flappingTape(anchor: Offset, u: Float, t: Float, seed: Int, length
     fun quad(i: Int) = Path().apply { moveTo(left[i].x, left[i].y); lineTo(left[i + 1].x, left[i + 1].y); lineTo(right[i + 1].x, right[i + 1].y); lineTo(right[i].x, right[i].y); close() }
     val ribbon = Path().apply { moveTo(left[0].x, left[0].y); for (i in 1..n) lineTo(left[i].x, left[i].y); for (i in n downTo 0) lineTo(right[i].x, right[i].y); close() }
     // soft shadow, white base, then the diagonal red bands (one path, so no seams)
-    translate(1.5f * u, 4f * u) { drawPath(ribbon, Color.Black.copy(alpha = 0.28f)) }
+    translate(1f * u, 2.5f * u) { drawPath(ribbon, Color.Black.copy(alpha = 0.16f)) }
     drawPath(ribbon, Color(0xFFF4F4F4))
     val red = Path()
     for (i in 0 until n) if ((i / 3) % 2 == 0) red.addPath(Path().apply {
@@ -773,6 +789,6 @@ fun DrawScope.flappingTape(anchor: Offset, u: Float, t: Float, seed: Int, length
         val f = j / 4f
         val base = Offset(eL.x + (eR.x - eL.x) * f, eL.y + (eR.y - eL.y) * f)
         val len = (1.5f + (j * 7 + seed) % 4 * 0.9f) * u
-        drawLine(if (j % 2 == 0) Color(0xFFD50000) else Color(0xFFF4F4F4), base, base + fwd * len, 1.1f * u, StrokeCap.Round)
+        drawLine(if (j % 2 == 0) Color(0xFFE53935) else Color(0xFFF4F4F4), base - fwd * 0.6f * u, base + fwd * len, 1.4f * u, StrokeCap.Round)
     }
 }
