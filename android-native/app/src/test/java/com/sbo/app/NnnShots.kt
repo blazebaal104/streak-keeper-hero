@@ -135,10 +135,15 @@ class NnnShots {
             press(110)
             if (tap % 6 == 0 || tap == total) cap("breach-spam-${"%03d".format(tap)}")
         }
-        rule.mainClock.advanceTimeBy(800); cap("breach-bare")
+        // spamming right after the last layer is ignored (input lock), a deliberate press later blows it all up
+        press(100)
+        check(!fell) { "a spam tap during the lock pressed the button" }
+        rule.mainClock.advanceTimeBy(1500); cap("breach-bare")
+        rule.mainClock.advanceTimeBy(5200); cap("breach-bare-whisper")
         press(0)
-        frames("breach-blast", 30, 90, 180, 320, 520, 800, 1200, 1700)
+        frames("breach-blast", 30, 90, 180, 320, 520, 800, 1100)
         check(fell) { "the final press never ended the breach" }
+        frames("breach-lost", 200, 500, 900, 1400, 2200, 3500, 6000, 9000)
     }
 
     @Test fun breachLastLayers() {
