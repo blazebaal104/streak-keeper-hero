@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sbo.app.NnnShots" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-10-31T23:13:03" hostname="runnervm48cm3" time="53.004">
+  <properties/>
+  <testcase name="debugPanel" classname="com.sbo.app.NnnShots" time="1.412"/>
+  <testcase name="breach" classname="com.sbo.app.NnnShots" time="24.791"/>
+  <testcase name="fallen" classname="com.sbo.app.NnnShots" time="1.282"/>
+  <testcase name="kickoff" classname="com.sbo.app.NnnShots" time="2.059"/>
+  <testcase name="kickoffOnHome" classname="com.sbo.app.NnnShots" time="2.297"/>
+  <testcase name="medal" classname="com.sbo.app.NnnShots" time="1.711"/>
+  <testcase name="piles" classname="com.sbo.app.NnnShots" time="9.753"/>
+  <testcase name="victory" classname="com.sbo.app.NnnShots" time="2.67"/>
+  <testcase name="homeNoFire" classname="com.sbo.app.NnnShots" time="0.763"/>
+  <testcase name="breachLastLayers" classname="com.sbo.app.NnnShots" time="1.94"/>
+  <testcase name="fallenMotion" classname="com.sbo.app.NnnShots" time="1.169"/>
+  <testcase name="homeDay12" classname="com.sbo.app.NnnShots" time="3.155"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+]]></system-err>
+</testsuite>
