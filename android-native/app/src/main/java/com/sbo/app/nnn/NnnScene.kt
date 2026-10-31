@@ -88,7 +88,7 @@ fun NnnBackdrop(modifier: Modifier = Modifier, day: Int) {
             if (s.dim < 1f) drawIntoCanvas { it.restore() }
         }
         // banner rippling in the wind
-        windBanner(Offset(w * 0.03f, h * 0.9f), Offset(w * 0.97f, h * 0.895f), 28f * d, t, "NO NUT NOVEMBER · NO NUT NOVEMBER · NO NUT NOVEMBER")
+        windBanner(Offset(w * 0.03f, h * 0.915f), Offset(w * 0.97f, h * 0.91f), 28f * d, t, "NO NUT NOVEMBER · NO NUT NOVEMBER · NO NUT NOVEMBER")
     }
 }
 

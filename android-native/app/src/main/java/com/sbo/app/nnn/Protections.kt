@@ -683,7 +683,8 @@ private fun DrawScope.crimeTape(step: Int, c: Offset, u: Float, t: Float, seed: 
     }
     // the loose end: a cloth-like strip waving from the knot, always there while any strip remains
     // the long loose end streams down and away from the knot, on screen, waving in the wind
-    if (step < 3) { val k = c + Offset(58f * u, -24f * u); rotate(18f + 5f * sin(t * 0.9f), k) { flappingTape(k, u, t, seed, length = 140f, width = 15f) } }
+    // hangs from the lower-left knot and streams down beside the button, clear of any text around it
+    if (step < 3) { val k = c + Offset(-48f * u, 40f * u); rotate(100f + 7f * sin(t * 0.9f), k) { flappingTape(k, u, t, seed, length = 40f, width = 13f) } }
 }
 
 /** One straight piece of red/white police tape with printed text. */

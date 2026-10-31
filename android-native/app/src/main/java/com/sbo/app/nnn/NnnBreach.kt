@@ -164,7 +164,7 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             val text = NnnPhrases.stamp(r)
             val sz = (if (big) 32f else 17f + r.nextFloat() * 14f) * density
             val tw = text.length * sz * 0.5f
-            fun overlap(c: Offset): Float = stamps.filter { !it.bg }.takeLast(10).sumOf { o ->
+            fun overlap(c: Offset): Float = stamps.filter { !it.bg }.sumOf { o ->
                 val ow = o.text.length * o.size * 0.5f
                 val ox = (minOf(c.x + tw / 2, o.at.x + ow / 2) - maxOf(c.x - tw / 2, o.at.x - ow / 2)).coerceAtLeast(0f)
                 val oy = (minOf(c.y + sz / 2, o.at.y + o.size / 2) - maxOf(c.y - sz / 2, o.at.y - o.size / 2)).coerceAtLeast(0f)
@@ -275,7 +275,7 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
                 val age = t - st.born
                 val pop = (age / 0.16f).coerceIn(0f, 1f)
                 val newer = stamps.size - 1 - i
-                val depth = if (st.bg) 1f else (newer / 10f).coerceIn(0f, 1f) * 0.6f   // older and overflow ones sink back: smaller and dimmer
+                val depth = if (st.bg) 1f else (newer / 10f).coerceIn(0f, 1f) * 0.75f   // older and overflow ones sink back: smaller and dimmer
                 val sc = (1.9f - 0.9f * (1f - (1f - pop) * (1f - pop))) * (1f - 0.25f * depth)
                 val fly = b * b * 2600f * density
                 val away = if (phase != "dig") st.dir * fly else Offset.Zero
@@ -300,7 +300,7 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
                 drawCircle(Color(0xFFFF5252).copy(alpha = (1f - b) * 0.85f), rr * 1.04f, center, style = Stroke(18f * density * (1f - b) + 1f))
                 drawCircle(Color(0xFFFF8A80).copy(alpha = (1f - b) * 0.5f), rr * 0.62f, center, style = Stroke(5f * density * (1f - b) + 1f))
                 drawRect(Color(0xFFFF1744).copy(alpha = flash.value * 0.22f))
-                drawRect(Color.White.copy(alpha = flash.value * flash.value * flash.value * 0.85f))
+                drawRect(Color.White.copy(alpha = flash.value.pow(6) * 0.9f))
                 // radial spray: sparks and shards streaking out from the button
                 val sr = Random(seed + 77)
                 for (k in 0 until 64) {
@@ -324,7 +324,7 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             if (idle > 5f && phase == "dig") {
                 val k = ((idle - 5f) / 0.6f).coerceIn(0f, 1f)
                 val pulse = 1f + 0.06f * sin(t * 5f)
-                val y = (center.y + area * scaleNow() * 0.62f).coerceAtMost(size.height - 120f * density)
+                val y = (center.y + area * scaleNow() * 0.62f).coerceAtMost(size.height - 150f * density)
                 val last = layer >= kinds.size
                 scale(pulse, Offset(size.width / 2, y)) {
                     neonText(if (last) "ULTIMO TOCCO" else "PREMILO", Offset(size.width / 2, y), 40f * density, Color(0xFFFF1744), k * (0.8f + 0.2f * sin(t * 5f)), density, spacing = 0.14f)

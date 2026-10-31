@@ -62,12 +62,12 @@ fun NnnHome(userId: String, fire: Int, ice: Int, today: LocalDate, ctl: NnnContr
     val seed = remember(userId, Nnn.seedSalt) { (userId.hashCode() + Nnn.seedSalt * 977) and 0xffff }
     var standing by remember { mutableStateOf<Pair<Int, Int>?>(null) }
     LaunchedEffect(today.year) { standing = runCatching { com.sbo.app.data.Supa.nnnStanding(today.year) }.getOrNull() }
-    Box(Modifier.fillMaxWidth().height(700.dp)) {
+    Box(Modifier.fillMaxWidth().height(722.dp)) {
         NnnBackdrop(Modifier.matchParentSize(), today.dayOfMonth)
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Spacer(Modifier.height(238.dp))
             ProtectedButton(kinds, seed, fire, ice) { ctl.preview = false; ctl.startLayer = 0; ctl.breach = true }
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(24.dp))
             Text(
                 NnnPhrases.reminders[today.dayOfMonth % NnnPhrases.reminders.size], color = Color.White.copy(alpha = 0.78f), fontSize = 13.sp, lineHeight = 18.sp,
                 textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 18.dp),
