@@ -76,22 +76,32 @@ fun NnnBackdrop(modifier: Modifier = Modifier, day: Int) {
         neonText("IN CORSO", Offset(w / 2, ty + ns * 0.66f), ns * 0.30f, Color(0xFFFF5252), neon(t, 4.2f) * 0.85f, d, spacing = 0.32f)
         neonText("GIORNO $day / 30", Offset(w / 2, ty + ns * 0.98f), ns * 0.15f, Color(0xFFFFB3B3), 0.7f, d, spacing = 0.2f)
         // hanging signs (pendulums: ω = √(g/L))
-        signs.forEachIndexed { i, s ->
+        // a string of warning pennants flapping between the neon and the button
+        bunting(Offset(-4f * d, ty + ns * 1.22f), Offset(w + 4f * d, ty + ns * 1.18f), 20f * d, t, d)
+        signs.sortedBy { it.dim }.forEachIndexed { i, s ->
             val anchor = Offset(w * s.x, 0f)
             val len = if (s.rope < 0f) -s.rope * h else s.rope * d
             val omega = sqrt(9.81f / (len / d / 160f)).coerceIn(1.2f, 3.2f)
             val ang = s.amp * sin(t * omega + s.phase) + 2.2f * sin(t * 0.37f + i)
+            if (s.dim < 1f) drawIntoCanvas { it.saveLayer(Rect(0f, 0f, w, h), androidx.compose.ui.graphics.Paint().apply { alpha = s.dim }) }
             rotate(ang, anchor) { hangingSign(s, anchor, len, d, tex, t) }
+            if (s.dim < 1f) drawIntoCanvas { it.restore() }
         }
         // banner rippling in the wind
         windBanner(Offset(w * 0.03f, h * 0.9f), Offset(w * 0.97f, h * 0.895f), 28f * d, t, "NO NUT NOVEMBER · NO NUT NOVEMBER · NO NUT NOVEMBER")
     }
 }
 
-private class SignSpec(val x: Float, val rope: Float, val amp: Float, val phase: Float, val type: Int, val scale: Float)
+private class SignSpec(val x: Float, val rope: Float, val amp: Float, val phase: Float, val type: Int, val scale: Float, val dim: Float = 1f)
 
 // rope < 0 = fraction of the area height
 private val signs = listOf(
+    // far ones first: smaller, dimmer, on long ropes down the sides behind the pile
+    SignSpec(0.07f, -0.40f, 5f, 1.3f, 1, 0.46f, 0.55f),
+    SignSpec(0.93f, -0.47f, 6f, 5.2f, 0, 0.46f, 0.55f),
+    SignSpec(0.3f, 4f, 6f, 3.3f, 0, 0.42f, 0.45f),
+    SignSpec(0.71f, 2f, 7f, 0.9f, 1, 0.42f, 0.45f),
+    // near ones
     SignSpec(0.13f, 8f, 7f, 0.3f, 0, 0.68f),
     SignSpec(0.87f, 6f, 8f, 4.0f, 1, 0.66f),
     SignSpec(0.5f, 18f, 4.5f, 2.1f, 2, 0.8f),
@@ -117,9 +127,11 @@ private fun DrawScope.hangingSign(s: SignSpec, anchor: Offset, len: Float, d: Fl
             val inner = Path().apply { moveTo(c.x, top + 9f * d); lineTo(c.x + sw / 2 - 9f * d, top + sw * 0.86f - 6f * d); lineTo(c.x - sw / 2 + 9f * d, top + sw * 0.86f - 6f * d); close() }
             drawPath(inner, Color(0xFF111111), style = Stroke(4.2f * d, join = androidx.compose.ui.graphics.StrokeJoin.Round))
             label("!", Offset(c.x, top + sw * 0.56f), 42f * d, Color(0xFF111111))
-            val pl = Rect(c.x - sw * 0.55f, top + sw * 0.9f, c.x + sw * 0.55f, top + sw * 0.9f + 22f * d)
+            val fs0 = 12f * d * s.scale / 0.68f
+            val half0 = maxOf(sw * 0.55f, textW("ATTENZIONE", fs0, 0.08f) / 2 + 7f * d * s.scale)
+            val pl = Rect(c.x - half0, top + sw * 0.9f, c.x + half0, top + sw * 0.9f + fs0 * 1.7f)
             solid(Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(pl, CornerRadius(3f * d))) }, Brush.verticalGradient(0f to Color(0xFFFFE04A), 1f to Color(0xFFE0A800), startY = pl.top, endY = pl.bottom), pl, 1.6f * d)
-            label("ATTENZIONE", pl.center, 13f * d, Color(0xFF111111), letter = 0.08f)
+            label("ATTENZIONE", pl.center, fs0, Color(0xFF111111), letter = 0.08f)
         }
         1 -> { // red prohibition disc
             val r = sw / 2
@@ -131,12 +143,15 @@ private fun DrawScope.hangingSign(s: SignSpec, anchor: Offset, len: Float, d: Fl
             drawCircle(Color(0xFF111111), r * 0.22f, c + Offset(0f, r * 0.2f))
             drawRoundRect(Color(0xFF111111), c + Offset(-r * 0.06f, -r * 0.45f), Size(r * 0.12f, r * 0.5f), CornerRadius(r * 0.06f))
             clipPath(disc) { drawRect(tex.brush("rusty_metal_02", 90f * d, 60f), c - Offset(r, r), Size(r * 2, r * 2), alpha = 0.22f, blendMode = BlendMode.Multiply) }
-            val pl = Rect(c.x - sw * 0.62f, c.y + r + 6f * d, c.x + sw * 0.62f, c.y + r + 28f * d)
+            val fs1 = 10.5f * d * s.scale / 0.66f
+            val half1 = maxOf(sw * 0.5f, textW("VIETATO PREMERE", fs1, 0.06f) / 2 + 7f * d * s.scale)
+            val pl = Rect(c.x - half1, c.y + r + 6f * d * s.scale, c.x + half1, c.y + r + 6f * d * s.scale + fs1 * 1.8f)
             solid(Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(pl, CornerRadius(3f * d))) }, Brush.verticalGradient(0f to Color(0xFFE53935), 1f to Color(0xFFB71C1C), startY = pl.top, endY = pl.bottom), pl, 1.6f * d)
-            label("VIETATO PREMERE", pl.center, 11f * d, Color.White, letter = 0.06f)
+            label("VIETATO PREMERE", pl.center, fs1, Color.White, letter = 0.06f)
         }
         else -> { // hazard-striped plate with flickering bulbs
-            val pl = Rect(c.x - sw / 2, top, c.x + sw / 2, top + sh)
+            val bw = maxOf(sw, textW("NON PREMERE", 17f * d * s.scale / 0.8f, 0.14f) + 44f * d * s.scale)
+            val pl = Rect(c.x - bw / 2, top, c.x + bw / 2, top + sh)
             val p = Path().apply { addRoundRect(androidx.compose.ui.geometry.RoundRect(pl, CornerRadius(4f * d))) }
             solid(p, Brush.verticalGradient(0f to Color(0xFF262626), 1f to Color(0xFF0C0C0C), startY = pl.top, endY = pl.bottom), pl, 2f * d, gloss = 0.3f)
             clipPath(p) {
@@ -148,16 +163,16 @@ private fun DrawScope.hangingSign(s: SignSpec, anchor: Offset, len: Float, d: Fl
                 }
             }
             val on = neon(t, 9.1f)
-            label("NON PREMERE", pl.center + Offset(0f, -1f * d), 17f * d, Color(0xFFFF1744).copy(alpha = 0.4f + 0.6f * on), letter = 0.14f)
+            label("NON PREMERE", pl.center + Offset(0f, -1f * d), 17f * d * s.scale / 0.8f, Color(0xFFFF1744).copy(alpha = 0.4f + 0.6f * on), letter = 0.14f)
             drawIntoCanvas { cv ->
                 val pp = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
                     color = android.graphics.Color.argb((140 * on).toInt(), 255, 23, 68); textSize = 17f * d; textAlign = android.graphics.Paint.Align.CENTER
-                    typeface = android.graphics.Typeface.DEFAULT_BOLD; letterSpacing = 0.14f
+                    typeface = android.graphics.Typeface.DEFAULT_BOLD; letterSpacing = 0.14f; textSize = 17f * d * s.scale / 0.8f
                     maskFilter = android.graphics.BlurMaskFilter(8f * d, android.graphics.BlurMaskFilter.Blur.NORMAL)
                 }
                 cv.nativeCanvas.drawText("NON PREMERE", pl.center.x, pl.center.y + 6f * d, pp)
             }
-            listOf(pl.left + 9f * d, pl.right - 9f * d).forEach { x -> bolt(Offset(x, pl.center.y), 3f * d) }
+            for (x in listOf(pl.left + 7f * d, pl.right - 7f * d)) for (y in listOf(pl.top + 4.5f * d, pl.bottom - 4.5f * d)) bolt(Offset(x, y), 2.4f * d)
         }
     }
 }
@@ -209,3 +224,28 @@ fun DrawScope.windBanner(a: Offset, b: Offset, hgt: Float, t: Float, text: Strin
 }
 
 fun swingAngle(t: Float, amp: Float, omega: Float, phase: Float) = amp * sin(t * omega + phase) * (0.85f + 0.15f * abs(sin(t * 0.21f)))
+
+private fun textW(text: String, size: Float, letter: Float) = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+    textSize = size; typeface = android.graphics.Typeface.create(android.graphics.Typeface.SANS_SERIF, android.graphics.Typeface.BOLD); letterSpacing = letter
+}.measureText(text)
+
+/** A sagging cord of triangular warning pennants, each one fluttering on its own. */
+private fun DrawScope.bunting(a: Offset, b: Offset, flag: Float, t: Float, d: Float) {
+    val n = 13
+    fun at(s: Float) = Offset(a.x + (b.x - a.x) * s, a.y + (b.y - a.y) * s + sin(s * PI.toFloat()) * flag * 0.9f + sin(t * 2.2f + s * 6f) * 2f * d)
+    val pts = (0..40).map { at(it / 40f) }
+    for (i in 0 until pts.size - 1) drawLine(Color(0xFF8D7550), pts[i], pts[i + 1], 1.6f * d, StrokeCap.Round)
+    for (i in 0 until n) {
+        val s = (i + 0.5f) / n
+        val p0 = at(s - 0.022f); val p1 = at(s + 0.022f)
+        val wave = sin(t * 7.5f + i * 1.7f) * 0.5f + sin(t * 12.1f + i) * 0.2f
+        val tip = Offset((p0.x + p1.x) / 2 + wave * flag * 0.45f, (p0.y + p1.y) / 2 + flag * (0.95f - 0.12f * kotlin.math.abs(wave)))
+        val tri = Path().apply { moveTo(p0.x, p0.y); lineTo(p1.x, p1.y); lineTo(tip.x, tip.y); close() }
+        val yellow = i % 2 == 0
+        val base = if (yellow) Color(0xFFFFC400) else Color(0xFFE53935)
+        val shade = 0.72f + 0.28f * (0.5f + 0.5f * sin(t * 7.5f + i * 1.7f + 1f))
+        drawPath(tri, Color(base.red * shade, base.green * shade, base.blue * shade))
+        drawPath(tri, Brush.linearGradient(0f to Color.White.copy(alpha = 0.18f), 1f to Color.Black.copy(alpha = 0.25f), start = p0, end = tip))
+        if (yellow) label("!", Offset((p0.x + p1.x + tip.x) / 3, (p0.y + p1.y + tip.y) / 3 - 1f * d), flag * 0.42f, Color(0xFF111111))
+    }
+}

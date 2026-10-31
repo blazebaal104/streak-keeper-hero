@@ -127,7 +127,10 @@ fun BadgeArt(def: BadgeDef, side: Dp? = 64.dp, locked: Boolean = false, modifier
             Text(
                 "✦", color = if (isIce) Color.White else Color(0xFFFEF9C3), fontSize = fs.sp, lineHeight = fs.sp,
                 modifier = Modifier.align(Alignment.TopStart).graphicsLayer {
-                    translationX = rnd(seed, i) * 0.88f * px.toPx(); translationY = rnd(seed, i + 40) * 0.84f * px.toPx()
+                    val fx = rnd(seed, i) * 0.88f; var fy = rnd(seed, i + 40) * 0.84f
+                    // the NNN emblem has lettering in the middle: keep sparkles off it
+                    if (def.category == "nnn" && fx in 0.18f..0.7f && fy in 0.22f..0.72f) fy = if (fy < 0.47f) 0.06f else 0.8f
+                    translationX = fx * px.toPx(); translationY = fy * px.toPx()
                     val ph = (((clock.value - delay) / dur) % 1f + 1f) % 1f
                     val k = 0.5f - 0.5f * kotlin.math.cos(ph * 2f * Math.PI.toFloat())
                     alpha = k; scaleX = 0.4f + 0.6f * k; scaleY = 0.4f + 0.6f * k

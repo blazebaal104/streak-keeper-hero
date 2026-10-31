@@ -72,6 +72,7 @@ import com.sbo.app.ui.StreakButton
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.PI
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.pow
 import kotlin.math.sin
@@ -159,10 +160,19 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
         val center = Offset(wPx / 2f, hPx * 0.52f)
 
         fun spawnStamp(now: Float, big: Boolean = false) {
-            if (stamps.size > 70) stamps.removeAt(0)
-            val ang = r.nextFloat() * 2 * PI.toFloat()
-            val at = Offset(wPx * (0.06f + 0.88f * r.nextFloat()), hPx * (0.08f + 0.86f * r.nextFloat()))
-            stamps += Stamp(NnnPhrases.stamp(r), at, (r.nextFloat() - 0.5f) * 28f, (if (big) 34f else 18f + r.nextFloat() * 18f) * density, now, Offset(cos(ang), sin(ang)), r.nextFloat() < 0.85f)
+            if (stamps.size > 46) stamps.removeAt(0)
+            val text = NnnPhrases.stamp(r)
+            val sz = (if (big) 32f else 17f + r.nextFloat() * 14f) * density
+            val tw = text.length * sz * 0.5f
+            fun overlap(c: Offset): Float = stamps.takeLast(14).sumOf { o ->
+                val ow = o.text.length * o.size * 0.5f
+                val ox = (minOf(c.x + tw / 2, o.at.x + ow / 2) - maxOf(c.x - tw / 2, o.at.x - ow / 2)).coerceAtLeast(0f)
+                val oy = (minOf(c.y + sz / 2, o.at.y + o.size / 2) - maxOf(c.y - sz / 2, o.at.y - o.size / 2)).coerceAtLeast(0f)
+                (ox * oy).toDouble()
+            }.toFloat()
+            val at = List(10) { Offset(wPx * (0.1f + 0.8f * r.nextFloat()), hPx * (0.26f + 0.6f * r.nextFloat())) }.minBy { overlap(it) }
+            val ang = atan2(at.y - center.y, at.x - center.x)
+            stamps += Stamp(text, at, (r.nextFloat() - 0.5f) * 22f, sz, now, Offset(cos(ang), sin(ang)), r.nextFloat() < 0.85f)
         }
 
         fun tap() {
@@ -203,7 +213,7 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             if (step >= k.steps) {
                 // the whole layer is blown off: jumps up, spins, falls off screen
                 view.performHapticFeedback(if (android.os.Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.LONG_PRESS)
-                debris += Debris(k, -1, k.steps - 1, center, now, (r.nextFloat() - 0.5f) * 700f * density / 2.6f, -(900f + r.nextFloat() * 400f) * density / 2.6f, (r.nextFloat() - 0.5f) * 260f, tiltOf(seed, layer), seed + layer * 13)
+                debris += Debris(k, -1, k.steps - 1, center, now, (r.nextFloat() - 0.5f) * 900f * density / 2.6f, -(1700f + r.nextFloat() * 400f) * density / 2.6f, (if (r.nextBoolean()) 1f else -1f) * (280f + r.nextFloat() * 260f), tiltOf(seed, layer), seed + layer * 13)
                 layer++; step = 0; removed++
                 spawnStamp(now, big = true)
                 if (removed % 2 == 0) bubbles += NnnPhrases.coachLine(r) to now
@@ -241,7 +251,7 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             val u = area / 100f * s
             if (phase == "dig") drawPile(kinds, layer, step, center, u, tex, t, seed, shake.value)
             // flying debris
-            val g = 2600f * density / 2.6f
+            val g = 4200f * density / 2.6f
             debris.removeAll { t - it.born > 3.5f }
             for (d in debris) {
                 val dt = t - d.born
@@ -256,28 +266,56 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
             }
             // red stamps piling up (blown outwards by the shockwave)
             val b = blast.value
-            for (st in stamps) {
+            stamps.forEachIndexed { i, st ->
                 val age = t - st.born
                 val pop = (age / 0.16f).coerceIn(0f, 1f)
-                val sc = 1.9f - 0.9f * (1f - (1f - pop) * (1f - pop))
-                val away = if (phase != "dig") st.dir * (b * b * 1600f * density) + Offset(0f, b * b * 900f * density) else Offset.Zero
-                val a = (pop * (1f - b)).coerceIn(0f, 1f)
-                if (a <= 0f) continue
-                rotate(st.rot + b * 220f * st.dir.x, st.at + away) {
+                val newer = stamps.size - 1 - i
+                val depth = (newer / 8f).coerceIn(0f, 1f)            // older ones sink back: smaller and dimmer
+                val sc = (1.9f - 0.9f * (1f - (1f - pop) * (1f - pop))) * (1f - 0.25f * depth)
+                val fly = b * b * 2600f * density
+                val away = if (phase != "dig") st.dir * fly else Offset.Zero
+                val a = (pop * (1f - 0.6f * depth) * (1f - b * b)).coerceIn(0f, 1f)
+                if (a <= 0f) return@forEachIndexed
+                if (phase != "dig" && b > 0.02f) for (k in 1..3) { // motion trail along the blast radius
+                    val back = st.at + st.dir * (fly * (1f - k * 0.12f))
+                    rotate(st.rot, back) { stampText(st.text, back, st.size * sc, a * 0.18f / k, st.red) }
+                }
+                rotate(st.rot + b * 90f * st.dir.x, st.at + away) {
                     stampText(st.text, st.at + away, st.size * sc, a, st.red)
                 }
             }
             // final press: shockwave rings + red flash
             if (phase != "dig") {
-                val rr = b * maxOf(size.width, size.height) * 1.1f
-                drawCircle(Color(0xFFFF5252).copy(alpha = (1f - b) * 0.9f), rr, center, style = Stroke(26f * density * (1f - b) + 2f))
-                drawCircle(Color.White.copy(alpha = (1f - b) * 0.8f), rr * 0.82f, center, style = Stroke(8f * density * (1f - b) + 1f))
-                drawRect(Color(0xFFFF1744).copy(alpha = flash.value * 0.55f))
+                val e = 1f - (1f - b) * (1f - b) * (1f - b)
+                val rr = e * maxOf(size.width, size.height) * 1.25f
+                // white-hot core
+                drawCircle(Brush.radialGradient(0f to Color.White.copy(alpha = flash.value), 0.35f to Color(0xFFFFE0E0).copy(alpha = flash.value * 0.7f), 1f to Color.Transparent, center = center, radius = (0.15f + e) * size.width * 0.7f), (0.15f + e) * size.width * 0.7f, center)
+                // pressure ring: bright leading edge, dark refraction band behind, red halo
+                drawCircle(Brush.radialGradient(0.80f to Color.Transparent, 0.90f to Color.Black.copy(alpha = 0.35f * (1f - b)), 0.97f to Color.White.copy(alpha = 0.95f * (1f - b)), 1f to Color.Transparent, center = center, radius = rr.coerceAtLeast(1f)), rr.coerceAtLeast(1f), center)
+                drawCircle(Color(0xFFFF5252).copy(alpha = (1f - b) * 0.85f), rr * 1.04f, center, style = Stroke(18f * density * (1f - b) + 1f))
+                drawCircle(Color(0xFFFF8A80).copy(alpha = (1f - b) * 0.5f), rr * 0.62f, center, style = Stroke(5f * density * (1f - b) + 1f))
+                drawRect(Color(0xFFFF1744).copy(alpha = flash.value * 0.22f))
             }
         }
-        // Coach Zero writing, and you can't answer
+        // after 5 s of doubt: a big pulsing dare right under the button
+        Canvas(Modifier.fillMaxSize()) {
+            val t = clock.value
+            val idle = t - lastTap
+            if (idle > 5f && phase == "dig") {
+                val k = ((idle - 5f) / 0.6f).coerceIn(0f, 1f)
+                val pulse = 1f + 0.06f * sin(t * 5f)
+                val y = (center.y + area * scaleNow() * 0.62f).coerceAtMost(size.height - 120f * density)
+                val last = layer >= kinds.size
+                scale(pulse, Offset(size.width / 2, y)) {
+                    neonText(if (last) "ULTIMO TOCCO" else "PREMILO", Offset(size.width / 2, y), 40f * density, Color(0xFFFF1744), k * (0.8f + 0.2f * sin(t * 5f)), density, spacing = 0.14f)
+                }
+                neonText(if (last) "PENSACI BENE." else "LO SAI CHE VUOI FARLO.", Offset(size.width / 2, y + 36f * density), 15f * density, Color.White, k * 0.9f, density, spacing = 0.2f)
+            }
+        }
+        // Coach Zero writing, and you can't answer (on a solid scrim so stamps never show between bubbles)
+        Box(Modifier.fillMaxWidth().height(230.dp).graphicsLayer { alpha = zoom.value * (1f - blast.value) }.background(Brush.verticalGradient(0f to Color(0xF2050506), 0.72f to Color(0xD9050506), 1f to Color.Transparent)))
         Column(
-            Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp).graphicsLayer {
+            Modifier.fillMaxWidth().statusBarsPadding().padding(start = 14.dp, end = 14.dp, top = 46.dp, bottom = 10.dp).graphicsLayer {
                 alpha = zoom.value * (1f - blast.value); translationY = -blast.value * 600f
             },
             verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -286,15 +324,7 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
         }
         // hint after 5 s of doubt, and the locked reply bar
         Column(Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 18.dp).graphicsLayer { alpha = zoom.value * (1f - blast.value) }, horizontalAlignment = Alignment.CenterHorizontally) {
-            Canvas(Modifier.fillMaxWidth().height(40.dp)) {
-                val t = clock.value
-                val idle = t - lastTap
-                if (idle > 5f && phase == "dig") {
-                    val k = ((idle - 5f) / 0.6f).coerceIn(0f, 1f) * (0.65f + 0.35f * sin(t * 4f))
-                    val txt = if (layer >= kinds.size) "ULTIMO TOCCO. PENSACI BENE." else "PREMILO. LO SAI CHE VUOI FARLO."
-                    neonText(txt, Offset(size.width / 2, size.height / 2), 15f * density, Color.White, k, density, spacing = 0.12f)
-                }
-            }
+            Spacer(Modifier.height(12.dp))
             Row(
                 Modifier.padding(horizontal = 16.dp).fillMaxWidth().height(44.dp).clip(RoundedCornerShape(22.dp)).background(Color(0xFF151518)).border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(22.dp)).padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,

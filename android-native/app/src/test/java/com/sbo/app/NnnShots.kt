@@ -192,7 +192,7 @@ class NnnShots {
                 Row { BadgeArt(Badges.nnn(2026), side = 64.dp); Spacer(Modifier.size(12.dp)); BadgeArt(Badges.nnn(2026), side = 40.dp) }
             }
         }
-        frames("medal", 200, 700, 1300, 2000)
+        frames("medal", 200, 450, 650, 850, 1100, 2000)
     }
 
     @Test fun debugPanel() {

@@ -93,8 +93,8 @@ fun NnnKickoff(onAccept: () -> Unit) {
     BackHandler { onAccept() }
     val clock = rememberClock()
     val enter = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { enter.animateTo(1f, tween(700, easing = FastOutSlowInEasing)) }
-    Box(Modifier.fillMaxSize().graphicsLayer { alpha = enter.value }.background(Color(0xF2050507)).clickable(remember { MutableInteractionSource() }, null) {}) {
+    LaunchedEffect(Unit) { enter.animateTo(1f, tween(380, easing = FastOutSlowInEasing)) }
+    Box(Modifier.fillMaxSize().graphicsLayer { alpha = (enter.value * 1.6f).coerceAtMost(1f) }.background(Color(0xFF050507)).clickable(remember { MutableInteractionSource() }, null) {}) {
         Canvas(Modifier.fillMaxSize()) {
             val t = clock.value
             drawRect(Brush.radialGradient(0f to Color(0xFF4A0010).copy(alpha = 0.6f), 1f to Color.Transparent, center = Offset(size.width / 2, size.height * 0.2f), radius = size.height * 0.6f))
@@ -133,7 +133,8 @@ fun NnnFallen(day: Int, onClose: () -> Unit) {
             val uu = size.width / 260f
             tapeStrip(Offset(-20f * uu, mid.y - 70f * uu), Offset(size.width + 20f * uu, mid.y + 40f * uu), 26f * uu, uu, t * 0.2f)
             tapeStrip(Offset(-20f * uu, mid.y + 50f * uu), Offset(size.width + 20f * uu, mid.y - 60f * uu), 26f * uu, uu, t * 0.2f + 0.5f)
-            flappingTape(Offset(size.width - 6f * uu, mid.y - 64f * uu), uu, t, 5, 90f, 12f)
+            val knot = Offset(size.width * 0.5f, mid.y - 8f * uu)
+            rotate(100f, knot) { flappingTape(knot, uu, t, 5, 120f, 14f) }
             neonText(if (lasted == 0) "IL PRIMO GIORNO" else "DOPO $lasted ${if (lasted == 1) "GIORNO" else "GIORNI"}", Offset(size.width / 2, size.height * 0.12f + size.width * 0.13f), size.width * 0.06f, Color(0xFFFFCDD2), 0.85f, density, spacing = 0.25f)
         }
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp), verticalArrangement = Arrangement.Bottom) {

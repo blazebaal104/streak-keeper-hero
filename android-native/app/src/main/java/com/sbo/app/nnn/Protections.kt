@@ -213,7 +213,8 @@ private fun DrawScope.steelPlate(step: Int, c: Offset, u: Float, tex: Textures, 
         if (step > i) drawCircle(Brush.radialGradient(0f to Color.Black, 1f to Color(0xFF2B2F33), center = bc, radius = 4f * u), 4f * u, bc)
         else bolt(bc, 5.2f * u, 12f * i + seed)
     }
-    label("NON TOCCARE", c, 6f * u, Color(0xFF1A1C1E).copy(alpha = 0.55f), letter = 0.12f)
+    drawRect(Color(0xFFFFC400).copy(alpha = 0.85f), Offset(c.x - 34f * u, c.y - 8f * u), Size(68f * u, 16f * u))
+    label("NON TOCCARE", c, 8.4f * u, Color(0xFF111111), letter = 0.1f, font = android.graphics.Typeface.create("sans-serif-condensed", android.graphics.Typeface.BOLD))
 }
 
 // 6 ─ U-lock (bike lock)
@@ -248,17 +249,23 @@ private fun DrawScope.zipTies(step: Int, c: Offset, u: Float, seed: Int) {
     for (i in 0 until 3) {
         if (step > i) continue
         rotate(-50f + i * 50f + (seed % 9), c) {
-            val p = Path().apply { addOval(Rect(Offset(c.x - 62f * u, c.y - 14f * u), Size(124f * u, 28f * u))) }
-            drawPath(p, Color.Black.copy(alpha = 0.5f), style = Stroke(6.4f * u))
-            drawPath(p, Color(0xFF151618), style = Stroke(5.4f * u))
-            // serrations
-            drawPath(p, Color(0xFF2E3034), style = Stroke(5.4f * u, pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.6f * u, 1.0f * u))))
-            drawPath(p, Color.White.copy(alpha = 0.22f), style = Stroke(1.2f * u))
-            // ratchet head + cut tail
-            val hc = c + Offset(56f * u, -6f * u)
-            drawRoundRect(Color(0xFF0E0F10), Offset(hc.x - 5f * u, hc.y - 4f * u), Size(10f * u, 8f * u), CornerRadius(1.5f * u))
-            drawRoundRect(Color.White.copy(alpha = 0.18f), Offset(hc.x - 4f * u, hc.y - 3.4f * u), Size(8f * u, 1.6f * u), CornerRadius(0.8f * u))
-            drawLine(Color(0xFF151618), hc + Offset(4f * u, 0f), hc + Offset(16f * u, -10f * u), 4.6f * u, StrokeCap.Butt)
+            val ov = Rect(Offset(c.x - 62f * u, c.y - 16f * u), Size(124f * u, 32f * u))
+            // back half (behind the button): thin, in shadow
+            drawArc(Color(0xFF0A0A0B), 180f, 180f, false, ov.topLeft, ov.size, style = Stroke(3.2f * u))
+            // front half: flat nylon band with serrations and a sheen
+            drawArc(Color.Black.copy(alpha = 0.55f), 0f, 180f, false, ov.topLeft + Offset(0f, 1.6f * u), ov.size, style = Stroke(7.6f * u))
+            drawArc(Color(0xFF1B1C1F), 0f, 180f, false, ov.topLeft, ov.size, style = Stroke(6.4f * u))
+            drawArc(Color(0xFF34363B), 0f, 180f, false, ov.topLeft, ov.size, style = Stroke(6.4f * u, pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.7f * u, 1.1f * u))))
+            drawArc(Color.White.copy(alpha = 0.28f), 15f, 120f, false, ov.topLeft + Offset(0f, -1.6f * u), ov.size, style = Stroke(1.1f * u))
+            // ratchet head on the front, with the long cut tail sticking out
+            val hc = c + Offset(38f * u, 13f * u)
+            val head = rr(hc, 11f * u, 9f * u, 1.8f * u)
+            solid(head, Brush.verticalGradient(0f to Color(0xFF3A3C41), 1f to Color(0xFF0B0B0C), startY = hc.y - 5f * u, endY = hc.y + 5f * u), box(hc, 11f * u, 9f * u), 1.2f * u, gloss = 0.4f)
+            drawRect(Color.Black, Offset(hc.x - 3.2f * u, hc.y - 1f * u), Size(6.4f * u, 2f * u))
+            val tail = Path().apply { moveTo(hc.x + 4f * u, hc.y); quadraticTo(hc.x + 16f * u, hc.y + 2f * u, hc.x + 30f * u, hc.y + 12f * u) }
+            drawPath(tail, Color.Black.copy(alpha = 0.5f), style = Stroke(5.2f * u))
+            drawPath(tail, Color(0xFF1B1C1F), style = Stroke(4.4f * u))
+            drawPath(tail, Color(0xFF34363B), style = Stroke(4.4f * u, pathEffect = PathEffect.dashPathEffect(floatArrayOf(0.7f * u, 1.1f * u))))
         }
     }
 }
@@ -412,6 +419,17 @@ private fun DrawScope.rope(step: Int, c: Offset, u: Float, seed: Int) {
 // 13 ─ steel grate with a sliding bolt
 private fun DrawScope.grate(step: Int, c: Offset, u: Float, tex: Textures) {
     val w = 108f * u
+    if (step >= 2) {
+        // door swung toward the viewer around the left hinges: foreshortened, darker inside face
+        val hinge = Offset(c.x - w / 2, c.y)
+        scale(0.42f, 1.06f, hinge) { grateDoor(1, c, u, tex, w) }
+        drawRect(Brush.horizontalGradient(0f to Color.Black.copy(alpha = 0.0f), 1f to Color.Black.copy(alpha = 0.35f), startX = hinge.x, endX = hinge.x + w * 0.42f), Offset(hinge.x, c.y - w * 0.53f), Size(w * 0.42f, w * 1.06f))
+        return
+    }
+    grateDoor(step, c, u, tex, w)
+}
+
+private fun DrawScope.grateDoor(step: Int, c: Offset, u: Float, tex: Textures, w: Float) {
     val frame = Path().apply {
         addRoundRect(RoundRect(box(c, w, w), CornerRadius(3f * u)))
         addRoundRect(RoundRect(box(c, w - 12f * u, w - 12f * u), CornerRadius(2f * u)))
@@ -468,7 +486,13 @@ private fun DrawScope.ratchetStrap(step: Int, c: Offset, u: Float) {
     rotate(-18f, c) {
         val strap = Path().apply { moveTo(c.x - 80f * u, c.y - 9f * u); quadraticTo(c.x, c.y - 9f * u + slack, c.x + 80f * u, c.y - 9f * u); lineTo(c.x + 80f * u, c.y + 9f * u); quadraticTo(c.x, c.y + 9f * u + slack, c.x - 80f * u, c.y + 9f * u); close() }
         solid(strap, Brush.verticalGradient(0f to Color(0xFFFF8F1F), 0.5f to Color(0xFFE5650B), 1f to Color(0xFFB64D04), startY = c.y - 9f * u, endY = c.y + 9f * u), box(c, 160f * u, 18f * u), 1.1f * u, gloss = 0.25f)
-        clipPath(strap) { var x = c.x - 80f * u; while (x < c.x + 80f * u) { drawLine(Color.Black.copy(alpha = 0.10f), Offset(x, c.y - 10f * u), Offset(x + 2f * u, c.y + 10f * u + slack), 0.5f * u); x += 1.6f * u } }
+        clipPath(strap) {
+            var x = c.x - 80f * u; while (x < c.x + 80f * u) { drawLine(Color.Black.copy(alpha = 0.16f), Offset(x, c.y - 10f * u), Offset(x + 2f * u, c.y + 10f * u + slack), 0.5f * u); x += 1.3f * u }
+            var y = c.y - 9f * u; while (y < c.y + 9f * u + slack) { drawLine(Color.White.copy(alpha = 0.10f), Offset(c.x - 80f * u, y), Offset(c.x + 80f * u, y + slack * 0.3f), 0.35f * u); y += 1.5f * u }
+            // stitched edges
+            drawPath(Path().apply { moveTo(c.x - 80f * u, c.y - 7f * u); quadraticTo(c.x, c.y - 7f * u + slack, c.x + 80f * u, c.y - 7f * u) }, Color(0xFF7A3302), style = Stroke(0.7f * u, pathEffect = PathEffect.dashPathEffect(floatArrayOf(2f * u, 1.2f * u))))
+            drawPath(Path().apply { moveTo(c.x - 80f * u, c.y + 7f * u); quadraticTo(c.x, c.y + 7f * u + slack, c.x + 80f * u, c.y + 7f * u) }, Color(0xFF7A3302), style = Stroke(0.7f * u, pathEffect = PathEffect.dashPathEffect(floatArrayOf(2f * u, 1.2f * u))))
+        }
         // stitched label
         drawRect(Color.White.copy(alpha = 0.9f), Offset(c.x - 60f * u, c.y - 6f * u), Size(18f * u, 12f * u))
         label("5 t", Offset(c.x - 51f * u, c.y), 4.6f * u, Color(0xFF1565C0))
@@ -529,15 +553,21 @@ private fun DrawScope.cardboardBox(step: Int, c: Offset, u: Float, seed: Int) {
     val left = Path().apply { moveTo(c.x - w / 2, c.y - w / 2); lineTo(c.x, c.y - w / 2); lineTo(c.x, c.y + w / 2); lineTo(c.x - w / 2, c.y + w / 2); close() }
     val right = Path().apply { moveTo(c.x, c.y - w / 2); lineTo(c.x + w / 2, c.y - w / 2); lineTo(c.x + w / 2, c.y + w / 2); lineTo(c.x, c.y + w / 2); close() }
     if (!lOpen) drawPath(left, Brush.horizontalGradient(0f to Color(0x22000000), 1f to Color(0x00000000), startX = c.x - w / 2, endX = c.x))
-    else { drawPath(left, Color(0xFF2A1A0A)); drawPath(Path().apply { moveTo(c.x - w / 2, c.y - w / 2); lineTo(c.x - w / 2 - 30f * u, c.y - w / 2 + 6f * u); lineTo(c.x - w / 2 - 30f * u, c.y + w / 2 - 6f * u); lineTo(c.x - w / 2, c.y + w / 2); close() }, card) }
-    if (rOpen) { drawPath(right, Color(0xFF2A1A0A)); drawPath(Path().apply { moveTo(c.x + w / 2, c.y - w / 2); lineTo(c.x + w / 2 + 30f * u, c.y - w / 2 + 6f * u); lineTo(c.x + w / 2 + 30f * u, c.y + w / 2 - 6f * u); lineTo(c.x + w / 2, c.y + w / 2); close() }, card) }
+    else { drawPath(left, Brush.radialGradient(0f to Color(0xFFFF8F00), 0.6f to Color(0xFF7A2E00), 1f to Color(0xFF1E0F04), center = c, radius = w * 0.6f)); drawPath(Path().apply { moveTo(c.x - w / 2, c.y - w / 2); lineTo(c.x - w / 2 - 30f * u, c.y - w / 2 + 6f * u); lineTo(c.x - w / 2 - 30f * u, c.y + w / 2 - 6f * u); lineTo(c.x - w / 2, c.y + w / 2); close() }, card) }
+    if (rOpen) { drawPath(right, Brush.radialGradient(0f to Color(0xFFFF8F00), 0.6f to Color(0xFF7A2E00), 1f to Color(0xFF1E0F04), center = c, radius = w * 0.6f)); drawPath(Path().apply { moveTo(c.x + w / 2, c.y - w / 2); lineTo(c.x + w / 2 + 30f * u, c.y - w / 2 + 6f * u); lineTo(c.x + w / 2 + 30f * u, c.y + w / 2 - 6f * u); lineTo(c.x + w / 2, c.y + w / 2); close() }, card) }
     drawLine(Color.Black.copy(alpha = 0.35f), Offset(c.x, c.y - w / 2), Offset(c.x, c.y + w / 2), 0.8f * u)
     // packing tape along the seam (cut after step 1)
     if (step < 1) {
         drawRect(Color(0xCCB07A3C), Offset(c.x - 9f * u, c.y - w / 2 - 6f * u), Size(18f * u, w + 12f * u))
         drawRect(Color.White.copy(alpha = 0.22f), Offset(c.x - 9f * u, c.y - w / 2 - 6f * u), Size(5f * u, w + 12f * u))
     } else if (!lOpen) {
-        drawRect(Color(0xCCB07A3C), Offset(c.x - 9f * u, c.y - w / 2 - 6f * u), Size(9f * u, w + 12f * u))
+        // tape slit down the seam: both halves still stuck, one corner peeled back
+        drawRect(Color(0xCCB07A3C), Offset(c.x - 9f * u, c.y - w / 2 - 6f * u), Size(8f * u, w + 12f * u))
+        drawRect(Color(0xCCB07A3C), Offset(c.x + 1.5f * u, c.y - w / 2 + 14f * u), Size(7.5f * u, w - 8f * u))
+        val zig = Path().apply { moveTo(c.x - 1f * u, c.y - w / 2 - 6f * u); var yy = c.y - w / 2 - 6f * u; var k = 0; while (yy < c.y + w / 2 + 6f * u) { yy += 3f * u; lineTo(c.x + (if (k++ % 2 == 0) 1.2f else -0.6f) * u, yy) } }
+        drawPath(zig, Color(0xFF1E0F04), style = Stroke(1.4f * u))
+        drawPath(Path().apply { moveTo(c.x + 1.5f * u, c.y - w / 2 + 14f * u); lineTo(c.x + 14f * u, c.y - w / 2 - 2f * u); lineTo(c.x + 9f * u, c.y - w / 2 + 14f * u); close() }, Color(0xFFD9A35E))
+        label("✂", c + Offset(0f, w / 2 + 2f * u), 9f * u, Color.White.copy(alpha = 0.85f))
     }
     if (!lOpen && !rOpen) {
         label("FRAGILE", c + Offset(-26f * u, 26f * u), 6f * u, Color(0xFFB71C1C).copy(alpha = 0.85f), letter = 0.1f)
@@ -575,7 +605,7 @@ private fun DrawScope.bricks(step: Int, c: Offset, u: Float, tex: Textures, seed
     drawRect(Color(0xFF9E9A92), Offset(c.x - w / 2, c.y - w / 2), Size(w, w)) // mortar
     val brickBrush = tex.brush("red_brick", 120f * u, 0f, Offset(seed * 21f, seed * 5f), Color(0xFF8E3B2A))
     val bh = 13f * u; val bw = 26f * u
-    val missing = listOf(17 to 1, 10 to 2, 23 to 3) // brick index knocked out at step n
+    val missing = listOf(17 to 1, 16 to 1, 24 to 1, 10 to 2, 11 to 2, 18 to 2, 23 to 3, 30 to 3, 31 to 3) // bricks knocked out at step n
     var idx = 0
     var row = 0
     var y = c.y - w / 2 + 1f * u
@@ -586,7 +616,13 @@ private fun DrawScope.bricks(step: Int, c: Offset, u: Float, tex: Textures, seed
             val gone = missing.any { it.first == idx && step >= it.second }
             if (r - l > 2f * u) {
                 val b = Rect(l, y, r, y + bh - 1.6f * u)
-                if (gone) drawRect(Brush.radialGradient(0f to Color(0xFF0B0B0B), 1f to Color(0xFF2A2522), center = b.center, radius = b.width), b.topLeft, b.size)
+                if (gone) {
+                    // the burning button behind: hot glow through the hole, darker toward the edges
+                    drawRect(Brush.radialGradient(0f to Color(0xFFFFD54F), 0.45f to Color(0xFFFF6D00), 1f to Color(0xFF3A0E00), center = c, radius = w * 0.55f), b.topLeft, b.size)
+                    drawRect(Brush.verticalGradient(0f to Color.Black.copy(alpha = 0.55f), 0.35f to Color.Transparent, startY = b.top, endY = b.bottom), b.topLeft, b.size)
+                    // broken mortar crumbs on the lower edge
+                    for (k in 0 until 6) drawCircle(Color(0xFFB9B3A8), (0.5f + (k * 37 % 5) * 0.18f) * u, Offset(b.left + b.width * (k + 0.5f) / 6f, b.bottom - (k % 2) * 0.8f * u))
+                }
                 else {
                     val p = Path().apply { addRoundRect(RoundRect(b, CornerRadius(0.8f * u))) }
                     solid(p, brickBrush, b, 0.8f * u, gloss = 0.12f, shadow = 0.25f)
@@ -632,7 +668,8 @@ private fun DrawScope.crimeTape(step: Int, c: Offset, u: Float, t: Float, seed: 
         rotate(ang, c) { tapeStrip(Offset(c.x - 82f * u, c.y), Offset(c.x + 82f * u, c.y), 14f * u, u, t + i) }
     }
     // the loose end: a cloth-like strip waving from the knot, always there while any strip remains
-    if (step < 3) flappingTape(c + Offset(60f * u, -26f * u), u, t, seed)
+    // the long loose end streams down and away from the knot, on screen, waving in the wind
+    if (step < 3) { val k = c + Offset(58f * u, -24f * u); rotate(112f + 6f * sin(t * 0.9f), k) { flappingTape(k, u, t, seed, length = 150f, width = 15f) } }
 }
 
 /** One straight piece of red/white police tape with printed text. */
