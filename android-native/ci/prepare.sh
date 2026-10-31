@@ -17,7 +17,10 @@ python3 -c "import PIL" 2>/dev/null || python3 -m pip install --quiet --break-sy
 for id in rough_wood plywood metal_plate metal_plate_02 rusty_metal_02 blue_metal_plate painted_metal_shutter hessian_230 brown_leather red_brick rusty_metal_grid old_planks_02; do
   out="$nnn/tex_${id}.webp"
   [ -f "$out" ] && continue
-  curl -fsSL "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${id}/${id}_diff_2k.jpg" -o "$tmp/${id}.jpg"
+  # exact file url from the Poly Haven API (names differ per asset); a missing texture falls back to flat colour
+  url=$(curl -fsSL "https://api.polyhaven.com/files/${id}" | python3 -c 'import json,sys; d=json.load(sys.stdin); m=d.get("Diffuse") or d.get("diffuse") or d.get("Color"); print(m["2k"]["jpg"]["url"])' 2>/dev/null) || url=""
+  [ -z "$url" ] && url="https://dl.polyhaven.org/file/ph-assets/Textures/jpg/2k/${id}/${id}_diff_2k.jpg"
+  curl -fsSL "$url" -o "$tmp/${id}.jpg" || { echo "texture ${id} unavailable, skipping"; continue; }
   python3 - "$tmp/${id}.jpg" "$out" <<'PY'
 import sys
 from PIL import Image
