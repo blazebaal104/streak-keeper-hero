@@ -69,10 +69,12 @@ fun NnnBackdrop(modifier: Modifier = Modifier, day: Int) {
         drawRect(Brush.radialGradient(0f to Color(0xFF3A0008).copy(alpha = 0.55f + 0.15f * breath), 1f to Color.Transparent, center = Offset(w / 2, h * 0.55f), radius = h * 0.7f))
         // giant neon NNN
         val k = neon(t, 1.7f)
-        val ty = h * 0.11f
-        neonText("NNN", Offset(w / 2, ty), w * 0.30f, Color(0xFFFF1744), k * (0.75f + 0.25f * breath), d)
-        neonText("IN CORSO", Offset(w / 2, ty + w * 0.185f), w * 0.085f, Color(0xFFFF5252), neon(t, 4.2f) * 0.85f, d, spacing = 0.32f)
-        neonText("GIORNO $day / 30", Offset(w / 2, ty + w * 0.27f), w * 0.04f, Color(0xFFFFB3B3), 0.6f, d, spacing = 0.2f)
+        // signs hang in their own row on top; the neon sits clear below them
+        val ty = 132f * d
+        val ns = (w * 0.25f).coerceAtMost(96f * d)
+        neonText("NNN", Offset(w / 2, ty), ns, Color(0xFFFF1744), k * (0.75f + 0.25f * breath), d)
+        neonText("IN CORSO", Offset(w / 2, ty + ns * 0.66f), ns * 0.30f, Color(0xFFFF5252), neon(t, 4.2f) * 0.85f, d, spacing = 0.32f)
+        neonText("GIORNO $day / 30", Offset(w / 2, ty + ns * 0.98f), ns * 0.15f, Color(0xFFFFB3B3), 0.7f, d, spacing = 0.2f)
         // hanging signs (pendulums: ω = √(g/L))
         signs.forEachIndexed { i, s ->
             val anchor = Offset(w * s.x, 0f)
@@ -90,9 +92,9 @@ private class SignSpec(val x: Float, val rope: Float, val amp: Float, val phase:
 
 // rope < 0 = fraction of the area height
 private val signs = listOf(
-    SignSpec(0.12f, 14f, 7f, 0.3f, 0, 0.82f),
-    SignSpec(0.88f, 30f, 8f, 4.0f, 1, 0.78f),
-    SignSpec(0.5f, -0.27f, 3.2f, 2.1f, 2, 1f),
+    SignSpec(0.13f, 8f, 7f, 0.3f, 0, 0.68f),
+    SignSpec(0.87f, 6f, 8f, 4.0f, 1, 0.66f),
+    SignSpec(0.5f, 18f, 4.5f, 2.1f, 2, 0.8f),
 )
 
 private fun DrawScope.hangingSign(s: SignSpec, anchor: Offset, len: Float, d: Float, tex: Textures, t: Float) {

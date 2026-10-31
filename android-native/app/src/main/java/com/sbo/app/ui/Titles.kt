@@ -98,7 +98,7 @@ object Titles {
     )
     val ALL = FIRE + ICE
     /** Exclusive title for the NNN winners of [year]: legendary purple with a light sweep. */
-    fun nnn(year: Int) = TitleDef("nnn", year, Tier.legendary, "Vincitore NNN $year", "🏆", listOf(c(0xe9d5ff), c(0xc084fc), c(0x9333ea), c(0x6d28d9)))
+    fun nnn(year: Int) = TitleDef("nnn", year, Tier.legendary, "Vincitore NNN $year", "🏆", listOf(c(0xf3e8ff), c(0xd8b4fe), c(0xc084fc), c(0xa855f7)))
     fun byId(id: String?) = ALL.firstOrNull { it.id == id } ?: id?.takeIf { it.startsWith("nnn:") }?.substringAfter(":")?.toIntOrNull()?.let { nnn(it) }
     fun current(list: List<TitleDef>, total: Int) = list.lastOrNull { total >= it.threshold }
     fun next(list: List<TitleDef>, total: Int) = list.firstOrNull { total < it.threshold }
@@ -132,15 +132,6 @@ fun TitleBadge(t: TitleDef, variant: String = "sm", modifier: Modifier = Modifie
     Row(
         modifier.clip(RoundedCornerShape(2.dp)).drawWithContent {
             drawContent()
-            if (sheenOn) {
-                // 32px white band sweeping left → right (translateX -130% → 240% of its width, skewed)
-                val bw = 32.dp.toPx()
-                val x = (-1.3f + 3.7f * sheen) * bw
-                drawRect(
-                    Brush.horizontalGradient(0f to Color.Transparent, 0.5f to Color.White.copy(alpha = 0.55f), 1f to Color.Transparent, startX = x, endX = x + bw),
-                    topLeft = Offset(x, 0f), size = androidx.compose.ui.geometry.Size(bw, size.height),
-                )
-            }
             if (sparks) listOf(0.12f, 0.42f, 0.72f).forEachIndexed { i, left ->
                 val dur = 2f + i * 0.4f
                 val ph = (((spark.value - i * 0.5f) / dur) % 1f + 1f) % 1f
@@ -165,6 +156,15 @@ fun TitleBadge(t: TitleDef, variant: String = "sm", modifier: Modifier = Modifie
                     val brush = if (flow) Brush.linearGradient(t.gradient + t.gradient, start = Offset(off, 0f), end = Offset(off + span * 2f, size.height * 0.5f))
                     else Brush.linearGradient(t.gradient, start = Offset.Zero, end = Offset(w, size.height))
                     drawRect(brush, blendMode = BlendMode.SrcIn)
+                    if (sheenOn) {
+                        // light band sweeping left → right across the letters only (clipped to the glyphs)
+                        val bw = 34.dp.toPx()
+                        val x = -bw + (w + 2f * bw) * sheen
+                        drawRect(
+                            Brush.linearGradient(0f to Color.Transparent, 0.5f to Color.White.copy(alpha = 0.95f), 1f to Color.Transparent, start = Offset(x, 0f), end = Offset(x + bw, size.height * 0.4f)),
+                            blendMode = BlendMode.SrcAtop,
+                        )
+                    }
                 },
             )
         }

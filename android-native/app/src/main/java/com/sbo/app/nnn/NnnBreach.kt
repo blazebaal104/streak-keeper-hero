@@ -149,7 +149,7 @@ fun NnnBreach(kinds: List<Kind>, seed: Int, fire: Int, ice: Int, onFall: () -> U
         val density = androidx.compose.ui.platform.LocalDensity.current.density
         val area = NNN_AREA.value * density
         val homeScale = 0.92f
-        val fullScale = (wPx * 0.86f / area).coerceAtMost(hPx * 0.5f / area)
+        val fullScale = (wPx * 0.62f / area).coerceAtMost(hPx * 0.36f / area) // leaves room to grow to ~full width
         fun scaleNow(): Float {
             val z = zoom.value
             val g = grow.value

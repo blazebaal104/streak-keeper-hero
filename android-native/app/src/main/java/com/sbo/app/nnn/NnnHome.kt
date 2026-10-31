@@ -65,7 +65,7 @@ fun NnnHome(userId: String, fire: Int, ice: Int, today: LocalDate, ctl: NnnContr
     Box(Modifier.fillMaxWidth().height(700.dp)) {
         NnnBackdrop(Modifier.matchParentSize(), today.dayOfMonth)
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(232.dp))
+            Spacer(Modifier.height(238.dp))
             ProtectedButton(kinds, seed, fire, ice) { ctl.preview = false; ctl.startLayer = 0; ctl.breach = true }
             Spacer(Modifier.height(4.dp))
             Text(

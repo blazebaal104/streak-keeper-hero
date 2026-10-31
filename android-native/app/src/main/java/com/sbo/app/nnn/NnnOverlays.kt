@@ -8,6 +8,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -100,7 +101,13 @@ fun NnnKickoff(onAccept: () -> Unit) {
             neonText("NNN", Offset(size.width / 2, size.height * 0.15f), size.width * 0.34f, Color(0xFFFF1744), neon(t, 1.1f), density)
             neonText("1 – 30 NOVEMBRE", Offset(size.width / 2, size.height * 0.15f + size.width * 0.2f), size.width * 0.06f, Color(0xFFFFB3B3), neon(t, 3.3f) * 0.8f, density, spacing = 0.3f)
         }
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp), verticalArrangement = Arrangement.Bottom) {
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Spacer(Modifier.height(240.dp))
+            val kinds = remember { Nnn.sequence("kickoff", java.time.LocalDate.now().year) }
+            Box(Modifier.graphicsLayer { val k = enter.value; scaleX = 0.62f + 0.08f * k; scaleY = 0.62f + 0.08f * k; alpha = k }.height(210.dp), contentAlignment = Alignment.Center) {
+                ProtectedButton(kinds, 17, 0, 0) {}
+            }
+            Spacer(Modifier.weight(1f))
             CoachLines(NnnPhrases.kickoff, angry = false)
             Spacer(Modifier.height(20.dp))
             SboButton("Accetto la sfida 💪", onClick = onAccept)
@@ -122,6 +129,11 @@ fun NnnFallen(day: Int, onClose: () -> Unit) {
             val t = clock.value
             drawRect(Brush.radialGradient(0f to Color(0xFF700010).copy(alpha = 0.55f + 0.1f * sin(t * 2f)), 1f to Color.Transparent, center = Offset(size.width / 2, size.height * 0.18f), radius = size.height * 0.55f))
             neonText("NNN PERSA", Offset(size.width / 2, size.height * 0.12f), size.width * 0.15f, Color(0xFFFF1744), neon(t, 2.2f), density)
+            val mid = Offset(size.width / 2, size.height * 0.33f)
+            val uu = size.width / 260f
+            tapeStrip(Offset(-20f * uu, mid.y - 70f * uu), Offset(size.width + 20f * uu, mid.y + 40f * uu), 26f * uu, uu, t * 0.2f)
+            tapeStrip(Offset(-20f * uu, mid.y + 50f * uu), Offset(size.width + 20f * uu, mid.y - 60f * uu), 26f * uu, uu, t * 0.2f + 0.5f)
+            flappingTape(Offset(size.width - 6f * uu, mid.y - 64f * uu), uu, t, 5, 90f, 12f)
             neonText(if (lasted == 0) "IL PRIMO GIORNO" else "DOPO $lasted ${if (lasted == 1) "GIORNO" else "GIORNI"}", Offset(size.width / 2, size.height * 0.12f + size.width * 0.13f), size.width * 0.06f, Color(0xFFFFCDD2), 0.85f, density, spacing = 0.25f)
         }
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp), verticalArrangement = Arrangement.Bottom) {
@@ -181,13 +193,15 @@ fun NnnVictory(year: Int, onClose: () -> Unit) {
             neonText("NNN $year COMPLETATA", Offset(size.width / 2, size.height * 0.1f + size.width * 0.1f), size.width * 0.05f, Color(0xFFE9D5FF), 0.9f, density, spacing = 0.25f)
         }
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(130.dp))
+            Spacer(Modifier.height(168.dp))
             Box(Modifier.graphicsLayer { val k = medal.value; scaleX = 0.2f + 0.8f * k; scaleY = 0.2f + 0.8f * k; alpha = k.coerceIn(0f, 1f); rotationY = (1f - k) * 540f }) {
                 BadgeArt(Badges.nnn(year), side = 150.dp)
             }
             Spacer(Modifier.height(14.dp))
             Box(Modifier.graphicsLayer { val k = title.value; alpha = k.coerceIn(0f, 1f); scaleX = 0.6f + 0.4f * k; scaleY = 0.6f + 0.4f * k }) {
-                TitleBadge(Titles.nnn(year), "md")
+                Box(Modifier.clip(RoundedCornerShape(20.dp)).background(Color(0xCC12081F)).border(1.dp, Color(0xFFC084FC).copy(alpha = 0.6f), RoundedCornerShape(20.dp)).padding(horizontal = 16.dp, vertical = 8.dp)) {
+                    TitleBadge(Titles.nnn(year), "md")
+                }
             }
             Spacer(Modifier.weight(1f))
             CoachLines(NnnPhrases.victory(year), angry = false, startDelay = 2000)
