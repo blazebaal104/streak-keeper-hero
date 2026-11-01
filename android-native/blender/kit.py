@@ -419,3 +419,10 @@ def masonry(name, color):
     nt.links.new(n.outputs['Fac'], add.inputs[0]); nt.links.new(pits.outputs['Fac'], add.inputs[1])
     _bump(nt, p, add.outputs[0], 0.6, 0.02)
     return m
+
+
+def hole(o):
+    """Makes an object a see-through cut-out: wherever it is visible the sprite is transparent, so the app shows
+    whatever lies underneath (the next protection, or the real button)."""
+    o.is_holdout = True
+    return o

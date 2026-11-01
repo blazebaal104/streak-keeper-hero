@@ -10,10 +10,14 @@ def build(step):
     tape = plastic("packtape", (0.55, 0.36, 0.14), 0.25)
     ink = plastic("ink", (0.55, 0.03, 0.03), 0.6)
     H = 0.9
-    cube((2.8, 2.6, H), (0, 0, H / 2), mat=card, bevel=0.02)
     l_open = step >= 2; r_open = step >= 3
+    body = cube((2.8, 2.6, H), (0, 0, H / 2), mat=card, bevel=0.02)
     if l_open or r_open:
-        inside = cube((2.7, 2.5, 0.02), (0, 0, 0.1), mat=emissive("glow", (1.0, 0.35, 0.05), 1.4))
+        # an empty box with no bottom: once the flaps are open you look straight through it
+        cav = cube((2.68, 2.48, H), (0, 0, H / 2 + 0.06), mat=card)
+        b = body.modifiers.new("cut", 'BOOLEAN'); b.object = cav; b.operation = 'DIFFERENCE'
+        cav.hide_render = True
+        hole(cube((2.66, 2.46, 0.02), (0, 0, 0.07)))
     # flaps (hinged at left/right edges)
     for side, opened in ((-1, l_open), (1, r_open)):
         f = cube((1.4, 2.6, 0.03), (0, 0, 0), mat=card, bevel=0.005)

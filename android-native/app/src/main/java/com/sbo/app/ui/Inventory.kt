@@ -140,8 +140,11 @@ fun InventoryDialog(slot: Int, profile: Profile, badges: List<Badge>, onClose: (
         Group("🔥 Streak di fuoco (fai ogni giorno)", Badges.FIRE, "fire", badges, equipped, onEquip) { preview = it }
         Group("❄️ Streak di ghiaccio (giorni puliti)", Badges.ICE, "ice", badges, equipped, onEquip) { preview = it }
         Group("💪 Allenamenti totali", Badges.WORKOUT, "workout", badges, equipped, onEquip) { preview = it }
-        val nnnWon = badges.filter { it.category == "nnn" }.map { Badges.nnn(it.threshold) }
-        if (nnnWon.isNotEmpty()) Group("🏆 Esclusive", nnnWon, "nnn", badges, equipped, onEquip) { preview = it }
+        // the NNN medal: on show (locked) only while it can still be won, i.e. during November; afterwards only if won
+        val nnnDay = com.sbo.app.nnn.Nnn.today()
+        val nnnDefs = (badges.filter { it.category == "nnn" }.map { it.threshold } +
+            listOfNotNull(nnnDay.year.takeIf { com.sbo.app.nnn.Nnn.active(nnnDay) })).distinct().sortedDescending().map { Badges.nnn(it) }
+        if (nnnDefs.isNotEmpty()) Group("🏆 Esclusive", nnnDefs, "nnn", badges, equipped, onEquip) { preview = it }
         titles()
     }
     PopOf(preview) { LockedPreview(it) { preview = null } }

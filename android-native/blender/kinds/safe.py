@@ -32,8 +32,8 @@ def build(step):
         bpy.ops.object.modifier_apply(modifier="cut")
         cav.data.materials.clear(); cav.data.materials.append(plastic("inside", (0.05, 0.05, 0.05), 0.5))
         cav.hide_render = True
-        cyl(1.0, 0.04, (0, 0, 0.24), mat=emissive("glow", (1.0, 0.36, 0.05), 2.2))
-        cyl(0.7, 0.05, (0, 0, 0.25), mat=emissive("core", (1.0, 0.62, 0.2), 3.5))
+        # the safe has no bottom: through it you see whatever is under it
+        hole(cube((2.2, 2.2, 0.02), (0, 0, 0.23)))
         hinge_x = -1.18
         door = cube((2.2, 2.2, 0.12), (0, 0, 0), mat=paint, bevel=0.04, segs=3)
         # open: swung ~105° around the left hinge, standing up off the side

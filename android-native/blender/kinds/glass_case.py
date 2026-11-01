@@ -10,13 +10,12 @@ def build(step):
     random.seed(5)
     red = painted_metal("case", (0.55, 0.02, 0.02), wear=0.5, rough=0.32)
     cube((2.7, 2.7, 0.5), (0, 0, 0.25), mat=red, bevel=0.06, segs=4)
-    inner = plastic("inner", (0.02, 0.01, 0.01), 0.7)
-    cube((2.2, 2.2, 0.02), (0, 0, 0.505), mat=inner)
+    # the case is open at the back: behind the glass you see what's under it
+    hole(cube((2.2, 2.2, 0.02), (0, -0.05, 0.505)))
     # label strip
     cube((2.2, 0.3, 0.01), (0, 1.15, 0.51), mat=plastic("w", (0.92, 0.92, 0.9), 0.5))
     text_obj("IN CASO DI EMERGENZA", (0, 1.15, 0.52), 0.13, plastic("ink", (0.6, 0.02, 0.02), 0.4))
     # the button glows through (cut a window)
-    cyl(0.9, 0.02, (0, -0.05, 0.515), mat=emissive("glow", (1.0, 0.33, 0.04), 0.5))
     g = glass()
     if step == 0:
         cube((2.2, 2.2, 0.04), (0, -0.05, 0.56), mat=g)

@@ -1,9 +1,11 @@
 name: NNN sprites (Blender)
 on:
   workflow_dispatch:
+    inputs:
+      groups: { description: 'JSON list of render groups (empty = all)', required: false, default: '' }
   push:
     branches: [native]
-    paths: ["android-native/blender/**"]
+    paths: ["android-native/blender/__never__"]
 concurrency: { group: nnn-sprites, cancel-in-progress: true }
 permissions: { contents: write }
 jobs:
@@ -13,13 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group:
-          - "safe beam steel_plate"
-          - "chain_padlock handcuffs u_lock zip_ties"
-          - "barbed_wire glass_case rope grate"
-          - "box sandbags bricks duct_tape"
-          - "tape safe beam steel_plate chain_padlock handcuffs u_lock zip_ties"
-          - "tape barbed_wire glass_case rope grate box sandbags bricks duct_tape"
+        group: ${{ fromJSON(github.event.inputs.groups != '' && github.event.inputs.groups || '["safe beam steel_plate","chain_padlock handcuffs u_lock zip_ties","barbed_wire glass_case rope grate","box sandbags bricks duct_tape","tape safe beam steel_plate chain_padlock handcuffs u_lock zip_ties","tape barbed_wire glass_case rope grate box sandbags bricks duct_tape"]') }}
     steps:
       - uses: actions/checkout@v4
         with: { fetch-depth: 0 }
