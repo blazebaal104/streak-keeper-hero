@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sbo.app.NnnShots" tests="12" skipped="0" failures="0" errors="0" timestamp="2026-11-02T10:11:26" hostname="runnervm48cm3" time="60.179">
+  <properties/>
+  <testcase name="debugPanel" classname="com.sbo.app.NnnShots" time="1.236"/>
+  <testcase name="breach" classname="com.sbo.app.NnnShots" time="29.556"/>
+  <testcase name="fallen" classname="com.sbo.app.NnnShots" time="1.426"/>
+  <testcase name="kickoff" classname="com.sbo.app.NnnShots" time="2.494"/>
+  <testcase name="kickoffOnHome" classname="com.sbo.app.NnnShots" time="2.311"/>
+  <testcase name="medal" classname="com.sbo.app.NnnShots" time="1.735"/>
+  <testcase name="piles" classname="com.sbo.app.NnnShots" time="11.303"/>
+  <testcase name="victory" classname="com.sbo.app.NnnShots" time="2.628"/>
+  <testcase name="homeNoFire" classname="com.sbo.app.NnnShots" time="1.11"/>
+  <testcase name="breachLastLayers" classname="com.sbo.app.NnnShots" time="1.425"/>
+  <testcase name="fallenMotion" classname="com.sbo.app.NnnShots" time="1.107"/>
+  <testcase name="homeDay12" classname="com.sbo.app.NnnShots" time="3.845"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
