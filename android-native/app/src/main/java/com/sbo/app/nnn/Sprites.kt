@@ -37,13 +37,14 @@ class NnnSprites(private val ctx: Context, private val maxPx: Int) {
     /** Decodes (off the main thread) every image the pile may need from [layer] on. */
     suspend fun preload(kinds: List<Kind>, layer: Int) {
         val want = ArrayList<String>()
-        for (i in layer until minOf(kinds.size, layer + 3)) {
+        want += "nnn_tape_tail_0"
+        // every remaining layer is drawn (many protections are see-through), so all of them must be ready
+        for (i in layer until kinds.size) {
             val k = kinds[i]
             val under = kinds.getOrNull(i + 1)
-            val states = if (i == layer) 0 until (if (k == Kind.TAPE) 2 else k.steps) else 0 until 1
+            val states = if (i <= layer + 1) 0 until (if (k == Kind.TAPE) 2 else k.steps) else 0 until 1
             for (s in states) want += name(k, s, under)
         }
-        want += "nnn_tape_tail_0"
         // decode off the main thread, publish on it
         for (n in want) {
             if (loaded.containsKey(n) || n in missing) continue
@@ -52,7 +53,7 @@ class NnnSprites(private val ctx: Context, private val maxPx: Int) {
         }
         // forget what's far behind to keep memory small on low-end phones
         val keep = want.toSet()
-        if (loaded.size > 18) loaded.keys.filter { it !in keep }.forEach { loaded.remove(it) }
+        if (loaded.size > 48) loaded.keys.filter { it !in keep }.forEach { loaded.remove(it) }
     }
 
     private fun decode(n: String): ImageBitmap? {
@@ -107,7 +108,7 @@ fun tiltOf(seed: Int, i: Int) = ((seed * 31 + i * 97) % 15 - 7).toFloat()
  */
 fun DrawScope.drawPile(sp: NnnSprites, kinds: List<Kind>, layer: Int, step: Int, c: Offset, side: Float, t: Float, seed: Int, jitter: Offset = Offset.Zero) {
     if (layer >= kinds.size) return
-    val last = minOf(kinds.lastIndex, layer + 2)
+    val last = kinds.lastIndex
     for (i in last downTo layer) {
         val k = kinds[i]
         val st = if (i == layer) step else 0

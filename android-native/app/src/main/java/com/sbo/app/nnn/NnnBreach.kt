@@ -130,9 +130,10 @@ fun NnnBreach(
         while (true) {
             // quiet at first, then a crescendo: from one every few seconds to a flood near the end
             val p = (removed / kinds.size.toFloat()).coerceIn(0f, 1f)
-            delay((3200 - 3000 * p.pow(1.5f)).toLong().coerceAtLeast(160L))
-            if ((phase == "dig" && p > 0.2f) || phase == "bare") repeat(if (p > 0.8f) 2 else 1) { shouts += stamps.next(r, clock.value, removed) }
-            while (shouts.size > 140) shouts.removeAt(0)
+            val i = if (phase == "bare") 1f else p.pow(1.6f)
+            delay((2800 * (1f - i) + 70f).toLong())
+            if ((phase == "dig" && p > 0.15f) || phase == "bare") repeat(1 + (i * 3.2f).toInt()) { shouts += stamps.next(r, clock.value, removed) }
+            while (shouts.size > 220) shouts.removeAt(0)
         }
     }
 
@@ -140,10 +141,15 @@ fun NnnBreach(
         val density = LocalDensity.current.density
         val wPx = constraints.maxWidth.toFloat(); val hPx = constraints.maxHeight.toFloat()
         val discPx = DISC.value * density
-        val target = Offset(wPx / 2f, hPx * 0.53f)
+        val statusTop = androidx.compose.foundation.layout.WindowInsets.statusBars.getTop(LocalDensity.current).toFloat()
+        // the pile lives between Coach Zero's chat and the reply bar, and never grows into either
+        val top = (statusTop + 250f * density); val bottom = hPx - 96f * density
+        val target = Offset(wPx / 2f, (top + bottom) / 2f)
         val start = from?.center ?: target
         val startScale = (from?.width?.div(discPx * 2f) ?: 0.92f).coerceIn(0.4f, 1.2f)
-        val fullScale = (wPx * 0.56f / discPx).coerceAtMost(hPx * 0.3f / discPx)
+        val maxGrow = 1f + 0.62f * (1f - 0.86f.pow(kinds.size))
+        // the objects fill ~72% of their sprite: at full growth they must still fit the free band and the width
+        val fullScale = minOf(wPx * 0.56f / discPx, (bottom - top) / (0.72f * 2f * discPx) / maxGrow, wPx * 1.02f / (0.72f * 2f * discPx) / maxGrow)
         fun center(): Offset = start + (target - start) * zoom.value
         fun scaleNow(): Float {
             val base = startScale + (fullScale - startScale) * zoom.value
@@ -184,8 +190,9 @@ fun NnnBreach(
             }
             // few shouts on the first layers so you can see what you're tapping; a climax towards the end
             val p = (removed / kinds.size.toFloat()).coerceIn(0f, 1f)
-            if (r.nextFloat() < 0.06f + 0.94f * p.pow(2.2f)) shouts += stamps.next(r, now, removed)
-            if (p > 0.75f && r.nextFloat() < (p - 0.75f) * 3.2f) shouts += stamps.next(r, now, removed)
+            val i = p.pow(1.8f)
+            if (r.nextFloat() < 0.06f + 0.94f * i) shouts += stamps.next(r, now, removed)
+            repeat((i * 3.5f + r.nextFloat() * i).toInt()) { shouts += stamps.next(r, now, removed) }   // the flood at the end
             if (step >= k.steps) {
                 // the whole thing is torn off: it jumps up, spins, and drops off the bottom of the screen
                 view.performHapticFeedback(if (android.os.Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.LONG_PRESS)
