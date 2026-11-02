@@ -38,25 +38,27 @@ object NnnPhrases {
     fun coachLine(r: Random) = coach[r.nextInt(coach.size)]
 
     /** Coach Zero's reaction to a fall (same wording as the server, used for previews and right after the press). */
+    private fun giorni(n: Int) = if (n == 1) "1 giorno" else "$n giorni"
+
     fun reaction(lasted: Int): List<String> = when {
         lasted < 5 -> listOf(
-            "NO. NON CI CREDO. $lasted GIORNI. $lasted GIORNI E HAI MOLLATO.",
+            if (lasted == 0) "NO. NON CI CREDO. IL PRIMO GIORNO. NEANCHE UN GIORNO E HAI MOLLATO." else "NO. NON CI CREDO. ${giorni(lasted).uppercase()}. ${giorni(lasted).uppercase()} E HAI MOLLATO.",
             "MA TI RENDI CONTO? NEANCHE UNA SETTIMANA. NEANCHE CINQUE GIORNI.",
             "TUTTE QUELLE PROTEZIONI. TRAVI, LUCCHETTI, CASSEFORTI. E TU LE HAI SMONTATE UNA PER UNA PUR DI PREMERE.",
             "NON VOGLIO SENTIRE SCUSE. ZERO. LA PROSSIMA VOLTA VOGLIO VEDERE LA SCHIENA DRITTA, NON QUESTA ROBA.",
         )
         lasted < 15 -> listOf(
-            "$lasted giorni. Non zero, ma neanche lontanamente quello che ti avevo chiesto.",
+            "${giorni(lasted).replaceFirstChar { it.uppercase() }}. Non zero, ma neanche lontanamente quello che ti avevo chiesto.",
             "Hai tenuto botta per un po' e poi hai mollato sul più bello. Sono incazzato, sì.",
             "Ripartiamo. Ma la prossima volta voglio vedere il doppio di questi giorni.",
         )
         lasted < 29 -> listOf(
-            "$lasted giorni. Non te lo dico volentieri, ma sei stato bravo.",
+            "${giorni(lasted).replaceFirstChar { it.uppercase() }}. Non te lo dico volentieri, ma sei stato bravo.",
             "C'eri quasi, cazzo. Un altro po' e ti stringevo la mano.",
             "L'anno prossimo arrivi in fondo. Me lo segno.",
         )
         else -> listOf(
-            "NO. NO. NO. $lasted GIORNI. MANCAVA UN GIORNO. UNO.",
+            "NO. NO. NO. ${giorni(lasted).uppercase()}. MANCAVA UN GIORNO. UNO.",
             "Avevi la medaglia in mano e l'hai buttata nel cesso all'ultimo metro.",
             "Sono fiero di quanto sei arrivato lontano e incazzato nero per come è finita. Tutte e due le cose insieme.",
             "Ricordatelo il prossimo novembre: l'ultimo giorno è quello che conta.",

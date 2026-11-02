@@ -128,8 +128,11 @@ fun NnnBreach(
     // the shouting never stops while you dig: more and faster the deeper you get
     LaunchedEffect(Unit) {
         while (true) {
-            delay((1400 - removed * 70L).coerceAtLeast(320L))
-            if (phase == "dig" || phase == "bare") shouts += stamps.next(r, clock.value, removed)
+            // quiet at first, then a crescendo: from one every few seconds to a flood near the end
+            val p = (removed / kinds.size.toFloat()).coerceIn(0f, 1f)
+            delay((3200 - 3000 * p.pow(1.5f)).toLong().coerceAtLeast(160L))
+            if ((phase == "dig" && p > 0.2f) || phase == "bare") repeat(if (p > 0.8f) 2 else 1) { shouts += stamps.next(r, clock.value, removed) }
+            while (shouts.size > 140) shouts.removeAt(0)
         }
     }
 
@@ -179,14 +182,17 @@ fun NnnBreach(
                 flying += Flying(null, c + Offset(cos(a), sin(a)) * side * 0.12f, 0f, now, cos(a) * (200f + r.nextFloat() * 380f) * density / 2.6f, -(300f + r.nextFloat() * 500f) * density / 2.6f, 0f, 0f,
                     if (r.nextBoolean()) Color(0xFFBDB7AE) else Color(0xFF6E6A66), (1.5f + r.nextFloat() * 2.5f) * density)
             }
-            if (r.nextFloat() < 0.55f + removed * 0.03f) shouts += stamps.next(r, now, removed)
+            // few shouts on the first layers so you can see what you're tapping; a climax towards the end
+            val p = (removed / kinds.size.toFloat()).coerceIn(0f, 1f)
+            if (r.nextFloat() < 0.06f + 0.94f * p.pow(2.2f)) shouts += stamps.next(r, now, removed)
+            if (p > 0.75f && r.nextFloat() < (p - 0.75f) * 3.2f) shouts += stamps.next(r, now, removed)
             if (step >= k.steps) {
                 // the whole thing is torn off: it jumps up, spins, and drops off the bottom of the screen
                 view.performHapticFeedback(if (android.os.Build.VERSION.SDK_INT >= 30) HapticFeedbackConstants.CONFIRM else HapticFeedbackConstants.LONG_PRESS)
                 val img = sprites[sprites.name(k, (k.steps - 1).let { if (k == Kind.TAPE) 1 else it }, kinds.getOrNull(layer + 1))]
                 flying += Flying(img, c, side, now, (r.nextFloat() - 0.5f) * 900f * density / 2.6f, -(1800f + r.nextFloat() * 300f) * density / 2.6f, (if (r.nextBoolean()) 1f else -1f) * (220f + r.nextFloat() * 200f), tiltOf(seed, layer))
                 layer++; step = 0; removed++
-                shouts += stamps.next(r, now, removed, big = true)
+                if (removed >= 2) shouts += stamps.next(r, now, removed, big = true)
                 if (removed % 2 == 0) {
                     val recent = bubbles.takeLast(4).map { it.first }.toSet()
                     bubbles += (NnnPhrases.coach.filter { it !in recent }.shuffled(r).firstOrNull() ?: NnnPhrases.coachLine(r)) to now
