@@ -29,6 +29,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
@@ -141,7 +143,7 @@ fun NnnBreach(
         val density = LocalDensity.current.density
         val wPx = constraints.maxWidth.toFloat(); val hPx = constraints.maxHeight.toFloat()
         val discPx = DISC.value * density
-        val statusTop = androidx.compose.foundation.layout.WindowInsets.statusBars.getTop(LocalDensity.current).toFloat()
+        val statusTop = WindowInsets.statusBars.getTop(LocalDensity.current).toFloat()
         // the pile lives between Coach Zero's chat and the reply bar, and never grows into either
         val top = (statusTop + 250f * density); val bottom = hPx - 96f * density
         val target = Offset(wPx / 2f, (top + bottom) / 2f)
