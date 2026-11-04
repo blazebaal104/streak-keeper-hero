@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.sbo.app.HomeShots" tests="36" skipped="0" failures="0" errors="0" timestamp="2026-11-04T17:10:20" hostname="runnervm7aw5e" time="44.537">
+  <properties/>
+  <testcase name="inventory" classname="com.sbo.app.HomeShots" time="17.765"/>
+  <testcase name="friendDlg2" classname="com.sbo.app.HomeShots" time="0.929"/>
+  <testcase name="fire30" classname="com.sbo.app.HomeShots" time="1.084"/>
+  <testcase name="fire2a" classname="com.sbo.app.HomeShots" time="1.184"/>
+  <testcase name="fire2b" classname="com.sbo.app.HomeShots" time="0.921"/>
+  <testcase name="fire2c" classname="com.sbo.app.HomeShots" time="1.214"/>
+  <testcase name="friendDlg" classname="com.sbo.app.HomeShots" time="0.486"/>
+  <testcase name="profileDlg" classname="com.sbo.app.HomeShots" time="0.572"/>
+  <testcase name="pzHome" classname="com.sbo.app.HomeShots" time="0.495"/>
+  <testcase name="pzPlan" classname="com.sbo.app.HomeShots" time="0.47"/>
+  <testcase name="social" classname="com.sbo.app.HomeShots" time="0.51"/>
+  <testcase name="titles" classname="com.sbo.app.HomeShots" time="0.843"/>
+  <testcase name="pzSettings" classname="com.sbo.app.HomeShots" time="0.573"/>
+  <testcase name="preview" classname="com.sbo.app.HomeShots" time="0.618"/>
+  <testcase name="calendar" classname="com.sbo.app.HomeShots" time="0.387"/>
+  <testcase name="settingsDlg" classname="com.sbo.app.HomeShots" time="0.457"/>
+  <testcase name="pzCoach" classname="com.sbo.app.HomeShots" time="0.842"/>
+  <testcase name="pzTrend" classname="com.sbo.app.HomeShots" time="0.308"/>
+  <testcase name="pzPlanWork" classname="com.sbo.app.HomeShots" time="0.377"/>
+  <testcase name="auth" classname="com.sbo.app.HomeShots" time="0.313"/>
+  <testcase name="ice9" classname="com.sbo.app.HomeShots" time="0.89"/>
+  <testcase name="drops" classname="com.sbo.app.HomeShots" time="1.752"/>
+  <testcase name="press" classname="com.sbo.app.HomeShots" time="3.68"/>
+  <testcase name="pzCal" classname="com.sbo.app.HomeShots" time="0.378"/>
+  <testcase name="quiz1" classname="com.sbo.app.HomeShots" time="0.7"/>
+  <testcase name="trend" classname="com.sbo.app.HomeShots" time="0.301"/>
+  <testcase name="profileDlg2" classname="com.sbo.app.HomeShots" time="0.382"/>
+  <testcase name="trendTips" classname="com.sbo.app.HomeShots" time="0.34"/>
+  <testcase name="settingsDlg2" classname="com.sbo.app.HomeShots" time="0.419"/>
+  <testcase name="equipped" classname="com.sbo.app.HomeShots" time="0.754"/>
+  <testcase name="clanDlg" classname="com.sbo.app.HomeShots" time="0.451"/>
+  <testcase name="pzSocial" classname="com.sbo.app.HomeShots" time="0.478"/>
+  <testcase name="headerTitle" classname="com.sbo.app.HomeShots" time="0.798"/>
+  <testcase name="invitesDlg" classname="com.sbo.app.HomeShots" time="0.306"/>
+  <testcase name="neutral" classname="com.sbo.app.HomeShots" time="0.652"/>
+  <testcase name="shatter" classname="com.sbo.app.HomeShots" time="1.89"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[SLF4J(W): No SLF4J providers were found.
+SLF4J(W): Defaulting to no-operation (NOP) logger implementation
+SLF4J(W): See https://www.slf4j.org/codes.html#noProviders for further details.
+]]></system-err>
+</testsuite>
