@@ -325,7 +325,13 @@ fun HomeContent(
                     Column(Modifier.fillMaxWidth()) {
                     when (t) {
                         0 -> {
-                            if (nnnStanding) com.sbo.app.nnn.NnnHome(p.id, s.fire, s.ice, nnnDay, nnnCtl)
+                            if (nnnStanding) {
+                                com.sbo.app.nnn.NnnHome(p.id, s.fire, s.ice, nnnDay, nnnCtl)
+                                // Project Zero still trains in November: today's workout sits under the NNN scene
+                                if (zv.active && zv.plan != null) Column(Modifier.padding(top = 28.dp)) {
+                                    TodayPlanCard(zv.plan, zv.todayWD, toggleExercise, skipExercise, { showCustom = true }, { showPlan = true })
+                                }
+                            }
                             else if (zv.active && zv.plan != null) ZeroHome(s, zv, add, onUndo, onReassess = { quiz = "reassess" },
                                 onWorkout = { if (zv.plan.rest || zv.todayWD?.completed == true) showCustom = true else showPlan = true },
                                 onToggle = toggleExercise, onSkip = skipExercise, onCustom = { showCustom = true }, onExpand = { showPlan = true }) { inventory = it }
