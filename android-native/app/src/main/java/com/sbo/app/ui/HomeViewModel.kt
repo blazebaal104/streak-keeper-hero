@@ -268,6 +268,26 @@ class HomeViewModel(private val preview: String?) : ViewModel() {
         if (completed && !was) { onCompleted(); tick("workout") }
     }
 
+    /** Calendar correction: add (+1) or remove (-1) one workout on any day of Project Zero. */
+    fun editWorkouts(day: java.time.LocalDate, delta: Int) {
+        val id = uid ?: return
+        val key = day.toString()
+        val cur = _s.value.zero.workouts.firstOrNull { it.day == key }
+        var custom = cur?.custom ?: emptyList()
+        var completed = cur?.completed ?: false
+        if (delta > 0) custom = custom + com.sbo.app.data.CustomWorkout("Allenamento", null, day.atTime(12, 0).atZone(java.time.ZoneId.systemDefault()).toInstant().toString())
+        else if (custom.isNotEmpty()) custom = custom.dropLast(1)
+        else if (completed) completed = false
+        else return
+        // the plan counts as done only if it really was; extra workouts alone also make the day "done"
+        val planDone = cur != null && cur.plan_size > 0 && cur.done_ids.count { !it.startsWith("skip:") } >= cur.plan_size
+        if (delta < 0 && completed && custom.isEmpty() && !planDone) completed = false
+        if (delta > 0 && !completed) completed = true
+        val row = com.sbo.app.data.WorkoutDay(id, key, cur?.done_ids ?: emptyList(), cur?.plan_size ?: 0, custom, completed, java.time.Instant.now().toString())
+        _s.update { it.copy(zero = it.zero.copy(workouts = it.zero.workouts.filter { w -> w.day != key } + row)) }
+        viewModelScope.launch { runCatching { Supa.saveWorkoutDay(row) } }
+    }
+
     /** Add a friend by code; result message for the toast. */
     fun addFriend(code: String, done: (String) -> Unit) = viewModelScope.launch {
         val id = uid ?: return@launch

@@ -98,6 +98,7 @@ fun HomeScreen(vm: HomeViewModel) {
         zero = ZeroActions(
             save = { j, after -> vm.savePz(j) { after() } }, tick = { vm.tick(it) }, send = vm::sendCoach, poll = { vm.reloadAgent() }, markRead = { vm.markAgentRead() },
             saveToday = { ids, cus, done -> vm.saveToday(ids, cus, done) },
+            editWorkouts = vm::editWorkouts,
         ),
     )
     // pause background checks when the app is not visible; refresh when it comes back
@@ -144,6 +145,7 @@ class ZeroActions(
     val poll: () -> Unit = {},
     val markRead: () -> Unit = {},
     val saveToday: (List<String>?, List<com.sbo.app.data.CustomWorkout>?, () -> Unit) -> Unit = { _, _, _ -> },
+    val editWorkouts: (java.time.LocalDate, Int) -> Unit = { _, _ -> },
 )
 
 @Composable
@@ -433,7 +435,11 @@ fun HomeContent(
             }
             PopOf(dayEdit) { d ->
                 val n = remember(s.events, d) { com.sbo.app.logic.Streaks.byDay(s.events)[d] ?: 0 }
-                DayEditDialog(d, n, onAdd = { onDayAdd(d) }, onRemove = { onDayRemove(d) }, onClose = { dayEdit = null })
+                // with Project Zero on, the same day can also be corrected for workouts (only from its start up to today)
+                val pzDay = zv.active && zv.start != null && !d.isBefore(zv.start) && !d.isAfter(today)
+                DayEditDialog(d, n, onAdd = { onDayAdd(d) }, onRemove = { onDayRemove(d) }, onClose = { dayEdit = null },
+                    workouts = if (pzDay) zv.workoutsOn(d.toString()) else null,
+                    onWorkoutAdd = { zero.editWorkouts(d, 1) }, onWorkoutRemove = { zero.editWorkouts(d, -1) })
             }
             if (p != null) PopOf(inventory) { slot -> InventoryDialog(
                 slot, p, s.badges, onClose = { inventory = null },

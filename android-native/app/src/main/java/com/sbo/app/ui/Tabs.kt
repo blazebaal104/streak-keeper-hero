@@ -174,7 +174,8 @@ private fun DayCell(d: LocalDate, inMonth: Boolean, today: LocalDate, count: Int
 
 /** Retro-log dialog: add or remove events on one of the last 7 days. */
 @Composable
-fun DayEditDialog(day: LocalDate, count: Int, onAdd: () -> Unit, onRemove: () -> Unit, onClose: () -> Unit) {
+fun DayEditDialog(day: LocalDate, count: Int, onAdd: () -> Unit, onRemove: () -> Unit, onClose: () -> Unit,
+                  workouts: Int? = null, onWorkoutAdd: () -> Unit = {}, onWorkoutRemove: () -> Unit = {}) {
     SboDialog(onClose) {
         val it = Locale.ITALIAN
         val title = "${day.dayOfWeek.getDisplayName(JTextStyle.FULL, it)} ${day.dayOfMonth} ${day.month.getDisplayName(JTextStyle.FULL, it)}"
@@ -191,6 +192,20 @@ fun DayEditDialog(day: LocalDate, count: Int, onAdd: () -> Unit, onRemove: () ->
             }
             Spacer(Modifier.width(20.dp))
             RoundAction(Lucide.Plus, Sbo.primary, Sbo.primaryFg, enabled = true, onAdd)
+        }
+        if (workouts != null) {
+            Spacer(Modifier.height(4.dp))
+            Box(Modifier.fillMaxWidth().padding(horizontal = 24.dp).height(1.dp).background(Sbo.border))
+            Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                RoundAction(Lucide.X, Sbo.secondary, Sbo.foreground, enabled = workouts > 0, onWorkoutRemove)
+                Spacer(Modifier.width(20.dp))
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("$workouts", fontFamily = SpaceGrotesk, fontSize = 36.sp, lineHeight = 40.sp, fontWeight = FontWeight.Bold, color = Sbo.zeroOk)
+                    Text("ALLENAMENTI", color = Sbo.mutedFg, fontSize = 11.sp, lineHeight = 16.sp, letterSpacing = 0.55.sp)
+                }
+                Spacer(Modifier.width(20.dp))
+                RoundAction(Lucide.Plus, Sbo.zeroOk, Color.White, enabled = true, onWorkoutAdd)
+            }
         }
         Spacer(Modifier.height(16.dp))
         Box(Modifier.fillMaxWidth().height(40.dp).clip(RoundedCornerShape(18.dp)).clickable(onClick = onClose), contentAlignment = Alignment.Center) {
